@@ -223,7 +223,39 @@ export function detectFromDom(doc: Document = document): DetectionOutcome {
     metaColorScheme,
   };
 
-  return detectFromSignals(signals);
+  const signalOutcome = detectFromSignals(signals);
+  if (signalOutcome.result !== 'unknown') return signalOutcome;
+
+  if (hasDarkClass(html) || (body && hasDarkClass(body))) {
+    return { result: 'dark', confidence: 'high' };
+  }
+
+  const themeColorMeta = doc.querySelector('meta[name="theme-color"]');
+  const themeColorContent = themeColorMeta?.getAttribute('content');
+  if (themeColorContent) {
+    const rgb = parseColor(themeColorContent);
+    if (rgb) {
+      const lum = computeLuminance(rgb.r / 255, rgb.g / 255, rgb.b / 255);
+      if (lum < DARK_LUMINANCE_THRESHOLD) {
+        return { result: 'dark', confidence: 'high' };
+      }
+      if (lum > 0.75) {
+        return { result: 'light', confidence: 'medium' };
+      }
+    }
+  }
+
+  return { result: 'unknown', confidence: 'low' };
+}
+
+function hasDarkClass(el: Element): boolean {
+  for (const cls of el.classList) {
+    const lower = cls.toLowerCase();
+    if (lower === 'dark' || lower.endsWith('-dark') || lower.startsWith('dark-')) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function isDetectCacheValid(timestamp: number, ttlMs: number): boolean {

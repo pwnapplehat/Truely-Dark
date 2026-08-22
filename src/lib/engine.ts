@@ -1,8 +1,36 @@
 import type { EffectiveSiteSettings } from '../types';
+import { parseColor } from './detect';
 
 const ROOT_ATTR = 'data-truely-dark-active';
 const STYLE_ID = 'truely-dark-styles';
 const PRELOAD_STYLE_ID = 'truely-dark-preload';
+
+/** FOUC preload only — dark appearance before Soft filter engages. */
+export const PRELOAD_CSS = `
+  html,
+  body {
+    background-color: #121212 !important;
+    color-scheme: dark;
+  }
+`;
+
+/**
+ * Soft mode applies invert(1) on html. Root background must be LIGHT *before* invert
+ * so it reads dark after the filter (invert flips #121212 → #ededed, causing illegible
+ * light-on-light text). Preset target colors (Midnight #121212, OLED #000) are achieved
+ * post-invert via brightness/contrast/sepia — map them to pre-invert complements here.
+ */
+export function computePreInvertBackground(targetHex: string): string {
+  const rgb = parseColor(targetHex);
+  if (!rgb) return '#ffffff';
+
+  const r = Math.round(255 - rgb.r);
+  const g = Math.round(255 - rgb.g);
+  const b = Math.round(255 - rgb.b);
+
+  const toHex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
 
 /**
  * Build CSS filter string from settings values.
@@ -29,9 +57,8 @@ export function generateDarkCss(settings: EffectiveSiteSettings): string {
     settings.sepia,
   );
 
-  const bg = settings.backgroundColor;
+  const preInvertBg = computePreInvertBackground(settings.backgroundColor);
 
-  // Media preservation excludes iframe — child frames self-darken via all_frames
   const mediaSelectors = settings.preserveMedia
     ? 'img, video, canvas, picture, svg, [data-truely-dark-preserve]'
     : '';
@@ -39,7 +66,7 @@ export function generateDarkCss(settings: EffectiveSiteSettings): string {
   let css = `
     html[${ROOT_ATTR}],
     html[${ROOT_ATTR}] body {
-      background-color: ${bg} !important;
+      background-color: ${preInvertBg} !important;
       color-scheme: dark !important;
     }
 
@@ -48,19 +75,18 @@ export function generateDarkCss(settings: EffectiveSiteSettings): string {
     }
   `;
 
-  // Firefox: explicit body background (root filter doesn't paint body bg the same way)
   css += `
     @-moz-document url-prefix() {
+      html[${ROOT_ATTR}],
       html[${ROOT_ATTR}] body {
-        background-color: ${bg} !important;
+        background-color: ${preInvertBg} !important;
       }
     }
   `;
 
-  // Iframes: darken consistently; child frame content script handles interior
   css += `
     html[${ROOT_ATTR}] iframe {
-      background-color: ${bg} !important;
+      background-color: ${preInvertBg} !important;
       color-scheme: dark !important;
     }
   `;
@@ -94,17 +120,6 @@ export function generateDarkCss(settings: EffectiveSiteSettings): string {
   return css;
 }
 
-/**
- * Preload CSS injected at document_start to prevent white flash.
- */
-export const PRELOAD_CSS = `
-  html,
-  body {
-    background-color: #121212 !important;
-    color-scheme: dark;
-  }
-`;
-
 export function injectPreloadCss(doc: Document = document): void {
   if (doc.getElementById(PRELOAD_STYLE_ID)) return;
   const style = doc.createElement('style');
@@ -112,6 +127,26 @@ export function injectPreloadCss(doc: Document = document): void {
   style.textContent = PRELOAD_CSS;
   const target = doc.head || doc.documentElement;
   target.insertBefore(style, target.firstChild);
+}
+
+function swapPreloadToInvertSafe(doc: Document, preInvertBg: string): void {
+  const preloadEl = doc.getElementById(PRELOAD_STYLE_ID);
+  if (preloadEl) {
+    preloadEl.textContent = `
+      html,
+      body {
+        background-color: ${preInvertBg} !important;
+        color-scheme: dark;
+      }
+    `;
+  }
+}
+
+function restorePreloadDark(doc: Document): void {
+  const preloadEl = doc.getElementById(PRELOAD_STYLE_ID);
+  if (preloadEl) {
+    preloadEl.textContent = PRELOAD_CSS.trim();
+  }
 }
 
 export function applyDarkMode(
@@ -125,12 +160,16 @@ export function applyDarkMode(
     return;
   }
 
+  const preInvertBg = computePreInvertBackground(settings.backgroundColor);
+
   html.setAttribute(ROOT_ATTR, settings.mode);
 
-  // Firefox: set inline background as fallback
-  html.style.backgroundColor = settings.backgroundColor;
+  // Swap FOUC preload from dark #121212 to invert-safe light root before filter paints
+  swapPreloadToInvertSafe(doc, preInvertBg);
+
+  html.style.backgroundColor = preInvertBg;
   if (doc.body) {
-    doc.body.style.backgroundColor = settings.backgroundColor;
+    doc.body.style.backgroundColor = preInvertBg;
   }
 
   let styleEl = doc.getElementById(STYLE_ID) as HTMLStyleElement | null;
@@ -149,6 +188,8 @@ export function removeDarkMode(doc: Document = document): void {
   if (doc.body) {
     doc.body.style.backgroundColor = '';
   }
+
+  restorePreloadDark(doc);
 
   const styleEl = doc.getElementById(STYLE_ID);
   if (styleEl) styleEl.remove();

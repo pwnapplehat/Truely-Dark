@@ -155,7 +155,7 @@ export function resolveEffectiveSettings(ctx: ResolveContext): EffectiveSiteSett
   if (detection.result === 'dark') {
     return {
       ...inactiveSettings({ ...base, mode: 'auto' }),
-      nativeDark: false,
+      nativeDark: true,
     };
   }
 

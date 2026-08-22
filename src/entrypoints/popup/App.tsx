@@ -7,8 +7,12 @@ import type { SiteMode, TabInfo, TruelyDarkSettings } from '../../types';
 import './popup.css';
 
 function siteStatusLabel(tabInfo: TabInfo): string {
-  if (tabInfo.nativeDark) return 'Site is natively dark — Truely Dark skipped';
-  if (tabInfo.active) return 'Dark mode active on this site';
+  if (tabInfo.nativeDark) {
+    return 'Natively dark — Truely Dark skipped';
+  }
+  if (tabInfo.active) {
+    return 'Extension dark mode active (Soft)';
+  }
   return 'Dark mode off on this site';
 }
 

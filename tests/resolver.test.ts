@@ -31,7 +31,7 @@ describe('resolveEffectiveSettings — Auto mode', () => {
     });
 
     expect(result.active).toBe(false);
-    expect(result.nativeDark).toBe(false);
+    expect(result.nativeDark).toBe(true);
   });
 
   it('applies Soft when site is light', () => {
