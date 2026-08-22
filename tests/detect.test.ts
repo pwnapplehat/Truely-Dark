@@ -10,6 +10,8 @@ import {
   isHighConfidenceDark,
   parseColor,
   purgePoisonedDetectCache,
+  resolveExplicitThemeMode,
+  resolveMetaColorScheme,
 } from '../src/lib/detect';
 import { DEFAULT_SETTINGS } from '../src/lib/defaults';
 import { makeDetection, resolveEffectiveSettings } from '../src/lib/resolver';
@@ -75,7 +77,39 @@ describe('detectFromAuthoredSignals', () => {
   });
 
   it('detects light from data-theme', () => {
-    expect(detectFromAuthoredSignals({ dataTheme: 'light' }).result).toBe('light');
+    expect(detectFromAuthoredSignals({ dataTheme: 'light' })).toEqual({
+      result: 'light',
+      confidence: 'high',
+    });
+  });
+
+  it('detects GitHub-style data-color-mode=light with high confidence', () => {
+    expect(detectFromAuthoredSignals({ dataColorMode: 'light' })).toEqual({
+      result: 'light',
+      confidence: 'high',
+    });
+  });
+
+  it('resolves data-color-mode=auto via prefers-color-scheme', () => {
+    expect(resolveExplicitThemeMode('auto', false)).toEqual({
+      result: 'light',
+      confidence: 'high',
+    });
+    expect(resolveExplicitThemeMode('auto', true)).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
+  });
+
+  it('resolves dual meta color-scheme via prefers-color-scheme', () => {
+    expect(resolveMetaColorScheme('light dark', false)).toEqual({
+      result: 'light',
+      confidence: 'high',
+    });
+    expect(resolveMetaColorScheme('light dark', true)).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
   });
 });
 
@@ -153,6 +187,47 @@ describe('Auto mode — poisoned preload signals', () => {
 
     expect(result.active).toBe(false);
     expect(result.nativeDark).toBe(true);
+  });
+
+  it('GitHub data-color-mode=light → Soft active (not native skip)', () => {
+    const outcome = detectFromAuthoredSignals({ dataColorMode: 'light' });
+    const result = resolveEffectiveSettings({
+      origin: 'https://github.com',
+      hostname: 'github.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(result.active).toBe(true);
+    expect(result.mode).toBe('soft');
+    expect(result.nativeDark).toBe(false);
+  });
+
+  it('GitHub data-color-mode=auto + system light → Soft active', () => {
+    const outcome = detectFromAuthoredSignals({ dataColorMode: 'auto', prefersDark: false });
+    const result = resolveEffectiveSettings({
+      origin: 'https://github.com',
+      hostname: 'github.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(result.active).toBe(true);
+    expect(result.nativeDark).toBe(false);
+  });
+
+  it('Reddit-like light page with white background → Soft active (ignores theme-dark class)', () => {
+    const outcome = detectFromSignals({ htmlBackground: '#ffffff' });
+    const result = resolveEffectiveSettings({
+      origin: 'https://www.reddit.com',
+      hostname: 'www.reddit.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(result.active).toBe(true);
+    expect(result.mode).toBe('soft');
+    expect(result.nativeDark).toBe(false);
   });
 });
 

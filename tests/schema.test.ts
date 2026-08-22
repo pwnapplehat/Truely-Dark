@@ -195,4 +195,25 @@ describe('import/export roundtrip', () => {
     const migrated = migrateSettings(legacy);
     expect(migrated.detectCache['https://github.com']?.confidence).toBe('high');
   });
+
+  it('clears detect cache on v1→v2 storage upgrade', () => {
+    const legacy: Record<string, unknown> = {
+      ...DEFAULT_SETTINGS,
+      detectCache: {
+        'https://github.com': {
+          result: 'dark',
+          confidence: 'high',
+          timestamp: Date.now(),
+        },
+        'https://www.reddit.com': {
+          result: 'dark',
+          confidence: 'high',
+          timestamp: Date.now(),
+        },
+      },
+    };
+
+    const migrated = migrateSettings(legacy, { clearDetectCache: true });
+    expect(migrated.detectCache).toEqual({});
+  });
 });

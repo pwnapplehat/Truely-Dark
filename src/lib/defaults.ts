@@ -1,5 +1,5 @@
 import type { PresetId, TruelyDarkSettings } from '../types';
-import { purgePoisonedDetectCache } from './detect';
+import { purgePoisonedDetectCache, clearDetectCache } from './detect';
 import { settingsSchema } from './schema';
 
 export const DEFAULT_SETTINGS: TruelyDarkSettings = {
@@ -96,10 +96,18 @@ export function cloneSettings(settings: TruelyDarkSettings): TruelyDarkSettings 
   return structuredClone(settings);
 }
 
+export interface MigrateSettingsOptions {
+  /** Wipe detect cache (v1→v2 storage upgrade or poisoned heuristic entries). */
+  clearDetectCache?: boolean;
+}
+
 /**
  * Migrate legacy settings objects missing new fields.
  */
-export function migrateSettings(data: Record<string, unknown>): TruelyDarkSettings {
+export function migrateSettings(
+  data: Record<string, unknown>,
+  options: MigrateSettingsOptions = {},
+): TruelyDarkSettings {
   const merged = {
     ...DEFAULT_SETTINGS,
     ...data,
@@ -120,7 +128,10 @@ export function migrateSettings(data: Record<string, unknown>): TruelyDarkSettin
       timestamp: entry.timestamp as number,
     };
   }
-  merged.detectCache = purgePoisonedDetectCache(normalized);
+
+  merged.detectCache = options.clearDetectCache
+    ? clearDetectCache(normalized)
+    : purgePoisonedDetectCache(normalized);
 
   return validateSettings(merged);
 }

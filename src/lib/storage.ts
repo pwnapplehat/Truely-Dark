@@ -1,5 +1,5 @@
 import type { TruelyDarkSettings } from '../types';
-import { STORAGE_KEY } from '../types';
+import { LEGACY_STORAGE_KEY, STORAGE_KEY } from '../types';
 import { DEFAULT_SETTINGS, cloneSettings, migrateSettings, validateSettings } from './defaults';
 
 let cachedSettings: TruelyDarkSettings | null = null;
@@ -7,12 +7,21 @@ let cachedSettings: TruelyDarkSettings | null = null;
 export async function getSettings(): Promise<TruelyDarkSettings> {
   if (cachedSettings) return cloneSettings(cachedSettings);
 
-  const result = await browser.storage.local.get(STORAGE_KEY);
-  const stored = result[STORAGE_KEY];
+  const result = await browser.storage.local.get([STORAGE_KEY, LEGACY_STORAGE_KEY]);
+  const storedV2 = result[STORAGE_KEY];
+  const storedV1 = result[LEGACY_STORAGE_KEY];
+  const stored = storedV2 ?? storedV1;
 
   if (stored) {
     try {
-      cachedSettings = migrateSettings(stored as Record<string, unknown>);
+      const fromLegacy = !storedV2 && !!storedV1;
+      cachedSettings = migrateSettings(stored as Record<string, unknown>, {
+        clearDetectCache: fromLegacy,
+      });
+      if (fromLegacy) {
+        await browser.storage.local.set({ [STORAGE_KEY]: cachedSettings });
+        await browser.storage.local.remove(LEGACY_STORAGE_KEY);
+      }
       return cloneSettings(cachedSettings);
     } catch {
       cachedSettings = cloneSettings(DEFAULT_SETTINGS);

@@ -102,7 +102,10 @@ export interface TabInfo {
   nativeDark: boolean;
 }
 
-export const STORAGE_KEY = 'truely_dark_settings_v1';
+export const STORAGE_KEY = 'truely_dark_settings_v2';
+
+/** Previous storage key — migrated once with detect cache cleared. */
+export const LEGACY_STORAGE_KEY = 'truely_dark_settings_v1';
 
 export const DETECT_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
