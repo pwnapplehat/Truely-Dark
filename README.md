@@ -38,6 +38,7 @@ Production-grade flash-free dark mode for Chrome and Firefox. Truely Dark applie
 - **Site overrides** — Manage per-site rules in options
 - **Keyboard shortcuts** — `Alt+Shift+D` (global), `Alt+Shift+S` (current site)
 - **Schedule** — Time-based activation + follow system `prefers-color-scheme`
+- **Battery saver** — Cached detection only, no live re-sampling, prefers Soft mode
 - **Import/export** — Backup and restore settings as JSON
 - **Presets** — Midnight, OLED True Black, Paper Night, High Contrast
 
@@ -67,6 +68,38 @@ Production-grade flash-free dark mode for Chrome and Firefox. Truely Dark applie
 2. **Detect:** Already-dark detection via `color-scheme`, `data-theme`, backdrop sampling, MutationObserver
 3. **Flash-free:** `document_start` preload CSS + dynamic content script registration
 4. **Site packs:** JSON rules for GitHub, Google Docs/Sheets, YouTube, and more
+
+## Why not Dark Reader?
+
+Truely Dark is **not** a Dark Reader clone and does not vendor its source. The approaches differ fundamentally:
+
+| | Dark Reader | Truely Dark |
+|---|-------------|-------------|
+| Engine | Dynamic DOM analysis & CSS rewriting | Lightweight CSS `filter: invert()` |
+| Performance | Can lag on heavy SPAs | No DOM rewriting — near-zero overhead |
+| Flash (FOUC) | Often flashes white on navigation | `document_start` preload CSS before first paint |
+| Already-dark sites | May double-darken | Native-first: high-confidence detect skips Soft |
+| Trust model | Closed-source history in category | MIT, zero telemetry, no network by default |
+
+Truely Dark is for users who want **instant, flash-free darkening** without a heavyweight rewrite engine.
+
+## FOUC mitigation
+
+White flash happens when the browser paints the page before dark styles apply. Truely Dark prevents this with two layers:
+
+1. **Preload CSS** — Injected at `document_start` (before DOM build): `html, body { background: #121212; color-scheme: dark }`
+2. **Soft engine** — Applied as soon as settings resolve; child iframes self-darken via `all_frames` content scripts
+
+On Firefox, `html` and `body` backgrounds are set explicitly (Firefox does not propagate root filter backgrounds the same way as Chrome).
+
+## Google Docs & Sheets
+
+Google Docs and Sheets render their editing surface on **`<canvas>`** elements. Truely Dark applies Soft mode to the surrounding chrome with `preserveMedia: false` so the canvas inverts with the page.
+
+**Known limitations (honest):**
+- Embedded charts, drawings, and some add-on panels may not invert perfectly
+- Canvas pixel content cannot be selectively re-themed without a rewrite engine (by design — we avoid that cost)
+- If a document looks wrong, set the site to **Off** in the popup or use Google's built-in dark theme
 
 ## Quick Start (Development)
 
@@ -129,8 +162,8 @@ Customize in your browser's extension keyboard shortcuts page.
 
 | Preset | Background | Description |
 |--------|------------|-------------|
-| **Midnight** | `#121212` | AA-safe dark gray — balanced for all-day use |
-| **OLED True Black** | `#000000` | Pure black for OLED displays |
+| **Midnight** | `#121212` | Comfortable dark gray with softened contrast — default, avoids halation |
+| **OLED True Black** | `#000000` | Pure black — explicit opt-in for OLED displays |
 | **Paper Night** | `#1a1410` | Warm, low-blue tones for evening reading |
 | **High Contrast** | `#000000` | Boosted contrast for readability |
 

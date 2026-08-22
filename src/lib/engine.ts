@@ -20,6 +20,7 @@ export function buildFilterString(
 
 /**
  * Generate the main dark mode CSS.
+ * Note: iframes are NOT counter-inverted — child frames run their own content script via all_frames.
  */
 export function generateDarkCss(settings: EffectiveSiteSettings): string {
   const filter = buildFilterString(
@@ -28,15 +29,39 @@ export function generateDarkCss(settings: EffectiveSiteSettings): string {
     settings.sepia,
   );
 
+  const bg = settings.backgroundColor;
+
+  // Media preservation excludes iframe — child frames self-darken via all_frames
   const mediaSelectors = settings.preserveMedia
-    ? 'img, video, canvas, picture, svg, iframe, [data-truely-dark-preserve]'
+    ? 'img, video, canvas, picture, svg, [data-truely-dark-preserve]'
     : '';
 
   let css = `
-    html[${ROOT_ATTR}] {
-      background: ${settings.backgroundColor} !important;
+    html[${ROOT_ATTR}],
+    html[${ROOT_ATTR}] body {
+      background-color: ${bg} !important;
       color-scheme: dark !important;
+    }
+
+    html[${ROOT_ATTR}] {
       filter: ${filter} !important;
+    }
+  `;
+
+  // Firefox: explicit body background (root filter doesn't paint body bg the same way)
+  css += `
+    @-moz-document url-prefix() {
+      html[${ROOT_ATTR}] body {
+        background-color: ${bg} !important;
+      }
+    }
+  `;
+
+  // Iframes: darken consistently; child frame content script handles interior
+  css += `
+    html[${ROOT_ATTR}] iframe {
+      background-color: ${bg} !important;
+      color-scheme: dark !important;
     }
   `;
 
@@ -73,8 +98,9 @@ export function generateDarkCss(settings: EffectiveSiteSettings): string {
  * Preload CSS injected at document_start to prevent white flash.
  */
 export const PRELOAD_CSS = `
-  html {
-    background: #121212 !important;
+  html,
+  body {
+    background-color: #121212 !important;
     color-scheme: dark;
   }
 `;
@@ -101,6 +127,12 @@ export function applyDarkMode(
 
   html.setAttribute(ROOT_ATTR, settings.mode);
 
+  // Firefox: set inline background as fallback
+  html.style.backgroundColor = settings.backgroundColor;
+  if (doc.body) {
+    doc.body.style.backgroundColor = settings.backgroundColor;
+  }
+
   let styleEl = doc.getElementById(STYLE_ID) as HTMLStyleElement | null;
   if (!styleEl) {
     styleEl = doc.createElement('style');
@@ -113,6 +145,10 @@ export function applyDarkMode(
 export function removeDarkMode(doc: Document = document): void {
   const html = doc.documentElement;
   html.removeAttribute(ROOT_ATTR);
+  html.style.backgroundColor = '';
+  if (doc.body) {
+    doc.body.style.backgroundColor = '';
+  }
 
   const styleEl = doc.getElementById(STYLE_ID);
   if (styleEl) styleEl.remove();

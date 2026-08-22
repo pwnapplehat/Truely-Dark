@@ -1,3 +1,4 @@
+import React from 'react';
 import type { SiteMode } from '../types';
 
 interface ToggleProps {
@@ -95,6 +96,37 @@ export function Section({ title, children }: SectionProps) {
     <section className="td-section">
       <h2 className="td-section-title">{title}</h2>
       {children}
+    </section>
+  );
+}
+
+interface CollapsibleSectionProps {
+  title: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}
+
+export function CollapsibleSection({
+  title,
+  defaultOpen = false,
+  children,
+}: CollapsibleSectionProps) {
+  const [open, setOpen] = React.useState(defaultOpen);
+
+  return (
+    <section className="td-collapsible">
+      <button
+        type="button"
+        className="td-collapsible-header"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+      >
+        <span>{title}</span>
+        <span className="td-collapsible-chevron" aria-hidden="true">
+          {open ? '▾' : '▸'}
+        </span>
+      </button>
+      {open && <div className="td-collapsible-body">{children}</div>}
     </section>
   );
 }

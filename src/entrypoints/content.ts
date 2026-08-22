@@ -3,7 +3,7 @@ import { applyDarkMode, injectPreloadCss, removeDarkMode } from '../lib/engine';
 import { sendMessage } from '../lib/messaging';
 import { resolveEffectiveSettings } from '../lib/resolver';
 import { getHostnameFromUrl, getOriginFromUrl } from '../lib/site-packs';
-import type { DetectResult, EffectiveSiteSettings, TruelyDarkMessage } from '../types';
+import type { DetectionOutcome, TruelyDarkMessage } from '../types';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -12,17 +12,20 @@ export default defineContentScript({
   matchAboutBlank: true,
   registration: 'manifest',
   main() {
-    // Flash-resistant preload — runs before first paint
     injectPreloadCss();
 
-    let currentSettings: EffectiveSiteSettings | null = null;
     let detectObserver: MutationObserver | null = null;
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let batterySaver = false;
 
     const origin = getOriginFromUrl(window.location.href);
     const hostname = getHostnameFromUrl(window.location.href);
 
-    async function runDetection(): Promise<DetectResult> {
+    async function runDetection(useCacheOnly: boolean): Promise<DetectionOutcome> {
+      if (useCacheOnly) {
+        return { result: 'unknown', confidence: 'low' };
+      }
+
       if (document.readyState === 'loading') {
         await new Promise<void>((resolve) => {
           document.addEventListener('DOMContentLoaded', () => resolve(), { once: true });
@@ -31,12 +34,16 @@ export default defineContentScript({
       return detectFromDom();
     }
 
-    async function reportDetection(result: DetectResult): Promise<void> {
-      if (!origin) return;
+    async function reportDetection(outcome: DetectionOutcome): Promise<void> {
+      if (!origin || outcome.result === 'unknown') return;
       try {
         await sendMessage({
           type: 'DETECT_RESULT',
-          payload: { origin, result },
+          payload: {
+            origin,
+            result: outcome.result,
+            confidence: outcome.confidence,
+          },
         });
       } catch {
         // Background may not be ready yet
@@ -45,21 +52,39 @@ export default defineContentScript({
 
     async function refresh(): Promise<void> {
       try {
-        const detectResult = await runDetection();
-        await reportDetection(detectResult);
-
         const fullSettings = await sendMessage<import('../types').TruelyDarkSettings>({
           type: 'GET_SETTINGS',
         });
+
+        batterySaver = fullSettings.batterySaver;
+
+        const siteMode =
+          fullSettings.siteOverrides[origin]?.mode ?? fullSettings.defaultMode;
+
+        // Zero-cost path for excluded origins
+        if (!fullSettings.enabled || siteMode === 'off') {
+          removeDarkMode();
+          return;
+        }
+
+        const useCacheOnly = batterySaver;
+        const detectOutcome = await runDetection(useCacheOnly);
+
+        if (!useCacheOnly) {
+          await reportDetection(detectOutcome);
+        }
 
         const effective = resolveEffectiveSettings({
           origin,
           hostname,
           settings: fullSettings,
-          detectResult,
+          detectOutcome,
         });
 
-        currentSettings = effective;
+        if (effective.skipProcessing && !effective.active) {
+          removeDarkMode();
+          return;
+        }
 
         if (effective.active) {
           applyDarkMode(effective);
@@ -72,11 +97,13 @@ export default defineContentScript({
     }
 
     function debouncedRefresh(): void {
+      if (batterySaver) return;
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => refresh(), 300);
     }
 
     function setupMutationObserver(): void {
+      if (batterySaver) return;
       if (detectObserver) detectObserver.disconnect();
 
       detectObserver = new MutationObserver((mutations) => {
@@ -123,13 +150,16 @@ export default defineContentScript({
 
     function onMessage(message: TruelyDarkMessage): void {
       if (message.type === 'SETTINGS_CHANGED') {
-        debouncedRefresh();
+        if (batterySaver) {
+          refresh();
+        } else {
+          debouncedRefresh();
+        }
       }
     }
 
     browser.runtime.onMessage.addListener(onMessage);
 
-    // Initial apply
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
         refresh();
@@ -140,10 +170,10 @@ export default defineContentScript({
       setupMutationObserver();
     }
 
-    // Re-apply on navigation in SPAs (history API)
-    window.addEventListener('pageshow', () => debouncedRefresh());
+    window.addEventListener('pageshow', () => {
+      if (!batterySaver) debouncedRefresh();
+    });
 
-    // Cleanup on unload
     window.addEventListener('beforeunload', () => {
       if (detectObserver) detectObserver.disconnect();
       browser.runtime.onMessage.removeListener(onMessage);

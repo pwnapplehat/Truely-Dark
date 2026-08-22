@@ -12,6 +12,8 @@ export const presetIdSchema = z.enum([
 
 export const detectResultSchema = z.enum(['dark', 'light', 'unknown']);
 
+export const detectConfidenceSchema = z.enum(['high', 'medium', 'low']);
+
 export const siteOverrideSchema = z.object({
   mode: siteModeSchema,
   brightness: z.number().min(0).max(200).optional(),
@@ -28,6 +30,12 @@ export const scheduleSettingsSchema = z.object({
   followSystem: z.boolean(),
 });
 
+export const detectCacheEntrySchema = z.object({
+  result: detectResultSchema,
+  confidence: detectConfidenceSchema,
+  timestamp: z.number(),
+});
+
 export const settingsSchema = z.object({
   enabled: z.boolean(),
   defaultMode: siteModeSchema,
@@ -35,16 +43,11 @@ export const settingsSchema = z.object({
   contrast: z.number().min(0).max(200),
   sepia: z.number().min(0).max(100),
   preserveMedia: z.boolean(),
+  batterySaver: z.boolean(),
   preset: presetIdSchema,
   schedule: scheduleSettingsSchema,
   siteOverrides: z.record(z.string(), siteOverrideSchema),
-  detectCache: z.record(
-    z.string(),
-    z.object({
-      result: detectResultSchema,
-      timestamp: z.number(),
-    }),
-  ),
+  detectCache: z.record(z.string(), detectCacheEntrySchema),
 });
 
 export const sitePackSchema = z.object({
@@ -52,8 +55,10 @@ export const sitePackSchema = z.object({
   mode: siteModeSchema,
   invertSelectors: z.array(z.string()).optional(),
   ignoreImages: z.boolean().optional(),
+  preserveMedia: z.boolean().optional(),
   customCss: z.string().optional(),
   skipDetect: z.boolean().optional(),
+  excludeFromProcessing: z.boolean().optional(),
 });
 
 export const importPayloadSchema = z.object({
@@ -88,4 +93,20 @@ export function mergeWithDefaults(
   defaults: SettingsOutput,
 ): SettingsOutput {
   return settingsSchema.parse({ ...defaults, ...partial });
+}
+
+/**
+ * Roundtrip export/import payload for backup.
+ */
+export function buildExportPayload(settings: SettingsOutput): z.infer<typeof importPayloadSchema> {
+  return {
+    version: 1,
+    settings,
+    exportedAt: new Date().toISOString(),
+  };
+}
+
+export function parseImportPayload(data: unknown): SettingsOutput {
+  const payload = importPayloadSchema.parse(data);
+  return payload.settings;
 }

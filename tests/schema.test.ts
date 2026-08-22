@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS } from '../src/lib/defaults';
+import { DEFAULT_SETTINGS, migrateSettings } from '../src/lib/defaults';
 import {
+  buildExportPayload,
   importPayloadSchema,
   mergeWithDefaults,
+  parseImportPayload,
   parseSettings,
   safeParseSettings,
   settingsSchema,
@@ -10,9 +12,12 @@ import {
 } from '../src/lib/schema';
 
 describe('settingsSchema', () => {
-  it('validates default settings', () => {
+  it('validates default settings including batterySaver', () => {
     const result = settingsSchema.safeParse(DEFAULT_SETTINGS);
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.batterySaver).toBe(false);
+    }
   });
 
   it('rejects invalid brightness', () => {
@@ -124,5 +129,47 @@ describe('importPayloadSchema', () => {
     };
     const result = importPayloadSchema.safeParse(payload);
     expect(result.success).toBe(false);
+  });
+});
+
+describe('import/export roundtrip', () => {
+  it('preserves settings through export and import', () => {
+    const customized = {
+      ...DEFAULT_SETTINGS,
+      brightness: 110,
+      batterySaver: true,
+      siteOverrides: {
+        'https://example.com': { mode: 'soft' as const, addedAt: 1700000000000 },
+      },
+      detectCache: {
+        'https://github.com': {
+          result: 'dark' as const,
+          confidence: 'high' as const,
+          timestamp: 1700000000000,
+        },
+      },
+    };
+
+    const exported = buildExportPayload(customized);
+    const imported = parseImportPayload(exported);
+
+    expect(imported.brightness).toBe(110);
+    expect(imported.batterySaver).toBe(true);
+    expect(imported.siteOverrides['https://example.com']?.mode).toBe('soft');
+    expect(imported.detectCache['https://github.com']?.confidence).toBe('high');
+  });
+
+  it('migrates legacy detect cache without confidence', () => {
+    const legacy: Record<string, unknown> = {
+      ...DEFAULT_SETTINGS,
+      detectCache: {
+        'https://github.com': { result: 'dark', timestamp: Date.now() },
+      },
+    };
+    delete legacy.batterySaver;
+
+    const migrated = migrateSettings(legacy);
+    expect(migrated.batterySaver).toBe(false);
+    expect(migrated.detectCache['https://github.com']?.confidence).toBe('medium');
   });
 });

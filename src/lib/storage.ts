@@ -1,6 +1,6 @@
 import type { TruelyDarkSettings } from '../types';
 import { STORAGE_KEY } from '../types';
-import { DEFAULT_SETTINGS, cloneSettings, validateSettings } from './defaults';
+import { DEFAULT_SETTINGS, cloneSettings, migrateSettings, validateSettings } from './defaults';
 
 let cachedSettings: TruelyDarkSettings | null = null;
 
@@ -12,7 +12,7 @@ export async function getSettings(): Promise<TruelyDarkSettings> {
 
   if (stored) {
     try {
-      cachedSettings = validateSettings(stored);
+      cachedSettings = migrateSettings(stored as Record<string, unknown>);
       return cloneSettings(cachedSettings);
     } catch {
       cachedSettings = cloneSettings(DEFAULT_SETTINGS);
@@ -56,7 +56,7 @@ export function onSettingsChanged(
     const newValue = changes[STORAGE_KEY].newValue;
     if (newValue) {
       try {
-        callback(validateSettings(newValue));
+        callback(migrateSettings(newValue as Record<string, unknown>));
       } catch {
         callback(cloneSettings(DEFAULT_SETTINGS));
       }

@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ModeSelector, Slider, Toggle } from '../../components/Controls';
+import { CollapsibleSection, ModeSelector, Slider, Toggle } from '../../components/Controls';
 import '../../components/controls.css';
 import '../../assets/global.css';
 import { sendMessage } from '../../lib/messaging';
 import type { SiteMode, TabInfo, TruelyDarkSettings } from '../../types';
 import './popup.css';
 
+function siteStatusLabel(tabInfo: TabInfo): string {
+  if (tabInfo.nativeDark) return 'Site is natively dark — Truely Dark skipped';
+  if (tabInfo.active) return 'Dark mode active on this site';
+  return 'Dark mode off on this site';
+}
+
 export function PopupApp() {
   const [settings, setSettings] = useState<TruelyDarkSettings | null>(null);
   const [tabInfo, setTabInfo] = useState<TabInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -19,8 +26,9 @@ export function PopupApp() {
       ]);
       setSettings(s);
       setTabInfo(tab);
+      setError(false);
     } catch {
-      // Failed to load
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -54,9 +62,22 @@ export function PopupApp() {
     [tabInfo?.origin],
   );
 
-  if (loading || !settings) {
+  if (loading) {
     return <div className="popup popup-loading">Loading…</div>;
   }
+
+  if (error || !settings) {
+    return (
+      <div className="popup popup-loading">
+        <p>Could not load settings.</p>
+        <button type="button" className="popup-retry" onClick={load}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  const isRestrictedPage = !tabInfo?.hostname;
 
   return (
     <div className="popup">
@@ -76,22 +97,30 @@ export function PopupApp() {
           onChange={(enabled) => update({ enabled })}
         />
 
-        {tabInfo?.hostname && (
+        {isRestrictedPage ? (
+          <div className="popup-empty">
+            Open a regular webpage to configure per-site settings.
+          </div>
+        ) : (
           <>
             <div className="popup-site">{tabInfo.hostname}</div>
             <div className="popup-status">
               <span
                 className={`popup-status-dot ${
-                  tabInfo.active ? 'popup-status-dot--active' : 'popup-status-dot--inactive'
+                  tabInfo.nativeDark
+                    ? 'popup-status-dot--native'
+                    : tabInfo.active
+                      ? 'popup-status-dot--active'
+                      : 'popup-status-dot--inactive'
                 }`}
               />
-              {tabInfo.active ? 'Dark mode active on this site' : 'Dark mode off on this site'}
+              {siteStatusLabel(tabInfo)}
             </div>
             <ModeSelector value={tabInfo.effectiveMode} onChange={setSiteMode} />
           </>
         )}
 
-        <div style={{ marginTop: 16 }}>
+        <CollapsibleSection title="Advanced">
           <Slider
             label="Brightness"
             value={settings.brightness}
@@ -116,22 +145,23 @@ export function PopupApp() {
             unit="%"
             onChange={(sepia) => update({ sepia, preset: 'custom' })}
           />
-        </div>
-
-        <div style={{ marginTop: 12 }}>
           <Toggle
             label="Preserve images & media"
             description="Counter-invert photos and videos"
             checked={settings.preserveMedia}
             onChange={(preserveMedia) => update({ preserveMedia })}
           />
-        </div>
+        </CollapsibleSection>
       </div>
 
       <footer className="popup-footer">
-        <a className="popup-link" href="#" onClick={(e) => { e.preventDefault(); browser.runtime.openOptionsPage(); }}>
-          Settings
-        </a>
+        <button
+          type="button"
+          className="popup-link"
+          onClick={() => browser.runtime.openOptionsPage()}
+        >
+          All settings
+        </button>
         <span className="popup-version">v1.0.0</span>
       </footer>
     </div>

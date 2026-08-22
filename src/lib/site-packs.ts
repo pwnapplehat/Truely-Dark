@@ -1,14 +1,46 @@
 import type { SitePack } from '../types';
 
+const GOOGLE_DOCS_CSS = `
+  /* Docs chrome — let filter pass through; canvas renders document body */
+  .docs-material,
+  #docs-chrome,
+  .docs-titlebar,
+  .docs-bars,
+  .goog-menu,
+  .goog-toolbar,
+  .kix-appview-editor {
+    background-color: transparent !important;
+  }
+  /* Toolbar text stays readable under invert */
+  .docs-material .goog-toolbar-button,
+  #docs-toolbar-wrapper {
+    color-scheme: dark;
+  }
+`;
+
+const GOOGLE_SHEETS_CSS = `
+  /* Sheets chrome transparency */
+  #docs-chrome,
+  .docs-material,
+  .docs-bars,
+  .grid-container,
+  .waffle,
+  #sheets-viewport {
+    background-color: transparent !important;
+  }
+  .grid-container {
+    color-scheme: dark;
+  }
+`;
+
 /**
  * Site-specific rules for top sites that need special handling.
- * Modes: soft = invert filter, on = force dark, off = skip, auto = detect.
  */
 export const SITE_PACKS: SitePack[] = [
   {
     origins: ['github.com', 'www.github.com'],
-    mode: 'soft',
-    skipDetect: true,
+    mode: 'auto',
+    skipDetect: false,
     customCss: `
       .js-navigation-container { background-color: transparent !important; }
       .Header { background-color: transparent !important; }
@@ -16,13 +48,17 @@ export const SITE_PACKS: SitePack[] = [
   },
   {
     origins: ['docs.google.com'],
-    mode: 'off',
+    mode: 'soft',
     skipDetect: true,
+    preserveMedia: false,
+    customCss: GOOGLE_DOCS_CSS,
   },
   {
     origins: ['sheets.google.com'],
-    mode: 'off',
+    mode: 'soft',
     skipDetect: true,
+    preserveMedia: false,
+    customCss: GOOGLE_SHEETS_CSS,
   },
   {
     origins: ['drive.google.com'],
@@ -31,26 +67,26 @@ export const SITE_PACKS: SitePack[] = [
   },
   {
     origins: ['youtube.com', 'www.youtube.com', 'm.youtube.com'],
-    mode: 'soft',
-    ignoreImages: false,
+    mode: 'auto',
+    skipDetect: false,
     customCss: `
       ytd-app { background-color: transparent !important; }
     `,
   },
   {
     origins: ['twitter.com', 'x.com', 'www.twitter.com', 'www.x.com'],
-    mode: 'soft',
-    skipDetect: true,
+    mode: 'auto',
+    skipDetect: false,
   },
   {
     origins: ['reddit.com', 'www.reddit.com', 'old.reddit.com'],
-    mode: 'soft',
-    skipDetect: true,
+    mode: 'auto',
+    skipDetect: false,
   },
   {
     origins: ['stackoverflow.com', 'www.stackoverflow.com'],
-    mode: 'soft',
-    skipDetect: true,
+    mode: 'auto',
+    skipDetect: false,
   },
   {
     origins: ['notion.so', 'www.notion.so'],
@@ -59,8 +95,8 @@ export const SITE_PACKS: SitePack[] = [
   },
   {
     origins: ['linear.app'],
-    mode: 'soft',
-    skipDetect: true,
+    mode: 'auto',
+    skipDetect: false,
   },
 ];
 
@@ -85,4 +121,10 @@ export function getHostnameFromUrl(url: string): string {
   } catch {
     return '';
   }
+}
+
+export function isExcludedOrigin(hostname: string, siteMode: string): boolean {
+  if (siteMode === 'off') return true;
+  const pack = findSitePack(hostname);
+  return pack?.mode === 'off' || pack?.excludeFromProcessing === true;
 }

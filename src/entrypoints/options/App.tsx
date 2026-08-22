@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Section, Slider, Toggle } from '../../components/Controls';
+import { CollapsibleSection, Section, Slider, Toggle } from '../../components/Controls';
 import '../../components/controls.css';
 import '../../assets/global.css';
 import { PRESETS } from '../../lib/defaults';
@@ -104,16 +104,16 @@ export function OptionsApp() {
         </div>
       </header>
 
-      <Section title="General">
+      <Section title="Essentials">
         <Toggle
           label="Enable Truely Dark"
           description="Master switch for all sites"
           checked={settings.enabled}
           onChange={(enabled) => update({ enabled })}
         />
-        <div style={{ marginTop: 12 }}>
-          <span style={{ fontSize: 12, color: 'var(--td-text-muted)' }}>Default site mode</span>
-          <div style={{ marginTop: 6, display: 'flex', gap: 4 }}>
+        <div className="default-mode-row">
+          <span className="field-label">Default site mode</span>
+          <div className="btn-row">
             {(['auto', 'soft', 'on', 'off'] as SiteMode[]).map((mode) => (
               <button
                 key={mode}
@@ -126,6 +126,12 @@ export function OptionsApp() {
             ))}
           </div>
         </div>
+        <Toggle
+          label="Battery saver"
+          description="Prefer Soft mode, use cached detection only, skip live re-sampling"
+          checked={settings.batterySaver}
+          onChange={(batterySaver) => update({ batterySaver })}
+        />
       </Section>
 
       <Section title="Presets">
@@ -148,7 +154,7 @@ export function OptionsApp() {
         </div>
       </Section>
 
-      <Section title="Appearance">
+      <CollapsibleSection title="Advanced appearance">
         <Slider
           label="Brightness"
           value={settings.brightness}
@@ -175,13 +181,13 @@ export function OptionsApp() {
         />
         <Toggle
           label="Preserve images & media"
-          description="Counter-invert photos, videos, and SVGs"
+          description="Counter-invert photos, videos, and SVGs (not iframes — child frames self-darken)"
           checked={settings.preserveMedia}
           onChange={(preserveMedia) => update({ preserveMedia })}
         />
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="Schedule">
+      <CollapsibleSection title="Schedule">
         <Toggle
           label="Enable schedule"
           description="Automatically enable dark mode during set hours"
@@ -224,7 +230,7 @@ export function OptionsApp() {
             </div>
           </div>
         )}
-      </Section>
+      </CollapsibleSection>
 
       <Section title="Site overrides">
         {siteOverrides.length === 0 ? (
@@ -252,7 +258,7 @@ export function OptionsApp() {
         )}
       </Section>
 
-      <Section title="Keyboard shortcuts">
+      <CollapsibleSection title="Keyboard shortcuts">
         <div className="shortcut-list">
           <div className="shortcut-item">
             <span>Toggle globally</span>
@@ -263,12 +269,12 @@ export function OptionsApp() {
             <span className="shortcut-keys">Alt+Shift+S</span>
           </div>
         </div>
-        <p style={{ fontSize: 11, color: 'var(--td-text-muted)', marginTop: 8 }}>
+        <p className="hint-text">
           Customize shortcuts in your browser&apos;s extension keyboard shortcuts page.
         </p>
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="Import / Export">
+      <CollapsibleSection title="Import / Export">
         <div className="btn-row">
           <button type="button" className="btn btn--primary" onClick={exportSettings}>
             Export settings
@@ -281,7 +287,7 @@ export function OptionsApp() {
             onChange={(e) => setImportText(e.target.value)}
             aria-label="Import settings JSON"
           />
-          <div className="btn-row" style={{ marginTop: 8 }}>
+          <div className="btn-row import-actions">
             <button
               type="button"
               className="btn"
@@ -295,7 +301,7 @@ export function OptionsApp() {
         {status && (
           <div className={`status-msg status-msg--${status.type}`}>{status.text}</div>
         )}
-      </Section>
+      </CollapsibleSection>
 
       <Section title="Privacy">
         <div className="privacy-note">

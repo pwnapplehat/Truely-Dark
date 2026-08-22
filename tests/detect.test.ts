@@ -5,6 +5,7 @@ import {
   detectFromSignals,
   detectPageTheme,
   isDetectCacheValid,
+  isHighConfidenceDark,
   parseColor,
 } from '../src/lib/detect';
 
@@ -42,29 +43,47 @@ describe('parseColor', () => {
 });
 
 describe('detectFromSignals', () => {
-  it('detects dark from data-theme', () => {
-    expect(detectFromSignals({ dataTheme: 'dark' })).toBe('dark');
-    expect(detectFromSignals({ dataTheme: 'night' })).toBe('dark');
+  it('detects dark from data-theme with high confidence', () => {
+    expect(detectFromSignals({ dataTheme: 'dark' })).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
+    expect(detectFromSignals({ dataTheme: 'night' })).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
   });
 
   it('detects light from data-theme', () => {
-    expect(detectFromSignals({ dataTheme: 'light' })).toBe('light');
+    expect(detectFromSignals({ dataTheme: 'light' }).result).toBe('light');
   });
 
-  it('detects dark from color-scheme', () => {
-    expect(detectFromSignals({ colorScheme: 'dark' })).toBe('dark');
+  it('detects dark from color-scheme with high confidence', () => {
+    const outcome = detectFromSignals({ colorScheme: 'dark' });
+    expect(outcome.result).toBe('dark');
+    expect(outcome.confidence).toBe('high');
   });
 
-  it('detects dark from dark background', () => {
-    expect(detectFromSignals({ bodyBackground: '#121212' })).toBe('dark');
+  it('detects dark from dark background with medium confidence', () => {
+    const outcome = detectFromSignals({ bodyBackground: '#121212' });
+    expect(outcome.result).toBe('dark');
+    expect(outcome.confidence).toBe('medium');
   });
 
   it('detects light from light background', () => {
-    expect(detectFromSignals({ htmlBackground: '#ffffff' })).toBe('light');
+    expect(detectFromSignals({ htmlBackground: '#ffffff' }).result).toBe('light');
   });
 
   it('returns unknown when no signals', () => {
-    expect(detectFromSignals({})).toBe('unknown');
+    expect(detectFromSignals({})).toEqual({ result: 'unknown', confidence: 'low' });
+  });
+});
+
+describe('isHighConfidenceDark', () => {
+  it('returns true only for dark + high confidence', () => {
+    expect(isHighConfidenceDark({ result: 'dark', confidence: 'high' })).toBe(true);
+    expect(isHighConfidenceDark({ result: 'dark', confidence: 'medium' })).toBe(false);
+    expect(isHighConfidenceDark({ result: 'light', confidence: 'high' })).toBe(false);
   });
 });
 
@@ -91,12 +110,12 @@ describe('analyzeBackdropSamples', () => {
 describe('detectPageTheme', () => {
   it('combines signals and backdrop', () => {
     const darkSamples = Array.from({ length: 20 }, () => ({ r: 20, g: 20, b: 30 }));
-    expect(detectPageTheme({}, darkSamples)).toBe('dark');
+    expect(detectPageTheme({}, darkSamples).result).toBe('dark');
   });
 
   it('prefers signal over backdrop', () => {
     const lightSamples = Array.from({ length: 20 }, () => ({ r: 255, g: 255, b: 255 }));
-    expect(detectPageTheme({ dataTheme: 'dark' }, lightSamples)).toBe('dark');
+    expect(detectPageTheme({ dataTheme: 'dark' }, lightSamples).result).toBe('dark');
   });
 });
 

@@ -1,7 +1,9 @@
-import type { DetectResult } from '../types';
+import type { DetectConfidence, DetectResult, DetectionOutcome } from '../types';
 
 const DARK_LUMINANCE_THRESHOLD = 0.35;
 const COLORFUL_VARIANCE_THRESHOLD = 0.08;
+
+const HIGH_CONFIDENCE_SIGNALS = new Set(['dataTheme', 'dataColorMode', 'colorScheme', 'metaColorScheme']);
 
 /**
  * Compute relative luminance from an RGB color (0–1 range per channel).
@@ -56,6 +58,14 @@ export function parseColor(color: string): { r: number; g: number; b: number } |
   return null;
 }
 
+type SignalKey =
+  | 'colorScheme'
+  | 'dataTheme'
+  | 'dataColorMode'
+  | 'bodyBackground'
+  | 'htmlBackground'
+  | 'metaColorScheme';
+
 /**
  * Determine if a page is already dark based on DOM signals (no live DOM required).
  */
@@ -66,7 +76,7 @@ export function detectFromSignals(signals: {
   bodyBackground?: string;
   htmlBackground?: string;
   metaColorScheme?: string;
-}): DetectResult {
+}): DetectionOutcome {
   const darkThemeValues = ['dark', 'night', 'dim', 'black', 'oled'];
   const lightThemeValues = ['light', 'day', 'bright', 'white'];
 
@@ -78,13 +88,22 @@ export function detectFromSignals(signals: {
     return null;
   };
 
-  const themeResult =
-    checkValue(signals.dataTheme) ??
-    checkValue(signals.dataColorMode) ??
-    checkValue(signals.colorScheme) ??
-    checkValue(signals.metaColorScheme);
+  const signalChecks: Array<{ key: SignalKey; value: string | undefined }> = [
+    { key: 'dataTheme', value: signals.dataTheme },
+    { key: 'dataColorMode', value: signals.dataColorMode },
+    { key: 'colorScheme', value: signals.colorScheme },
+    { key: 'metaColorScheme', value: signals.metaColorScheme },
+  ];
 
-  if (themeResult) return themeResult;
+  for (const { key, value } of signalChecks) {
+    const result = checkValue(value);
+    if (result) {
+      return {
+        result,
+        confidence: HIGH_CONFIDENCE_SIGNALS.has(key) ? 'high' : 'medium',
+      };
+    }
+  }
 
   const backgrounds = [signals.bodyBackground, signals.htmlBackground];
   for (const bg of backgrounds) {
@@ -92,16 +111,19 @@ export function detectFromSignals(signals: {
     const rgb = parseColor(bg);
     if (!rgb) continue;
     const lum = computeLuminance(rgb.r / 255, rgb.g / 255, rgb.b / 255);
-    if (lum < DARK_LUMINANCE_THRESHOLD) return 'dark';
-    if (lum > 0.75) return 'light';
+    if (lum < DARK_LUMINANCE_THRESHOLD) {
+      return { result: 'dark', confidence: 'medium' };
+    }
+    if (lum > 0.75) {
+      return { result: 'light', confidence: 'medium' };
+    }
   }
 
-  return 'unknown';
+  return { result: 'unknown', confidence: 'low' };
 }
 
 /**
  * Sample backdrop colors from canvas pixel data (for colorful detection).
- * Returns average luminance and color variance.
  */
 export function analyzeBackdropSamples(
   samples: Array<{ r: number; g: number; b: number }>,
@@ -155,26 +177,30 @@ export function detectPageTheme(
     metaColorScheme?: string;
   },
   backdropSamples?: Array<{ r: number; g: number; b: number }>,
-): DetectResult {
-  const signalResult = detectFromSignals(signals);
-  if (signalResult !== 'unknown') return signalResult;
+): DetectionOutcome {
+  const signalOutcome = detectFromSignals(signals);
+  if (signalOutcome.result !== 'unknown') return signalOutcome;
 
   if (backdropSamples && backdropSamples.length > 0) {
     const { luminance, variance } = analyzeBackdropSamples(backdropSamples);
     if (variance > COLORFUL_VARIANCE_THRESHOLD && luminance < 0.5) {
-      return 'dark';
+      return { result: 'dark', confidence: 'medium' };
     }
-    if (luminance < DARK_LUMINANCE_THRESHOLD) return 'dark';
-    if (luminance > 0.7) return 'light';
+    if (luminance < DARK_LUMINANCE_THRESHOLD) {
+      return { result: 'dark', confidence: 'medium' };
+    }
+    if (luminance > 0.7) {
+      return { result: 'light', confidence: 'medium' };
+    }
   }
 
-  return 'unknown';
+  return { result: 'unknown', confidence: 'low' };
 }
 
 /**
  * Browser-side detection using live DOM (content script only).
  */
-export function detectFromDom(doc: Document = document): DetectResult {
+export function detectFromDom(doc: Document = document): DetectionOutcome {
   const html = doc.documentElement;
   const body = doc.body;
 
@@ -202,4 +228,18 @@ export function detectFromDom(doc: Document = document): DetectResult {
 
 export function isDetectCacheValid(timestamp: number, ttlMs: number): boolean {
   return Date.now() - timestamp < ttlMs;
+}
+
+/**
+ * Whether detection confidence is high enough to trust native dark skip.
+ */
+export function isHighConfidenceDark(outcome: DetectionOutcome): boolean {
+  return outcome.result === 'dark' && outcome.confidence === 'high';
+}
+
+/**
+ * Whether site is natively dark and should skip Soft entirely.
+ */
+export function shouldSkipForNativeDark(outcome: DetectionOutcome): boolean {
+  return isHighConfidenceDark(outcome);
 }

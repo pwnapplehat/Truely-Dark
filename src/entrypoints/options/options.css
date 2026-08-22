@@ -30,6 +30,27 @@
   margin-top: 4px;
 }
 
+.field-label {
+  display: block;
+  font-size: 12px;
+  color: var(--td-text-muted);
+  margin-bottom: 6px;
+}
+
+.default-mode-row {
+  margin-top: 12px;
+}
+
+.hint-text {
+  font-size: 11px;
+  color: var(--td-text-muted);
+  margin-top: 8px;
+}
+
+.import-actions {
+  margin-top: 8px;
+}
+
 .preset-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

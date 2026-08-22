@@ -4,10 +4,11 @@ import { settingsSchema } from './schema';
 export const DEFAULT_SETTINGS: TruelyDarkSettings = {
   enabled: true,
   defaultMode: 'auto',
-  brightness: 100,
-  contrast: 100,
+  brightness: 98,
+  contrast: 92,
   sepia: 0,
   preserveMedia: true,
+  batterySaver: false,
   preset: 'midnight',
   schedule: {
     enabled: false,
@@ -33,16 +34,17 @@ export const PRESETS: Record<Exclude<PresetId, 'custom'>, PresetDefinition> = {
   midnight: {
     id: 'midnight',
     name: 'Midnight',
-    description: 'AA-safe dark gray (#121212) — balanced for all-day use',
-    brightness: 100,
-    contrast: 100,
+    description:
+      'Comfortable dark gray (#121212) with softened contrast — avoids halation from pure black/white',
+    brightness: 98,
+    contrast: 92,
     sepia: 0,
     backgroundColor: '#121212',
   },
   oled: {
     id: 'oled',
     name: 'OLED True Black',
-    description: 'Pure black (#000) for OLED displays — maximum contrast',
+    description: 'Pure black (#000) for OLED displays — explicit high-contrast opt-in',
     brightness: 90,
     contrast: 110,
     sepia: 0,
@@ -53,7 +55,7 @@ export const PRESETS: Record<Exclude<PresetId, 'custom'>, PresetDefinition> = {
     name: 'Paper Night',
     description: 'Warm, low-blue tones for comfortable evening reading',
     brightness: 95,
-    contrast: 95,
+    contrast: 90,
     sepia: 15,
     backgroundColor: '#1a1410',
   },
@@ -64,7 +66,7 @@ export const PRESETS: Record<Exclude<PresetId, 'custom'>, PresetDefinition> = {
     brightness: 105,
     contrast: 130,
     sepia: 0,
-    backgroundColor: '#000000',
+    backgroundColor: '#0a0a0a',
   },
 };
 
@@ -91,4 +93,33 @@ export function validateSettings(data: unknown): TruelyDarkSettings {
 
 export function cloneSettings(settings: TruelyDarkSettings): TruelyDarkSettings {
   return structuredClone(settings);
+}
+
+/**
+ * Migrate legacy settings objects missing new fields.
+ */
+export function migrateSettings(data: Record<string, unknown>): TruelyDarkSettings {
+  const merged = {
+    ...DEFAULT_SETTINGS,
+    ...data,
+    schedule: { ...DEFAULT_SETTINGS.schedule, ...(data.schedule as object) },
+  };
+
+  if (data.batterySaver === undefined) {
+    merged.batterySaver = false;
+  }
+
+  // Migrate detect cache entries missing confidence
+  const cache = (data.detectCache ?? {}) as Record<string, Record<string, unknown>>;
+  const detectCache: TruelyDarkSettings['detectCache'] = {};
+  for (const [key, entry] of Object.entries(cache)) {
+    detectCache[key] = {
+      result: entry.result as TruelyDarkSettings['detectCache'][string]['result'],
+      confidence: (entry.confidence as TruelyDarkSettings['detectCache'][string]['confidence']) ?? 'medium',
+      timestamp: entry.timestamp as number,
+    };
+  }
+  merged.detectCache = detectCache;
+
+  return validateSettings(merged);
 }

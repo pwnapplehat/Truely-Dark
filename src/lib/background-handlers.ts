@@ -1,4 +1,5 @@
 import type {
+  DetectConfidence,
   DetectResult,
   SiteMode,
   TabInfo,
@@ -36,6 +37,7 @@ async function buildTabInfo(url: string, settings: TruelyDarkSettings): Promise<
     effectiveMode: getSiteMode(settings, origin),
     active: effective.active,
     globalEnabled: settings.enabled,
+    nativeDark: effective.nativeDark,
   };
 }
 
@@ -74,10 +76,11 @@ async function handleSetSiteMode(origin: string, mode: SiteMode): Promise<Truely
 async function handleDetectResult(
   origin: string,
   result: DetectResult,
+  confidence: DetectConfidence,
 ): Promise<void> {
   const settings = await getSettings();
   const detectCache = { ...settings.detectCache };
-  detectCache[origin] = { result, timestamp: Date.now() };
+  detectCache[origin] = { result, confidence, timestamp: Date.now() };
 
   // Prune stale entries
   for (const [key, entry] of Object.entries(detectCache)) {
@@ -176,11 +179,12 @@ export function registerBackgroundHandlers(): void {
         });
 
       case 'DETECT_RESULT':
-        const { origin: detectOrigin, result } = message.payload as {
+        const { origin: detectOrigin, result, confidence } = message.payload as {
           origin: string;
           result: DetectResult;
+          confidence: DetectConfidence;
         };
-        await handleDetectResult(detectOrigin, result);
+        await handleDetectResult(detectOrigin, result, confidence ?? 'medium');
         await broadcastSettingsChanged();
         return { success: true };
 
