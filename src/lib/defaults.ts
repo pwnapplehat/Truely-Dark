@@ -1,4 +1,5 @@
 import type { PresetId, TruelyDarkSettings } from '../types';
+import { purgePoisonedDetectCache } from './detect';
 import { settingsSchema } from './schema';
 
 export const DEFAULT_SETTINGS: TruelyDarkSettings = {
@@ -109,17 +110,17 @@ export function migrateSettings(data: Record<string, unknown>): TruelyDarkSettin
     merged.batterySaver = false;
   }
 
-  // Migrate detect cache entries missing confidence
   const cache = (data.detectCache ?? {}) as Record<string, Record<string, unknown>>;
-  const detectCache: TruelyDarkSettings['detectCache'] = {};
+  const normalized: TruelyDarkSettings['detectCache'] = {};
   for (const [key, entry] of Object.entries(cache)) {
-    detectCache[key] = {
+    normalized[key] = {
       result: entry.result as TruelyDarkSettings['detectCache'][string]['result'],
-      confidence: (entry.confidence as TruelyDarkSettings['detectCache'][string]['confidence']) ?? 'medium',
+      confidence:
+        (entry.confidence as TruelyDarkSettings['detectCache'][string]['confidence']) ?? 'medium',
       timestamp: entry.timestamp as number,
     };
   }
-  merged.detectCache = detectCache;
+  merged.detectCache = purgePoisonedDetectCache(normalized);
 
   return validateSettings(merged);
 }

@@ -152,14 +152,7 @@ export function resolveEffectiveSettings(ctx: ResolveContext): EffectiveSiteSett
     };
   }
 
-  if (detection.result === 'dark') {
-    return {
-      ...inactiveSettings({ ...base, mode: 'auto' }),
-      nativeDark: true,
-    };
-  }
-
-  // Battery saver: prefer soft, never force "on"
+  // Medium-confidence or unknown → apply Soft (never skip on luminance-only dark)
   const resolvedMode: SiteMode = settings.batterySaver ? 'soft' : 'soft';
   return activeSettings({ ...base, mode: resolvedMode });
 }

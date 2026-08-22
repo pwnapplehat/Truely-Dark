@@ -2,12 +2,17 @@ import { describe, expect, it } from 'vitest';
 import {
   analyzeBackdropSamples,
   computeLuminance,
+  detectFromAuthoredSignals,
   detectFromSignals,
   detectPageTheme,
   isDetectCacheValid,
+  isExtensionInjectedBackground,
   isHighConfidenceDark,
   parseColor,
+  purgePoisonedDetectCache,
 } from '../src/lib/detect';
+import { DEFAULT_SETTINGS } from '../src/lib/defaults';
+import { makeDetection, resolveEffectiveSettings } from '../src/lib/resolver';
 
 describe('computeLuminance', () => {
   it('returns 0 for black', () => {
@@ -42,40 +47,133 @@ describe('parseColor', () => {
   });
 });
 
-describe('detectFromSignals', () => {
+describe('isExtensionInjectedBackground', () => {
+  it('detects preload #121212 as extension-injected', () => {
+    expect(isExtensionInjectedBackground('#121212')).toBe(true);
+    expect(isExtensionInjectedBackground('rgb(18, 18, 18)')).toBe(true);
+  });
+
+  it('does not flag white Wikipedia backgrounds', () => {
+    expect(isExtensionInjectedBackground('#ffffff')).toBe(false);
+    expect(isExtensionInjectedBackground('rgb(255, 255, 255)')).toBe(false);
+  });
+});
+
+describe('detectFromAuthoredSignals', () => {
   it('detects dark from data-theme with high confidence', () => {
-    expect(detectFromSignals({ dataTheme: 'dark' })).toEqual({
+    expect(detectFromAuthoredSignals({ dataTheme: 'dark' })).toEqual({
       result: 'dark',
       confidence: 'high',
     });
-    expect(detectFromSignals({ dataTheme: 'night' })).toEqual({
+  });
+
+  it('detects GitHub-style data-color-mode=dark', () => {
+    expect(detectFromAuthoredSignals({ dataColorMode: 'dark' })).toEqual({
       result: 'dark',
       confidence: 'high',
     });
   });
 
   it('detects light from data-theme', () => {
-    expect(detectFromSignals({ dataTheme: 'light' }).result).toBe('light');
+    expect(detectFromAuthoredSignals({ dataTheme: 'light' }).result).toBe('light');
   });
+});
 
-  it('detects dark from color-scheme with high confidence', () => {
+describe('detectFromSignals — preload poison resistance', () => {
+  it('ignores computed color-scheme dark from preload', () => {
     const outcome = detectFromSignals({ colorScheme: 'dark' });
-    expect(outcome.result).toBe('dark');
-    expect(outcome.confidence).toBe('high');
+    expect(outcome.result).toBe('unknown');
+    expect(outcome.confidence).toBe('low');
   });
 
-  it('detects dark from dark background with medium confidence', () => {
-    const outcome = detectFromSignals({ bodyBackground: '#121212' });
-    expect(outcome.result).toBe('dark');
-    expect(outcome.confidence).toBe('medium');
+  it('ignores preload #121212 html/body backgrounds (Wikipedia/HN false positive)', () => {
+    const outcome = detectFromSignals({
+      colorScheme: 'dark',
+      htmlBackground: '#121212',
+      bodyBackground: 'rgb(18, 18, 18)',
+    });
+    expect(outcome.result).toBe('unknown');
+    expect(outcome.confidence).toBe('low');
   });
 
-  it('detects light from light background', () => {
+  it('detects light from non-poisoned white background', () => {
     expect(detectFromSignals({ htmlBackground: '#ffffff' }).result).toBe('light');
   });
 
   it('returns unknown when no signals', () => {
     expect(detectFromSignals({})).toEqual({ result: 'unknown', confidence: 'low' });
+  });
+});
+
+describe('Auto mode — poisoned preload signals', () => {
+  it('Wikipedia-like light site → Soft active, not native skip', () => {
+    const poisoned = detectFromSignals({
+      colorScheme: 'dark',
+      htmlBackground: '#121212',
+      bodyBackground: '#121212',
+    });
+
+    const result = resolveEffectiveSettings({
+      origin: 'https://en.wikipedia.org',
+      hostname: 'en.wikipedia.org',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: poisoned,
+    });
+
+    expect(result.active).toBe(true);
+    expect(result.mode).toBe('soft');
+    expect(result.nativeDark).toBe(false);
+  });
+
+  it('Hacker News-like light site → Soft active', () => {
+    const poisoned = detectFromSignals({
+      colorScheme: 'dark',
+      htmlBackground: 'rgb(18, 18, 18)',
+    });
+
+    const result = resolveEffectiveSettings({
+      origin: 'https://news.ycombinator.com',
+      hostname: 'news.ycombinator.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: poisoned,
+    });
+
+    expect(result.active).toBe(true);
+    expect(result.nativeDark).toBe(false);
+  });
+
+  it('GitHub data-color-mode=dark → native skip', () => {
+    const outcome = detectFromAuthoredSignals({ dataColorMode: 'dark' });
+    const result = resolveEffectiveSettings({
+      origin: 'https://github.com',
+      hostname: 'github.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(result.active).toBe(false);
+    expect(result.nativeDark).toBe(true);
+  });
+});
+
+describe('purgePoisonedDetectCache', () => {
+  it('removes medium-confidence dark entries', () => {
+    const cache = {
+      'https://en.wikipedia.org': {
+        result: 'dark' as const,
+        confidence: 'medium' as const,
+        timestamp: Date.now(),
+      },
+      'https://github.com': {
+        result: 'dark' as const,
+        confidence: 'high' as const,
+        timestamp: Date.now(),
+      },
+    };
+
+    const cleaned = purgePoisonedDetectCache(cache);
+    expect(cleaned['https://en.wikipedia.org']).toBeUndefined();
+    expect(cleaned['https://github.com']).toBeDefined();
   });
 });
 
@@ -108,12 +206,12 @@ describe('analyzeBackdropSamples', () => {
 });
 
 describe('detectPageTheme', () => {
-  it('combines signals and backdrop', () => {
+  it('does not treat dark backdrop alone as native-dark skip signal', () => {
     const darkSamples = Array.from({ length: 20 }, () => ({ r: 20, g: 20, b: 30 }));
-    expect(detectPageTheme({}, darkSamples).result).toBe('dark');
+    expect(detectPageTheme({}, darkSamples).result).toBe('unknown');
   });
 
-  it('prefers signal over backdrop', () => {
+  it('prefers authored signal over backdrop', () => {
     const lightSamples = Array.from({ length: 20 }, () => ({ r: 255, g: 255, b: 255 }));
     expect(detectPageTheme({ dataTheme: 'dark' }, lightSamples).result).toBe('dark');
   });

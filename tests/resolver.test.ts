@@ -24,14 +24,15 @@ describe('resolveEffectiveSettings — Auto mode', () => {
     expect(result.skipProcessing).toBe(true);
   });
 
-  it('skips Soft when cached dark with medium confidence', () => {
+  it('applies Soft when medium-confidence dark (luminance-only, not native skip)', () => {
     const result = resolveEffectiveSettings({
       ...baseCtx,
       detectOutcome: makeDetection('dark', 'medium'),
     });
 
-    expect(result.active).toBe(false);
-    expect(result.nativeDark).toBe(true);
+    expect(result.active).toBe(true);
+    expect(result.mode).toBe('soft');
+    expect(result.nativeDark).toBe(false);
   });
 
   it('applies Soft when site is light', () => {

@@ -3,7 +3,14 @@ import type { DetectConfidence, DetectResult, DetectionOutcome } from '../types'
 const DARK_LUMINANCE_THRESHOLD = 0.35;
 const COLORFUL_VARIANCE_THRESHOLD = 0.08;
 
-const HIGH_CONFIDENCE_SIGNALS = new Set(['dataTheme', 'dataColorMode', 'colorScheme', 'metaColorScheme']);
+/** Truely Dark preload paints this — must not count as site-native dark. */
+export const EXTENSION_PRELOAD_BG = '#121212';
+
+export const EXTENSION_MARKERS = {
+  preloadStyleId: 'truely-dark-preload',
+  styleId: 'truely-dark-styles',
+  rootAttr: 'data-truely-dark-active',
+} as const;
 
 /**
  * Compute relative luminance from an RGB color (0–1 range per channel).
@@ -58,16 +65,55 @@ export function parseColor(color: string): { r: number; g: number; b: number } |
   return null;
 }
 
-type SignalKey =
-  | 'colorScheme'
-  | 'dataTheme'
-  | 'dataColorMode'
-  | 'bodyBackground'
-  | 'htmlBackground'
-  | 'metaColorScheme';
+/**
+ * True when a computed background matches Truely Dark FOUC preload (#121212).
+ */
+export function isExtensionInjectedBackground(color: string | undefined): boolean {
+  if (!color) return false;
+  const rgb = parseColor(color);
+  if (!rgb) return false;
+  return rgb.r <= 20 && rgb.g <= 20 && rgb.b <= 20;
+}
+
+const darkThemeValues = ['dark', 'night', 'dim', 'black', 'oled'];
+const lightThemeValues = ['light', 'day', 'bright', 'white'];
+
+function classifyThemeValue(value: string | undefined): DetectResult | null {
+  if (!value) return null;
+  const lower = value.toLowerCase();
+  if (darkThemeValues.some((v) => lower.includes(v))) return 'dark';
+  if (lightThemeValues.some((v) => lower.includes(v))) return 'light';
+  return null;
+}
 
 /**
- * Determine if a page is already dark based on DOM signals (no live DOM required).
+ * Site-authored theme signals only (DOM attributes + meta tags).
+ * High confidence — safe for native-dark skip in Auto mode.
+ */
+export function detectFromAuthoredSignals(signals: {
+  dataTheme?: string;
+  dataColorMode?: string;
+  metaColorScheme?: string;
+}): DetectionOutcome {
+  const checks = [
+    signals.dataTheme,
+    signals.dataColorMode,
+    signals.metaColorScheme,
+  ];
+
+  for (const value of checks) {
+    const result = classifyThemeValue(value);
+    if (result) {
+      return { result, confidence: 'high' };
+    }
+  }
+
+  return { result: 'unknown', confidence: 'low' };
+}
+
+/**
+ * Determine theme from signal bundle. Ignores computed color-scheme and dark
+ * backgrounds that match Truely Dark preload (FOUC poison).
  */
 export function detectFromSignals(signals: {
   colorScheme?: string;
@@ -77,46 +123,26 @@ export function detectFromSignals(signals: {
   htmlBackground?: string;
   metaColorScheme?: string;
 }): DetectionOutcome {
-  const darkThemeValues = ['dark', 'night', 'dim', 'black', 'oled'];
-  const lightThemeValues = ['light', 'day', 'bright', 'white'];
+  const authored = detectFromAuthoredSignals({
+    dataTheme: signals.dataTheme,
+    dataColorMode: signals.dataColorMode,
+    metaColorScheme: signals.metaColorScheme,
+  });
+  if (authored.result !== 'unknown') return authored;
 
-  const checkValue = (value: string | undefined): DetectResult | null => {
-    if (!value) return null;
-    const lower = value.toLowerCase();
-    if (darkThemeValues.some((v) => lower.includes(v))) return 'dark';
-    if (lightThemeValues.some((v) => lower.includes(v))) return 'light';
-    return null;
-  };
-
-  const signalChecks: Array<{ key: SignalKey; value: string | undefined }> = [
-    { key: 'dataTheme', value: signals.dataTheme },
-    { key: 'dataColorMode', value: signals.dataColorMode },
-    { key: 'colorScheme', value: signals.colorScheme },
-    { key: 'metaColorScheme', value: signals.metaColorScheme },
-  ];
-
-  for (const { key, value } of signalChecks) {
-    const result = checkValue(value);
-    if (result) {
-      return {
-        result,
-        confidence: HIGH_CONFIDENCE_SIGNALS.has(key) ? 'high' : 'medium',
-      };
-    }
-  }
+  // Computed color-scheme on html is poisoned by our preload — never use for skip.
+  // Luminance-only dark from html/body bg is also poisoned (#121212 preload).
 
   const backgrounds = [signals.bodyBackground, signals.htmlBackground];
   for (const bg of backgrounds) {
-    if (!bg) continue;
+    if (!bg || isExtensionInjectedBackground(bg)) continue;
     const rgb = parseColor(bg);
     if (!rgb) continue;
     const lum = computeLuminance(rgb.r / 255, rgb.g / 255, rgb.b / 255);
-    if (lum < DARK_LUMINANCE_THRESHOLD) {
-      return { result: 'dark', confidence: 'medium' };
-    }
     if (lum > 0.75) {
       return { result: 'light', confidence: 'medium' };
     }
+    // Medium-confidence dark luminance alone must NOT skip Soft — treat as unknown.
   }
 
   return { result: 'unknown', confidence: 'low' };
@@ -165,7 +191,8 @@ export function analyzeBackdropSamples(
 }
 
 /**
- * Full detection combining signals and optional backdrop samples.
+ * Full detection combining authored signals and optional backdrop samples.
+ * Backdrop dark never triggers high-confidence skip.
  */
 export function detectPageTheme(
   signals: {
@@ -183,65 +210,14 @@ export function detectPageTheme(
 
   if (backdropSamples && backdropSamples.length > 0) {
     const { luminance, variance } = analyzeBackdropSamples(backdropSamples);
-    if (variance > COLORFUL_VARIANCE_THRESHOLD && luminance < 0.5) {
-      return { result: 'dark', confidence: 'medium' };
-    }
-    if (luminance < DARK_LUMINANCE_THRESHOLD) {
-      return { result: 'dark', confidence: 'medium' };
-    }
     if (luminance > 0.7) {
       return { result: 'light', confidence: 'medium' };
     }
-  }
-
-  return { result: 'unknown', confidence: 'low' };
-}
-
-/**
- * Browser-side detection using live DOM (content script only).
- */
-export function detectFromDom(doc: Document = document): DetectionOutcome {
-  const html = doc.documentElement;
-  const body = doc.body;
-
-  const metaScheme = doc.querySelector('meta[name="color-scheme"]');
-  const metaColorScheme = metaScheme?.getAttribute('content') ?? undefined;
-
-  const computedHtml = doc.defaultView?.getComputedStyle(html);
-  const computedBody = body ? doc.defaultView?.getComputedStyle(body) : null;
-
-  const signals = {
-    colorScheme: computedHtml?.colorScheme ?? undefined,
-    dataTheme: html.getAttribute('data-theme') ?? html.getAttribute('theme') ?? undefined,
-    dataColorMode:
-      html.getAttribute('data-color-mode') ??
-      html.getAttribute('data-mode') ??
-      body?.getAttribute('data-color-mode') ??
-      undefined,
-    bodyBackground: computedBody?.backgroundColor ?? undefined,
-    htmlBackground: computedHtml?.backgroundColor ?? undefined,
-    metaColorScheme,
-  };
-
-  const signalOutcome = detectFromSignals(signals);
-  if (signalOutcome.result !== 'unknown') return signalOutcome;
-
-  if (hasDarkClass(html) || (body && hasDarkClass(body))) {
-    return { result: 'dark', confidence: 'high' };
-  }
-
-  const themeColorMeta = doc.querySelector('meta[name="theme-color"]');
-  const themeColorContent = themeColorMeta?.getAttribute('content');
-  if (themeColorContent) {
-    const rgb = parseColor(themeColorContent);
-    if (rgb) {
-      const lum = computeLuminance(rgb.r / 255, rgb.g / 255, rgb.b / 255);
-      if (lum < DARK_LUMINANCE_THRESHOLD) {
-        return { result: 'dark', confidence: 'high' };
-      }
-      if (lum > 0.75) {
-        return { result: 'light', confidence: 'medium' };
-      }
+    if (variance > COLORFUL_VARIANCE_THRESHOLD && luminance < 0.5) {
+      return { result: 'unknown', confidence: 'low' };
+    }
+    if (luminance < DARK_LUMINANCE_THRESHOLD) {
+      return { result: 'unknown', confidence: 'low' };
     }
   }
 
@@ -256,6 +232,96 @@ function hasDarkClass(el: Element): boolean {
     }
   }
   return false;
+}
+
+function hasExtensionMarkup(doc: Document): boolean {
+  const html = doc.documentElement;
+  return (
+    html.hasAttribute(EXTENSION_MARKERS.rootAttr) ||
+    doc.getElementById(EXTENSION_MARKERS.preloadStyleId) !== null ||
+    doc.getElementById(EXTENSION_MARKERS.styleId) !== null
+  );
+}
+
+/**
+ * Browser-side detection using live DOM (content script only).
+ * Ignores computed color-scheme/background on html poisoned by preload.
+ */
+export function detectFromDom(doc: Document = document): DetectionOutcome {
+  const html = doc.documentElement;
+  const body = doc.body;
+
+  if (hasExtensionMarkup(doc) && html.hasAttribute(EXTENSION_MARKERS.rootAttr)) {
+    // Soft is active — detection should use authored signals only.
+    return detectFromAuthoredSignals({
+      dataTheme: html.getAttribute('data-theme') ?? html.getAttribute('theme') ?? undefined,
+      dataColorMode:
+        html.getAttribute('data-color-mode') ??
+        html.getAttribute('data-mode') ??
+        body?.getAttribute('data-color-mode') ??
+        undefined,
+      metaColorScheme:
+        doc.querySelector('meta[name="color-scheme"]')?.getAttribute('content') ?? undefined,
+    });
+  }
+
+  const metaColorScheme =
+    doc.querySelector('meta[name="color-scheme"]')?.getAttribute('content') ?? undefined;
+
+  const authoredOutcome = detectFromAuthoredSignals({
+    dataTheme: html.getAttribute('data-theme') ?? html.getAttribute('theme') ?? undefined,
+    dataColorMode:
+      html.getAttribute('data-color-mode') ??
+      html.getAttribute('data-mode') ??
+      body?.getAttribute('data-color-mode') ??
+      undefined,
+    metaColorScheme,
+  });
+  if (authoredOutcome.result === 'dark') return authoredOutcome;
+
+  if (hasDarkClass(html) || (body && hasDarkClass(body))) {
+    return { result: 'dark', confidence: 'high' };
+  }
+
+  const themeColorContent = doc
+    .querySelector('meta[name="theme-color"]')
+    ?.getAttribute('content');
+  if (themeColorContent) {
+    const rgb = parseColor(themeColorContent);
+    if (rgb) {
+      const lum = computeLuminance(rgb.r / 255, rgb.g / 255, rgb.b / 255);
+      if (lum < DARK_LUMINANCE_THRESHOLD) {
+        return { result: 'dark', confidence: 'high' };
+      }
+      if (lum > 0.75) {
+        return { result: 'light', confidence: 'medium' };
+      }
+    }
+  }
+
+  // Sample content areas — never html/body root (preload poisoned).
+  const contentSelectors = [
+    'main',
+    'article',
+    '#content',
+    '#mw-content-text',
+    '#siteTable',
+    '.content',
+  ];
+  for (const selector of contentSelectors) {
+    const el = doc.querySelector(selector);
+    if (!el) continue;
+    const bg = doc.defaultView?.getComputedStyle(el).backgroundColor;
+    if (!bg || isExtensionInjectedBackground(bg)) continue;
+    const rgb = parseColor(bg);
+    if (!rgb) continue;
+    const lum = computeLuminance(rgb.r / 255, rgb.g / 255, rgb.b / 255);
+    if (lum > 0.75) {
+      return { result: 'light', confidence: 'medium' };
+    }
+  }
+
+  return { result: 'unknown', confidence: 'low' };
 }
 
 export function isDetectCacheValid(timestamp: number, ttlMs: number): boolean {
@@ -274,4 +340,19 @@ export function isHighConfidenceDark(outcome: DetectionOutcome): boolean {
  */
 export function shouldSkipForNativeDark(outcome: DetectionOutcome): boolean {
   return isHighConfidenceDark(outcome);
+}
+
+/**
+ * Remove cache entries poisoned by preload luminance (non-high-confidence dark).
+ */
+export function purgePoisonedDetectCache<
+  T extends Record<string, { result: DetectResult; confidence: DetectConfidence; timestamp: number }>,
+>(cache: T): T {
+  const cleaned = { ...cache };
+  for (const [origin, entry] of Object.entries(cleaned)) {
+    if (entry.result === 'dark' && entry.confidence !== 'high') {
+      delete cleaned[origin];
+    }
+  }
+  return cleaned;
 }

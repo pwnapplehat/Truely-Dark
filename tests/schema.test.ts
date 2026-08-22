@@ -159,17 +159,40 @@ describe('import/export roundtrip', () => {
     expect(imported.detectCache['https://github.com']?.confidence).toBe('high');
   });
 
-  it('migrates legacy detect cache without confidence', () => {
+  it('migrates legacy detect cache and purges poisoned medium-dark entries', () => {
     const legacy: Record<string, unknown> = {
       ...DEFAULT_SETTINGS,
       detectCache: {
         'https://github.com': { result: 'dark', timestamp: Date.now() },
+        'https://en.wikipedia.org': {
+          result: 'dark',
+          confidence: 'medium',
+          timestamp: Date.now(),
+        },
       },
     };
     delete legacy.batterySaver;
 
     const migrated = migrateSettings(legacy);
     expect(migrated.batterySaver).toBe(false);
-    expect(migrated.detectCache['https://github.com']?.confidence).toBe('medium');
+    // Legacy dark without confidence defaults to medium → purged
+    expect(migrated.detectCache['https://github.com']).toBeUndefined();
+    expect(migrated.detectCache['https://en.wikipedia.org']).toBeUndefined();
+  });
+
+  it('keeps high-confidence dark cache entries after migration', () => {
+    const legacy: Record<string, unknown> = {
+      ...DEFAULT_SETTINGS,
+      detectCache: {
+        'https://github.com': {
+          result: 'dark',
+          confidence: 'high',
+          timestamp: Date.now(),
+        },
+      },
+    };
+
+    const migrated = migrateSettings(legacy);
+    expect(migrated.detectCache['https://github.com']?.confidence).toBe('high');
   });
 });

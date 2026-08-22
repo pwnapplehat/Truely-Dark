@@ -7,7 +7,8 @@ import type {
   TruelyDarkSettings,
 } from '../types';
 import { DETECT_CACHE_TTL_MS } from '../types';
-import { applyPreset } from './defaults';
+import { applyPreset, migrateSettings } from './defaults';
+import { purgePoisonedDetectCache } from './detect';
 import { getHostnameFromUrl, getOriginFromUrl } from './site-packs';
 import {
   cycleSiteMode,
@@ -18,6 +19,14 @@ import { getSettings, setSettings, updateSettings } from './storage';
 import { broadcastSettingsChanged, onMessage } from './messaging';
 import { getSystemDarkPreference } from './schedule';
 import { settingsSchema } from './schema';
+
+async function purgeStaleDetectCache(): Promise<void> {
+  const settings = await getSettings();
+  const cleaned = purgePoisonedDetectCache(settings.detectCache);
+  if (Object.keys(cleaned).length !== Object.keys(settings.detectCache).length) {
+    await updateSettings({ detectCache: cleaned });
+  }
+}
 
 async function buildTabInfo(url: string, settings: TruelyDarkSettings): Promise<TabInfo> {
   const origin = getOriginFromUrl(url);
@@ -100,6 +109,8 @@ async function handleImportSettings(data: unknown): Promise<TruelyDarkSettings> 
 }
 
 export function registerBackgroundHandlers(): void {
+  void purgeStaleDetectCache();
+
   onMessage(async (message, sender) => {
     switch (message.type) {
       case 'GET_SETTINGS':
