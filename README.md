@@ -61,7 +61,9 @@ Production-grade flash-free dark mode for Chrome and Firefox. Truely Dark applie
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Stack:** WXT (Vite) + TypeScript + React · Manifest V3 · Vitest
+**Stack:** WXT (Vite) + TypeScript (strict) + React · Manifest V3 · Vitest + happy-dom · Zod · culori
+
+See **[ARCHITECTURE.md](./ARCHITECTURE.md)** for dependency rationale, engine design, and what we deliberately exclude (no Dark Reader fork, no telemetry, no polyfill unless needed).
 
 **Hybrid engine:**
 1. **Soft (default):** CSS `filter: invert(1) hue-rotate(180deg)` on `html` (body fallback) with counter-invert on media inside open shadow roots

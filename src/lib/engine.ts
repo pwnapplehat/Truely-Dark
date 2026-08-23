@@ -1,5 +1,5 @@
 import type { EffectiveSiteSettings } from '../types';
-import { parseColor } from './detect';
+import { parseColor } from './color';
 
 export const ROOT_ATTR = 'data-truely-dark-active';
 export const FILTER_TARGET_ATTR = 'data-truely-dark-filter-target';

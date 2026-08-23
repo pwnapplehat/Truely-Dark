@@ -1,7 +1,15 @@
 import type { DetectConfidence, DetectResult, DetectionOutcome } from '../types';
+import {
+  computeLuminance,
+  cssColorLuminance,
+  parseColor,
+  rgbByteLuminance,
+} from './color';
 
-const DARK_LUMINANCE_THRESHOLD = 0.35;
+export { computeLuminance, parseColor } from './color';
+
 const LIGHT_LUMINANCE_THRESHOLD = 0.7;
+const DARK_LUMINANCE_THRESHOLD = 0.35;
 const COLORFUL_VARIANCE_THRESHOLD = 0.08;
 
 /** Exported for tests — luminance above this counts as a clearly light surface. */
@@ -80,59 +88,6 @@ export interface AuthoredSignalInput {
   metaColorScheme?: string;
   /** Resolve data-color-mode="auto" and dual meta schemes. */
   prefersDark?: boolean;
-}
-
-/**
- * Compute relative luminance from an RGB color (0–1 range per channel).
- */
-export function computeLuminance(r: number, g: number, b: number): number {
-  const toLinear = (c: number): number =>
-    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  const rs = toLinear(r);
-  const gs = toLinear(g);
-  const bs = toLinear(b);
-  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
-}
-
-/**
- * Parse a CSS color string to RGB values (0–255).
- */
-export function parseColor(color: string): { r: number; g: number; b: number } | null {
-  if (!color || color === 'transparent' || color === 'rgba(0, 0, 0, 0)') {
-    return null;
-  }
-
-  const hexMatch = color.match(/^#([0-9a-f]{3,8})$/i);
-  if (hexMatch?.[1]) {
-    const hex = hexMatch[1];
-    if (hex.length === 3) {
-      const [r, g, b] = hex.split('');
-      if (!r || !g || !b) return null;
-      return {
-        r: parseInt(r + r, 16),
-        g: parseInt(g + g, 16),
-        b: parseInt(b + b, 16),
-      };
-    }
-    if (hex.length >= 6) {
-      return {
-        r: parseInt(hex.slice(0, 2), 16),
-        g: parseInt(hex.slice(2, 4), 16),
-        b: parseInt(hex.slice(4, 6), 16),
-      };
-    }
-  }
-
-  const rgbMatch = color.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
-  if (rgbMatch?.[1] && rgbMatch[2] && rgbMatch[3]) {
-    return {
-      r: parseFloat(rgbMatch[1]),
-      g: parseFloat(rgbMatch[2]),
-      b: parseFloat(rgbMatch[3]),
-    };
-  }
-
-  return null;
 }
 
 /**
@@ -242,7 +197,7 @@ export function detectFromSignals(signals: {
     if (!bg || isExtensionInjectedBackground(bg)) continue;
     const rgb = parseColor(bg);
     if (!rgb) continue;
-    const lum = computeLuminance(rgb.r / 255, rgb.g / 255, rgb.b / 255);
+    const lum = rgbByteLuminance(rgb.r, rgb.g, rgb.b);
     if (lum > 0.75) {
       return { result: 'light', confidence: 'medium' };
     }
@@ -267,7 +222,7 @@ export function analyzeBackdropSamples(
   const bs: number[] = [];
 
   for (const { r, g, b } of samples) {
-    const lum = computeLuminance(r / 255, g / 255, b / 255);
+    const lum = rgbByteLuminance(r, g, b);
     totalLum += lum;
     rs.push(r);
     gs.push(g);
@@ -481,12 +436,9 @@ export function detectFromDom(doc: Document = document): DetectionOutcome {
     .querySelector('meta[name="theme-color"]')
     ?.getAttribute('content');
   if (themeColorContent) {
-    const rgb = parseColor(themeColorContent);
-    if (rgb) {
-      const lum = computeLuminance(rgb.r / 255, rgb.g / 255, rgb.b / 255);
-      if (lum > 0.75) {
-        return { result: 'light', confidence: 'medium' };
-      }
+    const lum = cssColorLuminance(themeColorContent);
+    if (lum !== null && lum > 0.75) {
+      return { result: 'light', confidence: 'medium' };
     }
   }
 
