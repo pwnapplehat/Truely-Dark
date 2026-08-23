@@ -48,9 +48,12 @@ describe('findSitePack', () => {
   it('OVH force pack darkens domain-search and partner strips', () => {
     const pack = findSitePack('www.ovhcloud.com');
     const css = pack?.customCss ?? '';
-    expect(css).toContain('domain-search');
-    expect(css).toContain('partner');
-    expect(css).toContain('copyright');
+    expect(css).toContain('ods-domain-form__tld');
+    expect(css).toContain('odss-section--light-blue');
+    expect(css).toContain('ods-footer');
+    expect(css).toContain('ods-bottomfooter');
+    expect(css).not.toContain('[class*="copyright"]');
+    expect(css).not.toContain('footer-column');
   });
 
   it('apple.com darkens top donation/ribbon strip', () => {
@@ -62,6 +65,8 @@ describe('findSitePack', () => {
     const pack = findSitePack('x.ai');
     expect(pack?.customCss).toContain('compare');
     expect(pack?.customCss).toContain('sticky');
+    expect(pack?.customCss).toContain('table thead');
+    expect(pack?.customCss).toContain('backdrop-filter: none');
   });
 
   it('matches x.ai with force-first Soft and marketing visual verify', () => {
