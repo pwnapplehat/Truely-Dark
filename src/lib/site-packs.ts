@@ -38,7 +38,6 @@ export const MARKETING_FORCE_SHELL_CSS = `
     color: #e8eaed !important;
     filter: none !important;
     -webkit-filter: none !important;
-    min-height: 100vh;
   }
   html[data-truely-dark-active] header,
   html[data-truely-dark-active] nav,
@@ -178,8 +177,24 @@ const OVH_FORCE_CSS = `
   }
   html[data-truely-dark-active][data-truely-dark-force] main,
   html[data-truely-dark-active][data-truely-dark-force] [role="main"] {
-    position: relative !important;
-    z-index: 1 !important;
+    position: static !important;
+    z-index: auto !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force],
+  html[data-truely-dark-active][data-truely-dark-force] body,
+  html[data-truely-dark-active][data-truely-dark-force] .dialog-off-canvas-main-canvas,
+  html[data-truely-dark-active][data-truely-dark-force] main,
+  html[data-truely-dark-active][data-truely-dark-force] footer,
+  html[data-truely-dark-active][data-truely-dark-force] footer.lazy-rendering,
+  html[data-truely-dark-active][data-truely-dark-force] .lazy-rendering--footer,
+  html[data-truely-dark-active][data-truely-dark-force] .ods-footer,
+  html[data-truely-dark-active][data-truely-dark-force] .ods-bottomfooter,
+  html[data-truely-dark-active][data-truely-dark-force] .odss-section,
+  html[data-truely-dark-active][data-truely-dark-force] .odss-section__content {
+    min-height: auto !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
   }
   html[data-truely-dark-active][data-truely-dark-force] aside.ovhcloud-menu-navbar,
   html[data-truely-dark-active][data-truely-dark-force] aside[class*="menu-navbar"],
@@ -619,6 +634,19 @@ const XAI_FORCE_CSS = `
   html[data-truely-dark-active] [class*="sticky"][class*="Compare"] * {
     color: #e8eaed !important;
   }
+  html[data-truely-dark-active] main [class*="sticky"],
+  html[data-truely-dark-active] main [style*="position: sticky"],
+  html[data-truely-dark-active] main [style*="position:sticky"],
+  html[data-truely-dark-active] section [class*="sticky"],
+  html[data-truely-dark-active] section [style*="position: sticky"],
+  html[data-truely-dark-active] section [style*="position:sticky"],
+  html[data-truely-dark-active] main [role="row"],
+  html[data-truely-dark-active] main [role="rowgroup"] [role="row"],
+  html[data-truely-dark-active] main [role="columnheader"],
+  html[data-truely-dark-active] [class*="feature"] [class*="sticky"],
+  html[data-truely-dark-active] [class*="Feature"] [class*="sticky"],
+  html[data-truely-dark-active] [class*="pricing"] [class*="sticky"],
+  html[data-truely-dark-active] [class*="Pricing"] [class*="sticky"],
   html[data-truely-dark-active] table thead,
   html[data-truely-dark-active] table thead tr,
   html[data-truely-dark-active] table thead th,
@@ -627,10 +655,7 @@ const XAI_FORCE_CSS = `
   html[data-truely-dark-active] thead th,
   html[data-truely-dark-active] table [class*="sticky"],
   html[data-truely-dark-active] table [class*="Sticky"],
-  html[data-truely-dark-active] table [style*="sticky"],
-  html[data-truely-dark-active] main [class*="sticky"]:not(header):not(nav),
-  html[data-truely-dark-active] main [style*="position: sticky"],
-  html[data-truely-dark-active] main [style*="position:sticky"] {
+  html[data-truely-dark-active] table [style*="sticky"] {
     background-color: #0a0a0a !important;
     background-image: none !important;
     backdrop-filter: none !important;
@@ -638,11 +663,19 @@ const XAI_FORCE_CSS = `
     color: #e8eaed !important;
     opacity: 1 !important;
   }
+  html[data-truely-dark-active] main [class*="sticky"] *,
+  html[data-truely-dark-active] main [style*="position: sticky"] *,
+  html[data-truely-dark-active] main [style*="position:sticky"] *,
+  html[data-truely-dark-active] section [class*="sticky"] *,
+  html[data-truely-dark-active] section [style*="position: sticky"] *,
+  html[data-truely-dark-active] section [style*="position:sticky"] *,
+  html[data-truely-dark-active] main [role="row"] *,
+  html[data-truely-dark-active] main [role="rowgroup"] [role="row"] *,
+  html[data-truely-dark-active] main [role="columnheader"] *,
   html[data-truely-dark-active] table thead *,
-  html[data-truely-dark-active] thead th *,
-  html[data-truely-dark-active] table [class*="sticky"] *,
-  html[data-truely-dark-active] main [class*="sticky"]:not(header):not(nav) * {
+  html[data-truely-dark-active] thead th * {
     color: #e8eaed !important;
+    opacity: 1 !important;
   }
 `;
 

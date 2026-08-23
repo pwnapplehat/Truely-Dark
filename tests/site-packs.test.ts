@@ -54,6 +54,8 @@ describe('findSitePack', () => {
     expect(css).toContain('ods-bottomfooter');
     expect(css).not.toContain('[class*="copyright"]');
     expect(css).not.toContain('footer-column');
+    expect(css).toContain('min-height: auto');
+    expect(css).toContain('overflow: visible');
   });
 
   it('apple.com darkens top donation/ribbon strip', () => {
@@ -65,7 +67,8 @@ describe('findSitePack', () => {
     const pack = findSitePack('x.ai');
     expect(pack?.customCss).toContain('compare');
     expect(pack?.customCss).toContain('sticky');
-    expect(pack?.customCss).toContain('table thead');
+    expect(pack?.customCss).toContain('role="row"');
+    expect(pack?.customCss).toContain('position: sticky');
     expect(pack?.customCss).toContain('backdrop-filter: none');
   });
 
