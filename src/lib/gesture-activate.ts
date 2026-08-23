@@ -1,5 +1,6 @@
 import { isChromeGalleryUrl } from './gallery-access';
 import { markGalleryGestureAttempted } from './gallery-gesture-state';
+import { settleGalleryTabBlocked } from './gallery-tab-status';
 import {
   insertForceStylesheetForTab,
   insertNuclearForceCssForTab,
@@ -34,7 +35,7 @@ export async function gestureActivateSoftForTab(
   const gallery = isChromeGalleryUrl(url);
 
   if (gallery && !options.enableOnRestrictedPages) {
-    setTabSoftApplied(tabId, false);
+    settleGalleryTabBlocked(tabId);
     return false;
   }
 
@@ -63,8 +64,12 @@ export async function gestureActivateSoftForTab(
 
   if (gallery) {
     const visuallyDark = await verifyVisualDarkness(windowId);
-    setTabSoftApplied(tabId, visuallyDark);
-    return visuallyDark;
+    if (visuallyDark) {
+      setTabSoftApplied(tabId, true);
+      return true;
+    }
+    settleGalleryTabBlocked(tabId);
+    return false;
   }
 
   let applied = await settleTabSoftApplied(tabId, windowId, url, false, true);

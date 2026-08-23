@@ -31,6 +31,7 @@ import {
   clearGalleryGestureAttempted,
   isGalleryGestureAttempted,
 } from './gallery-gesture-state';
+import { ensureGalleryTabSettled, settleGalleryTabBlocked } from './gallery-tab-status';
 import { isPopupLikelyOpen, isPopupSender, markPopupOpen } from './popup-state';
 import {
   clearTabSoftApplied,
@@ -88,14 +89,22 @@ async function buildTabInfo(
   });
 
   const reportedApplied = getTabSoftApplied(tabId);
-  const injectionPending = effective.active && reportedApplied === undefined;
-  const softApplied = effective.active && reportedApplied === true;
   const galleryHost = isChromeGalleryHost(hostname);
+
+  if (galleryHost && effective.active && tabId !== undefined) {
+    settleGalleryTabBlocked(tabId);
+  }
+
+  const resolvedApplied =
+    tabId !== undefined && galleryHost && effective.active
+      ? getTabSoftApplied(tabId)
+      : reportedApplied;
+  const injectionPending = effective.active && resolvedApplied === undefined;
+  const softApplied = effective.active && resolvedApplied === true;
   const galleryGestureAttempted =
     tabId !== undefined ? isGalleryGestureAttempted(tabId) : false;
   const enableOnRestrictedPages = settings.enableOnRestrictedPages;
-  const galleryInjectionBlocked =
-    galleryHost && effective.active && !softApplied && !injectionPending;
+  const galleryInjectionBlocked = galleryHost && effective.active && !softApplied;
 
   return {
     origin,
@@ -269,7 +278,7 @@ export function registerBackgroundHandlers(): void {
           }
 
           if (isChromeGalleryHost(injectionHostname)) {
-            setTabSoftApplied(injectionTabId, false);
+            settleGalleryTabBlocked(injectionTabId);
             return { success: true };
           }
 
@@ -400,6 +409,9 @@ export function registerBackgroundHandlers(): void {
       if (changeInfo.url) {
         markTabNavigation(tabId);
         clearGalleryGestureAttempted(tabId);
+        if (tab.url) {
+          void ensureGalleryTabSettled(tabId, tab.url);
+        }
       }
       if (changeInfo.status === 'loading' && tab.url) {
         await maybeProactiveInsertCss(tabId, tab.url);
@@ -415,7 +427,7 @@ export function registerBackgroundHandlers(): void {
         if (info.pageRestricted || !info.active) {
           setTabSoftApplied(tabId, false);
         } else if (isChromeGalleryUrl(tab.url)) {
-          setTabSoftApplied(tabId, false);
+          settleGalleryTabBlocked(tabId);
         } else if (!isPopupLikelyOpen()) {
           await settleTabSoftApplied(tabId, tab.windowId, tab.url, false);
         }

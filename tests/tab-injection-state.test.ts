@@ -56,8 +56,8 @@ describe('tab-injection-state', () => {
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(true);
 
-    await settleTabSoftApplied(6, 1, 'https://chromewebstore.google.com/', false);
-    const forced = await settleTabSoftApplied(6, 1, 'https://chromewebstore.google.com/', false, true);
+    await settleTabSoftApplied(6, 1, 'https://www.ovhcloud.com/', false);
+    const forced = await settleTabSoftApplied(6, 1, 'https://www.ovhcloud.com/', false, true);
     expect(forced).toBe(true);
     expect(resolveSoftAppliedForTab).toHaveBeenCalledTimes(2);
   });
