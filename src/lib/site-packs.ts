@@ -1,6 +1,10 @@
 import type { EffectiveSiteSettings, SitePack } from '../types';
 export const FORCE_MARKETING_BG = '#0d1117';
 
+/** Counter-invert filter — cancels parent html invert(1) on isolated surfaces (Wikipedia footer). */
+export const INVERT_COUNTER_FILTER =
+  'invert(1) hue-rotate(180deg) brightness(0.98) contrast(0.92)';
+
 /** Host suffixes that must never receive invert Soft (MAIN bootstrap duplicates this list). */
 export const PREFER_FORCE_HOST_SUFFIXES = ['ovhcloud.com', 'x.ai', 'medium.com'] as const;
 
@@ -166,6 +170,72 @@ const OVH_FORCE_CSS = `
     max-height: 3rem !important;
     overflow: hidden !important;
   }
+  html[data-truely-dark-active][data-truely-dark-force] header.ods-header-universe {
+    max-height: 8rem !important;
+    overflow: hidden !important;
+    isolation: isolate !important;
+    z-index: 302 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] main,
+  html[data-truely-dark-active][data-truely-dark-force] [role="main"] {
+    position: relative !important;
+    z-index: 1 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] aside.ovhcloud-menu-navbar,
+  html[data-truely-dark-active][data-truely-dark-force] aside[class*="menu-navbar"],
+  html[data-truely-dark-active][data-truely-dark-force] .ovhcloud-mainmenu,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="menu-navbar"]:not(button):not(a):not(li) {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    inset: auto !important;
+    opacity: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] aside.ovhcloud-menu-navbar.is-open,
+  html[data-truely-dark-active][data-truely-dark-force] aside.ovhcloud-menu-navbar.open,
+  html[data-truely-dark-active][data-truely-dark-force] aside.ovhcloud-menu-navbar.visible,
+  html[data-truely-dark-active][data-truely-dark-force] aside.ovhcloud-menu-navbar.active,
+  html[data-truely-dark-active][data-truely-dark-force] aside.ovhcloud-menu-navbar[open],
+  html[data-truely-dark-active][data-truely-dark-force] aside.ovhcloud-menu-navbar[aria-expanded="true"],
+  html[data-truely-dark-active][data-truely-dark-force] .ovhcloud-mainmenu.is-open,
+  html[data-truely-dark-active][data-truely-dark-force] .ovhcloud-mainmenu.open,
+  html[data-truely-dark-active][data-truely-dark-force] .ovhcloud-mainmenu.visible,
+  html[data-truely-dark-active][data-truely-dark-force] .ovhcloud-mainmenu.active,
+  html[data-truely-dark-active][data-truely-dark-force] .ovhcloud-mainmenu[open],
+  html[data-truely-dark-active][data-truely-dark-force] .ovhcloud-mainmenu[aria-expanded="true"],
+  html[data-truely-dark-active][data-truely-dark-force] aside[class*="menu-navbar"].is-open,
+  html[data-truely-dark-active][data-truely-dark-force] aside[class*="menu-navbar"].open,
+  html[data-truely-dark-active][data-truely-dark-force] aside[class*="menu-navbar"].visible,
+  html[data-truely-dark-active][data-truely-dark-force] aside[class*="menu-navbar"].active,
+  html[data-truely-dark-active][data-truely-dark-force] aside[class*="menu-navbar"][open],
+  html[data-truely-dark-active][data-truely-dark-force] aside[class*="menu-navbar"][aria-expanded="true"],
+  html[data-truely-dark-active][data-truely-dark-force] .ods-header-universe:has([aria-expanded="true"]) aside.ovhcloud-menu-navbar,
+  html[data-truely-dark-active][data-truely-dark-force] .ods-header-universe:has([aria-expanded="true"]) .ovhcloud-mainmenu,
+  html[data-truely-dark-active][data-truely-dark-force] .ods-header-universe:has(.is-open) aside.ovhcloud-menu-navbar,
+  html[data-truely-dark-active][data-truely-dark-force] .ods-header-universe:has(.is-open) .ovhcloud-mainmenu,
+  html[data-truely-dark-active][data-truely-dark-force] .ods-header-universe:has([data-state="open"]) aside.ovhcloud-menu-navbar,
+  html[data-truely-dark-active][data-truely-dark-force] .ods-header-universe:has([data-state="open"]) .ovhcloud-mainmenu {
+    display: block !important;
+    visibility: visible !important;
+    height: auto !important;
+    max-height: 90vh !important;
+    min-height: unset !important;
+    overflow: auto !important;
+    pointer-events: auto !important;
+    position: fixed !important;
+    inset: auto !important;
+    opacity: 1 !important;
+    background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
+    z-index: 303 !important;
+  }
   html[data-truely-dark-active][data-truely-dark-force] section[class*="homepage"],
   html[data-truely-dark-active][data-truely-dark-force] .homepage-hero,
   html[data-truely-dark-active][data-truely-dark-force] [class*="site-footer"],
@@ -176,7 +246,6 @@ const OVH_FORCE_CSS = `
     background-image: none !important;
     color: #e8eaed !important;
   }
-  html[data-truely-dark-active][data-truely-dark-force] .ovhcloud-mainmenu,
   html[data-truely-dark-active][data-truely-dark-force] [class*="mainmenu"],
   html[data-truely-dark-active][data-truely-dark-force] [class*="Mainmenu"],
   html[data-truely-dark-active][data-truely-dark-force] [class*="mega-menu"],
@@ -184,10 +253,6 @@ const OVH_FORCE_CSS = `
   html[data-truely-dark-active][data-truely-dark-force] [class*="megamenu"],
   html[data-truely-dark-active][data-truely-dark-force] [class*="overlay"]:not(.redirection-banners):not([class*="redirection"]),
   html[data-truely-dark-active][data-truely-dark-force] [class*="Overlay"]:not([class*="redirection"]),
-  html[data-truely-dark-active][data-truely-dark-force] [class*="layout-content"],
-  html[data-truely-dark-active][data-truely-dark-force] [class*="LayoutContent"],
-  html[data-truely-dark-active][data-truely-dark-force] [class*="wrapper"]:not(.header-wrapper),
-  html[data-truely-dark-active][data-truely-dark-force] [class*="Wrapper"]:not(.header-wrapper),
   html[data-truely-dark-active][data-truely-dark-force] [aria-hidden="true"],
   html[data-truely-dark-active][data-truely-dark-force] [hidden] {
     background: transparent !important;
@@ -261,8 +326,8 @@ const WIKIPEDIA_INVERT_SURFACE_CSS = `
   html[data-truely-dark-active] body .navbox td {
     background-color: #1a1a1a !important;
     background-image: none !important;
-    filter: none !important;
-    -webkit-filter: none !important;
+    filter: ${INVERT_COUNTER_FILTER} !important;
+    -webkit-filter: ${INVERT_COUNTER_FILTER} !important;
     color: #e8eaed !important;
     border-color: #3c4043 !important;
   }
@@ -297,8 +362,8 @@ const WIKIPEDIA_INVERT_SURFACE_CSS = `
   html[data-truely-dark-active] body [class*="footer"] {
     background-color: ${FORCE_MARKETING_BG} !important;
     background-image: none !important;
-    filter: none !important;
-    -webkit-filter: none !important;
+    filter: ${INVERT_COUNTER_FILTER} !important;
+    -webkit-filter: ${INVERT_COUNTER_FILTER} !important;
     color: #e8eaed !important;
     border-color: #3c4043 !important;
   }
@@ -317,8 +382,8 @@ const WIKIPEDIA_INVERT_SURFACE_CSS = `
   html[data-truely-dark-active] body #footer img,
   html[data-truely-dark-active] body .footer-info img {
     background-color: transparent !important;
-    filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.95) !important;
-    -webkit-filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.95) !important;
+    filter: ${INVERT_COUNTER_FILTER} !important;
+    -webkit-filter: ${INVERT_COUNTER_FILTER} !important;
   }
 `;
 
@@ -392,6 +457,21 @@ const XAI_FORCE_CSS = `
   html[data-truely-dark-active] {
     --truely-dark-bg: #0a0a0a;
   }
+  html[data-truely-dark-active] header,
+  html[data-truely-dark-active] nav,
+  html[data-truely-dark-active] [role="banner"],
+  html[data-truely-dark-active] [class*="logo"],
+  html[data-truely-dark-active] [class*="Logo"],
+  html[data-truely-dark-active] [class*="navbar"],
+  html[data-truely-dark-active] [class*="Navbar"],
+  html[data-truely-dark-active] [class*="header"],
+  html[data-truely-dark-active] [class*="Header"] {
+    background-color: #0a0a0a !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: #e8eaed !important;
+  }
   html[data-truely-dark-active] [class*="pricing"],
   html[data-truely-dark-active] [class*="Pricing"],
   html[data-truely-dark-active] [class*="plan"],
@@ -403,16 +483,6 @@ const XAI_FORCE_CSS = `
   html[data-truely-dark-active] [class*="compare"],
   html[data-truely-dark-active] [class*="Compare"] {
     background-color: #141414 !important;
-    background-image: none !important;
-    color: #e8eaed !important;
-  }
-  html[data-truely-dark-active] [class*="logo"],
-  html[data-truely-dark-active] [class*="Logo"],
-  html[data-truely-dark-active] [class*="navbar"],
-  html[data-truely-dark-active] [class*="Navbar"],
-  html[data-truely-dark-active] [class*="header"],
-  html[data-truely-dark-active] [class*="Header"] {
-    background-color: #0a0a0a !important;
     background-image: none !important;
     color: #e8eaed !important;
   }

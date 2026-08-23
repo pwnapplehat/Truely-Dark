@@ -25,7 +25,8 @@ describe('findSitePack', () => {
     expect(css).not.toContain('#ffffff');
     expect(css).not.toMatch(/\*:not\(img\)/);
     expect(css).toContain('ods-header-universe');
-    expect(css).toContain('ods-header-topbar__content');
+    expect(css).toContain('menu-navbar');
+    expect(css).toContain('display: none');
     expect(css).toContain('redirection-banners');
   });
 
@@ -36,9 +37,17 @@ describe('findSitePack', () => {
     expect(pack?.customCss).toContain('filter: none');
   });
 
-  it('wikipedia.org has invert surface supplement for navbox/footer', () => {
+  it('wikipedia.org has invert-safe counter-invert footer supplement', () => {
     const pack = findSitePack('en.wikipedia.org');
-    expect(pack?.invertOnlyCustomCss).toContain('navbox');
+    const css = pack?.invertOnlyCustomCss ?? '';
+    expect(css).toContain('navbox');
+    expect(css).toContain('hue-rotate(180deg)');
+    expect(css).toContain('#footer');
+  });
+
+  it('x.ai force pack disables header backdrop-filter', () => {
+    const pack = findSitePack('x.ai');
+    expect(pack?.customCss).toContain('backdrop-filter: none');
   });
 
   it('matches x.ai with force-first Soft and marketing visual verify', () => {
