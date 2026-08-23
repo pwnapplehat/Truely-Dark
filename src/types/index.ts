@@ -58,6 +58,11 @@ export interface SitePack {
   skipDetect?: boolean;
   /** Skip all content-script work when mode is off (performance). */
   excludeFromProcessing?: boolean;
+  /**
+   * Use chrome.scripting.insertCSS from the background when page CSP blocks
+   * content-script styles (e.g. Chrome Web Store).
+   */
+  injectCssFallback?: boolean;
 }
 
 export interface EffectiveSiteSettings {
@@ -86,7 +91,9 @@ export type MessageType =
   | 'GET_TAB_INFO'
   | 'SETTINGS_CHANGED'
   | 'DETECT_RESULT'
-  | 'INJECTION_STATUS';
+  | 'INJECTION_STATUS'
+  | 'INSERT_CSS_FALLBACK'
+  | 'REMOVE_INSERT_CSS';
 
 export interface TruelyDarkMessage {
   type: MessageType;

@@ -20,6 +20,11 @@ import { getSettings, setSettings, updateSettings } from './storage';
 import { broadcastSettingsChanged, onMessage } from './messaging';
 import { getSystemDarkPreference } from './schedule';
 import { settingsSchema } from './schema';
+import {
+  insertSoftCssForTab,
+  maybeProactiveInsertCss,
+  removeSoftCssForTab,
+} from './insert-css-fallback';
 
 /** Per-tab Soft filter verification from content scripts. */
 const tabSoftApplied = new Map<number, boolean | undefined>();
@@ -225,6 +230,32 @@ export function registerBackgroundHandlers(): void {
         const { applied } = message.payload as { applied: boolean };
         if (injectionTabId !== undefined) {
           tabSoftApplied.set(injectionTabId, applied);
+          if (!applied) {
+            const tabUrl = sender.tab?.url ?? '';
+            if (tabUrl) {
+              await maybeProactiveInsertCss(injectionTabId, tabUrl);
+            }
+          }
+        }
+        return { success: true };
+
+      case 'INSERT_CSS_FALLBACK':
+        const fallbackTabId = sender.tab?.id;
+        const fallbackUrl = sender.tab?.url ?? '';
+        const filterTarget =
+          (message.payload as { filterTarget?: 'html' | 'body' })?.filterTarget ?? 'html';
+        if (fallbackTabId && fallbackUrl) {
+          const inserted = await insertSoftCssForTab(fallbackTabId, fallbackUrl, filterTarget);
+          if (!inserted && filterTarget === 'html') {
+            await insertSoftCssForTab(fallbackTabId, fallbackUrl, 'body');
+          }
+        }
+        return { success: true };
+
+      case 'REMOVE_INSERT_CSS':
+        const removeTabId = sender.tab?.id ?? (message.payload as { tabId?: number })?.tabId;
+        if (removeTabId !== undefined) {
+          await removeSoftCssForTab(removeTabId);
         }
         return { success: true };
 
@@ -284,11 +315,17 @@ export function registerBackgroundHandlers(): void {
 
   browser.tabs.onRemoved.addListener((tabId: number) => {
     tabSoftApplied.delete(tabId);
+    void removeSoftCssForTab(tabId);
   });
 
-  browser.tabs.onUpdated.addListener((tabId: number, changeInfo: { status?: string }) => {
-    if (changeInfo.status === 'loading') {
-      markTabNavigation(tabId);
-    }
-  });
+  browser.tabs.onUpdated.addListener(
+    async (tabId: number, changeInfo: { status?: string }, tab: Browser.tabs.Tab) => {
+      if (changeInfo.status === 'loading') {
+        markTabNavigation(tabId);
+      }
+      if (changeInfo.status === 'loading' && tab.url) {
+        await maybeProactiveInsertCss(tabId, tab.url);
+      }
+    },
+  );
 }

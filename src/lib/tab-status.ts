@@ -16,10 +16,13 @@ export function siteStatusLabel(tabInfo: TabInfo): string {
   if (tabInfo.active && !tabInfo.softApplied) {
     return 'Soft enabled — filter could not apply on this page';
   }
-  if (tabInfo.active && tabInfo.resolvedMode === 'on') {
-    return 'Extension dark mode active (On)';
-  }
-  if (tabInfo.active) {
+  if (tabInfo.active && tabInfo.softApplied) {
+    if (tabInfo.effectiveMode === 'auto') {
+      return 'Extension dark mode active (Auto)';
+    }
+    if (tabInfo.resolvedMode === 'on' || tabInfo.effectiveMode === 'on') {
+      return 'Extension dark mode active (On)';
+    }
     return 'Extension dark mode active (Soft)';
   }
   return 'Dark mode off on this site';

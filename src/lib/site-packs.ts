@@ -65,8 +65,44 @@ const YOUTUBE_CSS = `
 `;
 
 const CHROME_WEB_STORE_CSS = `
+  html[data-truely-dark-active],
   html[data-truely-dark-active] body {
     min-height: 100vh;
+  }
+  html[data-truely-dark-active] c-wiz,
+  html[data-truely-dark-active] main,
+  html[data-truely-dark-active] #root,
+  html[data-truely-dark-active] [role="main"],
+  html[data-truely-dark-active] header,
+  html[data-truely-dark-active] nav {
+    background-color: transparent !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    isolation: auto !important;
+  }
+`;
+
+const OVH_CLOUD_CSS = `
+  html[data-truely-dark-active] .topbar,
+  html[data-truely-dark-active] .header-wrapper,
+  html[data-truely-dark-active] .main-header,
+  html[data-truely-dark-active] .sub-header,
+  html[data-truely-dark-active] [class*="navbar"],
+  html[data-truely-dark-active] [class*="Navbar"],
+  html[data-truely-dark-active] [class*="hero"],
+  html[data-truely-dark-active] [class*="Hero"],
+  html[data-truely-dark-active] [class*="banner"],
+  html[data-truely-dark-active] [class*="Banner"],
+  html[data-truely-dark-active] section[class*="homepage"],
+  html[data-truely-dark-active] .homepage-hero {
+    background-color: transparent !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    isolation: auto !important;
+    contain: none !important;
+    mix-blend-mode: normal !important;
   }
 `;
 
@@ -110,12 +146,14 @@ export const SITE_PACKS: SitePack[] = [
     origins: ['chromewebstore.google.com'],
     mode: 'auto',
     skipDetect: false,
+    injectCssFallback: true,
     customCss: CHROME_WEB_STORE_CSS,
   },
   {
     origins: ['chrome.google.com'],
     mode: 'auto',
     skipDetect: false,
+    injectCssFallback: true,
     customCss: CHROME_WEB_STORE_CSS,
   },
   {
@@ -175,7 +213,7 @@ export const SITE_PACKS: SitePack[] = [
     origins: ['ovhcloud.com', 'www.ovhcloud.com'],
     mode: 'soft',
     skipDetect: true,
-    customCss: MARKETING_CHROME_CSS,
+    customCss: `${MARKETING_CHROME_CSS}\n${OVH_CLOUD_CSS}`,
   },
   {
     origins: ['amazon.com', 'www.amazon.com'],
@@ -212,6 +250,11 @@ export function findSitePack(hostname: string): SitePack | undefined {
   return SITE_PACKS.find((pack) =>
     pack.origins.some((origin) => normalized === origin || normalized.endsWith(`.${origin}`)),
   );
+}
+
+export function hostUsesInjectCssFallback(hostname: string): boolean {
+  const pack = findSitePack(hostname);
+  return pack?.injectCssFallback === true;
 }
 
 export function getOriginFromUrl(url: string): string {

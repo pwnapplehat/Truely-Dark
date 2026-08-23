@@ -1,5 +1,6 @@
 import type { EffectiveSiteSettings } from '../types';
-import { parseColor } from './color';
+import { parseColor, rgbByteLuminance } from './color';
+import { isExtensionInjectedBackground } from './detect';
 
 export const ROOT_ATTR = 'data-truely-dark-active';
 export const FILTER_TARGET_ATTR = 'data-truely-dark-filter-target';
@@ -132,6 +133,7 @@ export function generateDarkCss(
     html[${ROOT_ATTR}] body {
       background-color: ${preInvertBg} !important;
       color-scheme: dark !important;
+      color: #000000 !important;
     }
   `;
 
@@ -280,6 +282,58 @@ export function verifySoftFilterApplied(
 
   const computed = view.getComputedStyle(el).filter;
   return computed.includes('invert');
+}
+
+/** Pre-invert root surfaces must be light so invert reads dark — not FOUC #121212. */
+export const MIN_PRE_INVERT_ROOT_LUMINANCE = 0.45;
+
+/**
+ * Root background is invert-safe (light pre-filter), not extension preload dark.
+ */
+export function verifyInvertSafeRootBackground(
+  doc: Document,
+  filterTarget: FilterTarget = 'html',
+): boolean {
+  const view = doc.defaultView;
+  if (!view) return false;
+
+  const html = doc.documentElement;
+  const htmlBg = view.getComputedStyle(html).backgroundColor;
+  if (!htmlBg || isExtensionInjectedBackground(htmlBg)) return false;
+
+  const htmlRgb = parseColor(htmlBg);
+  if (!htmlRgb) return false;
+  const htmlLum = rgbByteLuminance(htmlRgb.r, htmlRgb.g, htmlRgb.b);
+  if (htmlLum < MIN_PRE_INVERT_ROOT_LUMINANCE) return false;
+
+  if (filterTarget === 'body' && doc.body) {
+    const bodyBg = view.getComputedStyle(doc.body).backgroundColor;
+    if (bodyBg && !isExtensionInjectedBackground(bodyBg)) {
+      const bodyRgb = parseColor(bodyBg);
+      if (
+        bodyRgb &&
+        rgbByteLuminance(bodyRgb.r, bodyRgb.g, bodyRgb.b) < MIN_PRE_INVERT_ROOT_LUMINANCE
+      ) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Verified Soft: invert filter present AND invert-safe root background (smoke test).
+ * getComputedStyle is pre-filter; a dark root bg means preload/FOUC without invert-safe swap.
+ */
+export function verifySoftApplication(
+  doc: Document,
+  filterTarget: FilterTarget = 'html',
+): boolean {
+  return (
+    verifySoftFilterApplied(doc, filterTarget) &&
+    verifyInvertSafeRootBackground(doc, filterTarget)
+  );
 }
 
 function collectOpenShadowHosts(doc: Document): Element[] {
@@ -441,12 +495,12 @@ export function applyDarkMode(
   applyFilterTarget(doc, settings, 'html', filter, preInvertBg);
 
   let filterTarget: FilterTarget = 'html';
-  let applied = verifySoftFilterApplied(doc, 'html');
+  let applied = verifySoftApplication(doc, 'html');
 
   if (!applied && doc.body) {
     applyFilterTarget(doc, settings, 'body', filter, preInvertBg);
     filterTarget = 'body';
-    applied = verifySoftFilterApplied(doc, 'body');
+    applied = verifySoftApplication(doc, 'body');
   }
 
   return { filterTarget, applied };
@@ -479,5 +533,5 @@ export function isSoftFilterActive(doc: Document = document): boolean {
   if (!isDarkModeActive(doc)) return false;
   const target =
     doc.documentElement.getAttribute(FILTER_TARGET_ATTR) === 'body' ? 'body' : 'html';
-  return verifySoftFilterApplied(doc, target as FilterTarget);
+  return verifySoftApplication(doc, target as FilterTarget);
 }

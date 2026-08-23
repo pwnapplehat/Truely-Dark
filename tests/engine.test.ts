@@ -9,6 +9,7 @@ import {
   isSoftFilterActive,
   PRELOAD_CSS,
   removeDarkMode,
+  verifySoftApplication,
   verifySoftFilterApplied,
 } from '../src/lib/engine';
 import { resolveEffectiveSettings } from '../src/lib/resolver';
@@ -130,8 +131,11 @@ describe('applyDarkMode integration', () => {
       'invert(1) hue-rotate(180deg) brightness(0.98) contrast(0.92)',
       'important',
     );
+    document.documentElement.style.setProperty('background-color', '#ededed', 'important');
     expect(verifySoftFilterApplied(document, 'html')).toBe(true);
+    expect(verifySoftApplication(document, 'html')).toBe(true);
     document.documentElement.style.removeProperty('filter');
+    document.documentElement.style.removeProperty('background-color');
   });
 });
 

@@ -35,8 +35,20 @@ describe('siteStatusLabel', () => {
   });
 
   it('shows Soft vs On labels', () => {
-    expect(siteStatusLabel(baseTab({ resolvedMode: 'soft' }))).toContain('(Soft)');
-    expect(siteStatusLabel(baseTab({ resolvedMode: 'on' }))).toContain('(On)');
+    expect(
+      siteStatusLabel(baseTab({ effectiveMode: 'soft', resolvedMode: 'soft', softApplied: true })),
+    ).toContain('(Soft)');
+    expect(
+      siteStatusLabel(baseTab({ effectiveMode: 'on', resolvedMode: 'on', softApplied: true })),
+    ).toContain('(On)');
+  });
+
+  it('shows Auto label when effective mode is auto', () => {
+    expect(
+      siteStatusLabel(
+        baseTab({ effectiveMode: 'auto', resolvedMode: 'soft', softApplied: true }),
+      ),
+    ).toBe('Extension dark mode active (Auto)');
   });
 
   it('shows native skip', () => {

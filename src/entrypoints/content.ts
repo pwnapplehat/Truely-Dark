@@ -9,7 +9,7 @@ import {
 } from '../lib/engine';
 import { sendMessage } from '../lib/messaging';
 import { resolveEffectiveSettings } from '../lib/resolver';
-import { getHostnameFromUrl, getOriginFromUrl, isExcludedOrigin } from '../lib/site-packs';
+import { getHostnameFromUrl, getOriginFromUrl, hostUsesInjectCssFallback, isExcludedOrigin } from '../lib/site-packs';
 import type { DetectionOutcome, EffectiveSiteSettings, TruelyDarkMessage } from '../types';
 
 const THEME_ATTRS = ['data-theme', 'data-color-mode', 'data-mode', 'data-dark-theme', 'class'];
@@ -92,9 +92,37 @@ export default defineContentScript({
       }
     }
 
-    function applyWithVerification(settings: EffectiveSiteSettings): boolean {
+    async function requestInsertCssFallback(filterTarget: 'html' | 'body'): Promise<void> {
+      try {
+        await sendMessage({
+          type: 'INSERT_CSS_FALLBACK',
+          payload: { filterTarget },
+        });
+      } catch {
+        // Background may not be ready
+      }
+    }
+
+    async function requestRemoveInsertCss(): Promise<void> {
+      try {
+        await sendMessage({ type: 'REMOVE_INSERT_CSS' });
+      } catch {
+        // Background may not be ready
+      }
+    }
+
+    async function applyWithVerification(settings: EffectiveSiteSettings): Promise<boolean> {
       applyDarkMode(settings);
       if (isSoftFilterActive()) return true;
+
+      if (hostUsesInjectCssFallback(hostname)) {
+        await requestInsertCssFallback('html');
+        applyDarkMode(settings);
+        if (isSoftFilterActive()) return true;
+
+        await requestInsertCssFallback('body');
+        applyDarkMode(settings);
+      }
 
       applyDarkMode(settings);
       refreshShadowDomMediaFilters(settings);
@@ -103,18 +131,18 @@ export default defineContentScript({
     }
 
     function scheduleSoftRetries(settings: EffectiveSiteSettings): void {
-      const retry = (): void => {
+      const retry = async (): Promise<void> => {
         if (!lastEffectiveSettings?.active) return;
-        const applied = applyWithVerification(settings);
+        const applied = await applyWithVerification(settings);
         refreshShadowDomMediaFilters(settings);
         void reportInjectionStatus(applied);
       };
 
-      requestAnimationFrame(retry);
-      window.setTimeout(retry, 300);
-      window.setTimeout(retry, 500);
-      window.setTimeout(retry, 2000);
-      window.setTimeout(retry, 5000);
+      requestAnimationFrame(() => void retry());
+      window.setTimeout(() => void retry(), 300);
+      window.setTimeout(() => void retry(), 500);
+      window.setTimeout(() => void retry(), 2000);
+      window.setTimeout(() => void retry(), 5000);
     }
 
     function setupStyleGuard(settings: EffectiveSiteSettings): void {
@@ -125,8 +153,9 @@ export default defineContentScript({
         const styleMissing = !document.getElementById('truely-dark-styles');
         const attrMissing = !isDarkModeActive();
         if (styleMissing || attrMissing) {
-          const applied = applyWithVerification(settings);
-          void reportInjectionStatus(applied);
+          void applyWithVerification(settings).then((applied) => {
+            void reportInjectionStatus(applied);
+          });
         }
       });
 
@@ -152,6 +181,7 @@ export default defineContentScript({
         if (!fullSettings.enabled || siteMode === 'off' || isExcludedOrigin(hostname, siteMode)) {
           lastEffectiveSettings = null;
           removeDarkMode();
+          void requestRemoveInsertCss();
           void reportInjectionStatus(false);
           return;
         }
@@ -174,17 +204,19 @@ export default defineContentScript({
 
         if (effective.skipProcessing && !effective.active) {
           removeDarkMode();
+          void requestRemoveInsertCss();
           void reportInjectionStatus(false);
           return;
         }
 
         if (effective.active) {
-          const applied = applyWithVerification(effective);
+          const applied = await applyWithVerification(effective);
           void reportInjectionStatus(applied);
           setupStyleGuard(effective);
           scheduleSoftRetries(effective);
         } else {
           removeDarkMode();
+          void requestRemoveInsertCss();
           void reportInjectionStatus(false);
         }
       } catch {
