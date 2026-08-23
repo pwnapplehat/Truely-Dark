@@ -184,6 +184,26 @@ describe('force-first marketing Soft', () => {
     detectOutcome: { result: 'light', confidence: 'medium' },
   });
 
+  it('applyDarkMode forces for OVH hostname without sitePack on settings', () => {
+    document.documentElement.innerHTML = '<head></head><body>Hi</body>';
+    const settings = {
+      active: true,
+      mode: 'soft' as const,
+      brightness: 100,
+      contrast: 92,
+      sepia: 0,
+      preserveMedia: true,
+      backgroundColor: '#121212',
+      skipProcessing: false,
+      nativeDark: false,
+    };
+    const result = applyDarkMode(settings, document, 'www.ovhcloud.com');
+    expect(result.filterTarget).toBe('force');
+    expect(document.documentElement.getAttribute('data-truely-dark-force')).toBe('true');
+    expect(document.documentElement.style.filter).not.toMatch(/invert/);
+    removeDarkMode();
+  });
+
   it('applyDarkMode uses force path for preferForceStylesheet packs', () => {
     document.documentElement.innerHTML = '<head></head><body style="background:#fff">Hi</body>';
     const result = applyDarkMode({ ...ovhEffective, active: true, mode: 'soft' });

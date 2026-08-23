@@ -1,6 +1,23 @@
 import type { EffectiveSiteSettings, SitePack } from '../types';
 export const FORCE_MARKETING_BG = '#0d1117';
 
+/** Host suffixes that must never receive invert Soft (MAIN bootstrap duplicates this list). */
+export const PREFER_FORCE_HOST_SUFFIXES = ['ovhcloud.com', 'x.ai', 'medium.com'] as const;
+
+/** Hide OVH fixed white overlay whenever Truely Dark is active — even if invert leaks once. */
+export const REDIRECTION_BANNER_KILL_CSS = `
+  html[data-truely-dark-active] .redirection-banners,
+  html[data-truely-dark-active] [class*="redirection-banner"],
+  html[data-truely-dark-active] [class*="redirection-banners"] {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+  }
+`;
+
 /** Shared force-mode surfaces for marketing / hero-heavy sites (no invert). */
 export const MARKETING_FORCE_SHELL_CSS = `
   html[data-truely-dark-active],
@@ -190,42 +207,49 @@ const OVH_FORCE_CSS = `
   html[data-truely-dark-active][data-truely-dark-force] [class*="Logo"] img {
     background-color: transparent !important;
   }
-  html[data-truely-dark-active][data-truely-dark-force] .redirection-banners,
-  html[data-truely-dark-active][data-truely-dark-force] [class*="redirection-banner"],
-  html[data-truely-dark-active][data-truely-dark-force] [class*="redirection-banners"] {
-    display: none !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-    opacity: 0 !important;
-    background: transparent !important;
-    background-image: none !important;
-  }
 `;
 
 /** Invert Soft supplement — light promo tiles / cards that resist html invert. */
 const APPLE_INVERT_SURFACE_CSS = `
-  html[data-truely-dark-active] [class*="unit"],
-  html[data-truely-dark-active] [class*="Unit"],
-  html[data-truely-dark-active] [class*="tile"],
-  html[data-truely-dark-active] [class*="Tile"],
-  html[data-truely-dark-active] [class*="promo"],
-  html[data-truely-dark-active] [class*="Promo"],
-  html[data-truely-dark-active] section[class*="module"],
-  html[data-truely-dark-active] [class*="homepage-section"],
-  html[data-truely-dark-active] [class*="rf-cc"],
-  html[data-truely-dark-active] li[class*="product"],
-  html[data-truely-dark-active] [data-analytics-region*="promo"],
-  html[data-truely-dark-active] [class*="section-content"] {
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="unit"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="Unit"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="tile"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="Tile"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="promo"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="Promo"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body section[class*="module"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="homepage-section"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="homepage"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="rf-cc"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body li[class*="product"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [data-analytics-region*="promo"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="section-content"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="section"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="Section"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="module"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="Module"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body .unit,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body .tile,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body .promo,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body main > div,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body #main section {
     background-color: #1a1a1a !important;
     background-image: none !important;
     filter: none !important;
     -webkit-filter: none !important;
     color: #e8eaed !important;
   }
-  html[data-truely-dark-active] [class*="unit"] *,
-  html[data-truely-dark-active] [class*="tile"] *,
-  html[data-truely-dark-active] [class*="promo"] *,
-  html[data-truely-dark-active] [class*="rf-cc"] * {
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="unit"] h2,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="unit"] h3,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="tile"] h2,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="tile"] h3,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="promo"] h2,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="promo"] h3,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="unit"] *,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="tile"] *,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="promo"] *,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="rf-cc"] *,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] body [class*="module"] * {
     color: #e8eaed !important;
   }
 `;
@@ -246,35 +270,46 @@ const WIKIPEDIA_INVERT_SURFACE_CSS = `
     color: #e8eaed !important;
     border-color: #3c4043 !important;
   }
-  html[data-truely-dark-active] #footer,
-  html[data-truely-dark-active] .mw-footer,
-  html[data-truely-dark-active] .footer-info,
-  html[data-truely-dark-active] #footer-info,
-  html[data-truely-dark-active] .mw-portlet-footer,
-  html[data-truely-dark-active] #footer li,
-  html[data-truely-dark-active] #footer ul,
-  html[data-truely-dark-active] .mw-footer li,
-  html[data-truely-dark-active] .mw-footer ul,
-  html[data-truely-dark-active] #footer-info li,
-  html[data-truely-dark-active] #footer-info ul,
-  html[data-truely-dark-active] .footer-info li,
-  html[data-truely-dark-active] .footer-info ul,
-  html[data-truely-dark-active] #lastmod,
-  html[data-truely-dark-active] .lastmod,
-  html[data-truely-dark-active] #footer-info-text,
-  html[data-truely-dark-active] .footer-info-text,
-  html[data-truely-dark-active] .license,
-  html[data-truely-dark-active] [id*="footer"] {
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .mw-footer,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .footer-info,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer-info,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer-info-lastmod,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer-info-copyright,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer-info-poweredby,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer-info-viewport,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] [id^="footer-info"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .mw-portlet-footer,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer li,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer ul,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .mw-footer li,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .mw-footer ul,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer-info li,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer-info ul,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .footer-info li,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .footer-info ul,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #lastmod,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .lastmod,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer-info-text,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .footer-info-text,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .license,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] [id*="footer"],
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] [class*="footer"] {
     background-color: ${FORCE_MARKETING_BG} !important;
     background-image: none !important;
     filter: none !important;
     -webkit-filter: none !important;
     color: #e8eaed !important;
+    border-color: #3c4043 !important;
   }
-  html[data-truely-dark-active] #footer *,
-  html[data-truely-dark-active] .mw-footer *,
-  html[data-truely-dark-active] #footer-info *,
-  html[data-truely-dark-active] .footer-info * {
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer *,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .mw-footer *,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #footer-info *,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] [id^="footer-info"] *,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .footer-info *,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .license *,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] #lastmod *,
+  html[data-truely-dark-active][data-truely-dark-filter-target="html"] .lastmod * {
     color: #e8eaed !important;
   }
   html[data-truely-dark-active] .mw-footer img,
@@ -382,7 +417,7 @@ const XAI_FORCE_CSS = `
   }
 `;
 
-const OVH_FORCE_PACK_CSS = `${MARKETING_FORCE_NUCLEAR_CSS}${FORCE_FORM_SURFACE_CSS}${OVH_FORCE_CSS}`;
+const OVH_FORCE_PACK_CSS = `${REDIRECTION_BANNER_KILL_CSS}${MARKETING_FORCE_NUCLEAR_CSS}${FORCE_FORM_SURFACE_CSS}${OVH_FORCE_CSS}`;
 
 const GITHUB_CSS = `
   .js-navigation-container,
@@ -580,8 +615,20 @@ export function hostUsesForceStylesheetFallback(hostname: string): boolean {
 }
 
 export function hostPrefersForceStylesheet(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  for (const suffix of PREFER_FORCE_HOST_SUFFIXES) {
+    if (normalized === suffix || normalized.endsWith(`.${suffix}`)) {
+      return true;
+    }
+  }
   const pack = findSitePack(hostname);
   return pack?.preferForceStylesheet === true;
+}
+
+/** invertOnlyCustomCss for hosts that use invert Soft (apple.com, wikipedia.org). */
+export function resolveInvertSupplementCss(hostname: string): string | undefined {
+  const pack = findSitePack(hostname);
+  return pack?.invertOnlyCustomCss;
 }
 
 export function hostRequiresMarketingVisualVerify(hostname: string): boolean {

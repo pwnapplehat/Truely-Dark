@@ -11,6 +11,7 @@ import {
   removeDarkMode,
   stripInvertSoftArtifacts,
 } from '../lib/engine';
+import { computedFilterHasStrictInvert } from '../lib/filter-verify';
 import {
   pierceOpenShadowRoots,
   generateShadowForceCss,
@@ -23,10 +24,12 @@ import { resolveEffectiveSettings } from '../lib/resolver';
 import {
   getHostnameFromUrl,
   getOriginFromUrl,
+  hostPrefersForceStylesheet,
   hostRequiresVisualVerify,
   hostUsesInjectCssFallback,
   isExcludedOrigin,
   resolveForceBackgroundColor,
+  resolveInvertSupplementCss,
 } from '../lib/site-packs';
 import type { DetectionOutcome, EffectiveSiteSettings, TruelyDarkMessage } from '../types';
 
@@ -44,6 +47,18 @@ function isThemeRelatedMutation(mutation: MutationRecord): boolean {
   return THEME_CLASS_PATTERN.test(target.className);
 }
 
+function getCurrentHostname(): string {
+  return getHostnameFromUrl(window.location.href);
+}
+
+function getCurrentOrigin(): string {
+  return getOriginFromUrl(window.location.href);
+}
+
+function isPreferForceHost(): boolean {
+  return hostPrefersForceStylesheet(getCurrentHostname());
+}
+
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_start',
@@ -55,16 +70,15 @@ export default defineContentScript({
 
     let detectObserver: MutationObserver | null = null;
     let styleGuardObserver: MutationObserver | null = null;
+    let preferForceWatchdogTimer: ReturnType<typeof setInterval> | null = null;
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let batterySaver = false;
     let lastEffectiveSettings: EffectiveSiteSettings | null = null;
     let lastDetectOutcome: DetectionOutcome | undefined;
     let injectionStatusReported = false;
 
-    const origin = getOriginFromUrl(window.location.href);
-    const hostname = getHostnameFromUrl(window.location.href);
-
     async function reportInjectionStatus(contentStrict: boolean): Promise<void> {
+      const hostname = getCurrentHostname();
       if (hostRequiresVisualVerify(hostname) && injectionStatusReported && !contentStrict) {
         return;
       }
@@ -97,6 +111,7 @@ export default defineContentScript({
     }
 
     async function reportDetection(outcome: DetectionOutcome): Promise<void> {
+      const origin = getCurrentOrigin();
       if (!origin || outcome.result === 'unknown') return;
       if (
         lastDetectOutcome?.result === outcome.result &&
@@ -120,6 +135,7 @@ export default defineContentScript({
     }
 
     async function requestInsertCssFallback(filterTarget: 'html' | 'body'): Promise<void> {
+      if (isPreferForceHost()) return;
       try {
         await sendMessage({
           type: 'INSERT_CSS_FALLBACK',
@@ -138,7 +154,66 @@ export default defineContentScript({
       }
     }
 
+    async function requestApplyMainWorldForce(): Promise<void> {
+      try {
+        await sendMessage({ type: 'APPLY_MAIN_WORLD_FORCE' });
+      } catch {
+        // Background may not be ready
+      }
+    }
+
+    async function requestInvertSupplementIfNeeded(): Promise<void> {
+      const hostname = getCurrentHostname();
+      if (hostPrefersForceStylesheet(hostname) || !resolveInvertSupplementCss(hostname)) return;
+      try {
+        await sendMessage({ type: 'INSERT_INVERT_SUPPLEMENT' });
+      } catch {
+        // Background may not be ready
+      }
+    }
+
+    function runPreferForceWatchdog(settings: EffectiveSiteSettings): void {
+      if (!isPreferForceHost() || !lastEffectiveSettings?.active) return;
+
+      const html = document.documentElement;
+      if (!html.hasAttribute('data-truely-dark-active')) return;
+
+      const forceMissing = html.getAttribute('data-truely-dark-force') !== 'true';
+      const inlineInvert = computedFilterHasStrictInvert(html.style.filter || html.style.webkitFilter);
+      let computedInvert = false;
+      const view = document.defaultView;
+      if (view) {
+        computedInvert = computedFilterHasStrictInvert(view.getComputedStyle(html).filter);
+      }
+
+      if (forceMissing || inlineInvert || computedInvert) {
+        stripInvertSoftArtifacts(document);
+        applyDarkMode(settings, document, getCurrentHostname());
+        pierceOpenShadowRoots(
+          document,
+          generateShadowForceCss(settings),
+          SHADOW_FORCE_STYLE_ID,
+        );
+        void requestApplyMainWorldForce();
+      }
+    }
+
+    function startPreferForceWatchdog(settings: EffectiveSiteSettings): void {
+      if (!isPreferForceHost()) return;
+      if (preferForceWatchdogTimer !== null) return;
+      preferForceWatchdogTimer = setInterval(() => runPreferForceWatchdog(settings), 400);
+      requestAnimationFrame(() => runPreferForceWatchdog(settings));
+    }
+
+    function stopPreferForceWatchdog(): void {
+      if (preferForceWatchdogTimer !== null) {
+        clearInterval(preferForceWatchdogTimer);
+        preferForceWatchdogTimer = null;
+      }
+    }
+
     async function applyWithVerification(settings: EffectiveSiteSettings): Promise<boolean> {
+      const hostname = getCurrentHostname();
       const preferForce =
         effectivePrefersForceSoft(settings, hostname) ||
         settings.sitePack?.preferForceStylesheet === true;
@@ -165,6 +240,7 @@ export default defineContentScript({
         applyDarkMode(settings, document, hostname);
         contentStrict = isSoftFilterActive();
         pierceOpenShadowRoots(document, generateShadowInvertPrepCss(), SHADOW_FILTER_STYLE_ID);
+        await requestInvertSupplementIfNeeded();
       }
 
       if (preferForce && !contentStrict) {
@@ -178,28 +254,14 @@ export default defineContentScript({
         contentStrict = isSoftFilterActive();
       }
 
-      const forceCss = preferForce ? generateForceStylesheetCss(settings) : undefined;
-      const shadowCss = preferForce ? generateShadowForceCss(settings) : undefined;
-
-      document.dispatchEvent(
-        new CustomEvent('truely-dark-main-apply', {
-          detail: {
-            filter: preferForce
-              ? undefined
-              : buildFilterString(settings.brightness, settings.contrast, settings.sepia),
-            bg: preferForce
-              ? resolveForceBackgroundColor(settings)
-              : computePreInvertBackground(settings.backgroundColor),
-            text: preferForce ? '#e8e8e8' : '#000000',
-            mode: settings.mode,
-            force: preferForce,
-            lightCss: forceCss,
-            shadowCss,
-            shadowFilterCss: preferForce ? undefined : generateShadowInvertPrepCss(),
-            watchShadows: hostRequiresVisualVerify(hostname),
-          },
-        }),
-      );
+      if (preferForce) {
+        await requestApplyMainWorldForce();
+        startPreferForceWatchdog(settings);
+        runPreferForceWatchdog(settings);
+      } else {
+        stopPreferForceWatchdog();
+        await requestInvertSupplementIfNeeded();
+      }
 
       await reportInjectionStatus(contentStrict);
 
@@ -232,13 +294,21 @@ export default defineContentScript({
         if (styleMissing || attrMissing) {
           void applyWithVerification(settings);
         }
+        if (isPreferForceHost()) {
+          runPreferForceWatchdog(settings);
+        }
       });
 
       const head = document.head ?? document.documentElement;
       styleGuardObserver.observe(head, { childList: true, subtree: true });
       styleGuardObserver.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ['data-truely-dark-active', 'data-truely-dark-filter-target', 'style'],
+        attributeFilter: [
+          'data-truely-dark-active',
+          'data-truely-dark-force',
+          'data-truely-dark-filter-target',
+          'style',
+        ],
       });
     }
 
@@ -250,11 +320,14 @@ export default defineContentScript({
 
         batterySaver = fullSettings.batterySaver;
 
+        const origin = getCurrentOrigin();
+        const hostname = getCurrentHostname();
         const siteMode =
           fullSettings.siteOverrides[origin]?.mode ?? fullSettings.defaultMode;
 
         if (!fullSettings.enabled || siteMode === 'off' || isExcludedOrigin(hostname, siteMode)) {
           lastEffectiveSettings = null;
+          stopPreferForceWatchdog();
           removeDarkMode();
           void requestRemoveInsertCss();
           void reportInjectionStatus(false);
@@ -278,6 +351,7 @@ export default defineContentScript({
         lastEffectiveSettings = effective;
 
         if (effective.skipProcessing && !effective.active) {
+          stopPreferForceWatchdog();
           removeDarkMode();
           void requestRemoveInsertCss();
           void reportInjectionStatus(false);
@@ -289,6 +363,7 @@ export default defineContentScript({
           setupStyleGuard(effective);
           scheduleSoftRetries(effective);
         } else {
+          stopPreferForceWatchdog();
           removeDarkMode();
           void requestRemoveInsertCss();
           void reportInjectionStatus(false);
@@ -380,6 +455,7 @@ export default defineContentScript({
     });
 
     window.addEventListener('beforeunload', () => {
+      stopPreferForceWatchdog();
       if (detectObserver) detectObserver.disconnect();
       if (styleGuardObserver) styleGuardObserver.disconnect();
       browser.runtime.onMessage.removeListener(onMessage);

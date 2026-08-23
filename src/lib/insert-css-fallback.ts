@@ -15,6 +15,8 @@ import {
   hostPrefersForceStylesheet,
   hostUsesInjectCssFallback,
   isExcludedOrigin,
+  REDIRECTION_BANNER_KILL_CSS,
+  resolveInvertSupplementCss,
 } from './site-packs';
 import { getSettings } from './storage';
 
@@ -22,6 +24,7 @@ import { getSettings } from './storage';
 const tabInsertedCss = new Map<number, string>();
 const tabForceCss = new Map<number, string>();
 const tabNuclearCss = new Map<number, string>();
+const tabInvertSupplementCss = new Map<number, string>();
 
 export function getInsertedCssForTab(tabId: number): string | undefined {
   return tabInsertedCss.get(tabId);
@@ -82,7 +85,7 @@ export async function insertSoftCssForTab(
     return false;
   }
 
-  const css = generateDarkCss(effective, filterTarget);
+  const css = generateDarkCss(effective, filterTarget, hostname);
   const previous = tabInsertedCss.get(tabId);
 
   if (previous === css) return true;
@@ -225,10 +228,81 @@ async function removeInsertedNuclearCss(tabId: number): Promise<void> {
   tabNuclearCss.delete(tabId);
 }
 
+async function removeInsertedInvertSupplementCss(tabId: number): Promise<void> {
+  const css = tabInvertSupplementCss.get(tabId);
+  if (!css) return;
+
+  try {
+    await browser.scripting.removeCSS({
+      target: { tabId, allFrames: true },
+      css,
+      origin: 'USER',
+    });
+  } catch {
+    // Tab may have navigated away
+  }
+
+  tabInvertSupplementCss.delete(tabId);
+}
+
+/**
+ * USER-origin invert supplement for apple.com / wikipedia.org Soft invert surfaces.
+ */
+export async function insertInvertSupplementForTab(tabId: number, url: string): Promise<boolean> {
+  const hostname = getHostnameFromUrl(url);
+  if (!hostname || hostPrefersForceStylesheet(hostname)) {
+    await removeInsertedInvertSupplementCss(tabId);
+    return false;
+  }
+
+  const supplementCss = resolveInvertSupplementCss(hostname);
+  if (!supplementCss) {
+    await removeInsertedInvertSupplementCss(tabId);
+    return false;
+  }
+
+  const effective = await resolveEffectiveForUrl(url);
+  if (!effective?.active) {
+    await removeInsertedInvertSupplementCss(tabId);
+    return false;
+  }
+
+  const css = `${supplementCss}${REDIRECTION_BANNER_KILL_CSS}`;
+  const previous = tabInvertSupplementCss.get(tabId);
+
+  if (previous === css) return true;
+
+  if (previous) {
+    try {
+      await browser.scripting.removeCSS({
+        target: { tabId, allFrames: true },
+        css: previous,
+        origin: 'USER',
+      });
+    } catch {
+      // Continue
+    }
+  }
+
+  try {
+    await browser.scripting.insertCSS({
+      target: { tabId, allFrames: true },
+      css,
+      origin: 'USER',
+    });
+    tabInvertSupplementCss.set(tabId, css);
+    return true;
+  } catch {
+    tabInvertSupplementCss.delete(tabId);
+    return false;
+  }
+}
+
 export async function removeSoftCssForTab(tabId: number): Promise<void> {
   await removeInsertedCss(tabId);
   await removeInsertedForceCss(tabId);
   await removeInsertedNuclearCss(tabId);
+  await removeInsertedInvertSupplementCss(tabId);
 }
 
 export async function maybeProactiveInsertCss(tabId: number, url: string): Promise<void> {

@@ -109,7 +109,9 @@ export type MessageType =
   | 'INJECTION_STATUS'
   | 'INSERT_CSS_FALLBACK'
   | 'REMOVE_INSERT_CSS'
-  | 'GESTURE_ACTIVATE_SOFT';
+  | 'GESTURE_ACTIVATE_SOFT'
+  | 'APPLY_MAIN_WORLD_FORCE'
+  | 'INSERT_INVERT_SUPPLEMENT';
 
 export interface TruelyDarkMessage {
   type: MessageType;

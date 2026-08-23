@@ -2,7 +2,7 @@ import type { EffectiveSiteSettings } from '../types';
 import { parseColor, rgbByteLuminance } from './color';
 import { isExtensionInjectedBackground } from './detect';
 import { computedFilterHasStrictInvert } from './filter-verify';
-import { MARKETING_FORCE_SHELL_CSS, hostPrefersForceStylesheet, resolveForceBackgroundColor } from './site-packs';
+import { MARKETING_FORCE_SHELL_CSS, hostPrefersForceStylesheet, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor } from './site-packs';
 import {
   pierceOpenShadowRoots,
   generateShadowForceCss,
@@ -169,6 +169,8 @@ export function generateForceStylesheetCss(settings: EffectiveSiteSettings): str
     css += settings.sitePack.customCss;
   }
 
+  css += REDIRECTION_BANNER_KILL_CSS;
+
   return css;
 }
 
@@ -242,8 +244,9 @@ const FIXED_LAYER_RESET = `
 export function generateDarkCss(
   settings: EffectiveSiteSettings,
   filterTarget: FilterTarget = 'html',
+  hostname?: string,
 ): string {
-  if (effectivePrefersForceSoft(settings)) {
+  if (effectivePrefersForceSoft(settings, hostname)) {
     return generateForceStylesheetCss(settings);
   }
 
@@ -324,6 +327,8 @@ export function generateDarkCss(
   if (settings.sitePack?.invertOnlyCustomCss) {
     css += settings.sitePack.invertOnlyCustomCss;
   }
+
+  css += REDIRECTION_BANNER_KILL_CSS;
 
   if (settings.sitePack?.customCss && !settings.sitePack.preferForceStylesheet) {
     css += settings.sitePack.customCss;
@@ -583,8 +588,9 @@ function applyFilterTarget(
   filterTarget: FilterTarget,
   filter: string,
   preInvertBg: string,
+  hostname?: string,
 ): void {
-  if (effectivePrefersForceSoft(settings)) {
+  if (effectivePrefersForceSoft(settings, hostname)) {
     applyForceStylesheetMode(settings, doc);
     return;
   }
@@ -609,7 +615,7 @@ function applyFilterTarget(
     styleEl = doc.createElement('style');
     styleEl.id = STYLE_ID;
   }
-  setStyleElementContent(doc, styleEl, generateDarkCss(settings, filterTarget));
+  setStyleElementContent(doc, styleEl, generateDarkCss(settings, filterTarget, hostname));
   appendStyleElement(doc, styleEl);
 
   applyShadowDomFilters(doc, settings, filter);
@@ -679,13 +685,13 @@ export function applyDarkMode(
   html.setAttribute(ROOT_ATTR, settings.mode);
   swapPreloadToInvertSafe(doc, preInvertBg);
 
-  applyFilterTarget(doc, settings, 'html', filter, preInvertBg);
+  applyFilterTarget(doc, settings, 'html', filter, preInvertBg, hostname);
 
   let filterTarget: FilterTarget = 'html';
   let applied = verifySoftApplication(doc, 'html');
 
   if (!applied && doc.body) {
-    applyFilterTarget(doc, settings, 'body', filter, preInvertBg);
+    applyFilterTarget(doc, settings, 'body', filter, preInvertBg, hostname);
     filterTarget = 'body';
     applied = verifySoftApplication(doc, 'body');
   }

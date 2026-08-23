@@ -12,6 +12,26 @@
   var FORCE_BG = '#0d1117';
   var INVERT_PRE_BG = '#ededed';
 
+  /** Duplicated from site-packs — bootstrap cannot import TS. */
+  var PREFER_FORCE_SUFFIXES = ['ovhcloud.com', 'x.ai', 'medium.com'];
+
+  var preferForceWatchdogTimer = null;
+
+  function hostnamePrefersForce(hostname) {
+    if (!hostname) return false;
+    var h = String(hostname).toLowerCase();
+    for (var i = 0; i < PREFER_FORCE_SUFFIXES.length; i++) {
+      var suffix = PREFER_FORCE_SUFFIXES[i];
+      if (h === suffix || h.endsWith('.' + suffix)) return true;
+    }
+    return false;
+  }
+
+  function filterStringHasInvert(filterStr) {
+    if (!filterStr) return false;
+    return /invert\s*\(/i.test(filterStr);
+  }
+
   function injectIntoShadowRoot(root, cssText, styleId, visited) {
     if (!root || visited.has(root)) return;
     visited.add(root);
@@ -110,14 +130,23 @@
     return '#000000';
   }
 
+  function stripInvertFromHtml(html) {
+    html.style.removeProperty('filter');
+    html.style.removeProperty('-webkit-filter');
+    html.removeAttribute('data-truely-dark-filter-target');
+    if (document.body) {
+      document.body.style.removeProperty('filter');
+      document.body.style.removeProperty('-webkit-filter');
+    }
+  }
+
   function applyHtmlPaint(bg, text, filterStr, mode, force) {
     var html = document.documentElement;
     html.setAttribute('data-truely-dark-active', mode || 'soft');
     if (force) {
       html.setAttribute('data-truely-dark-force', 'true');
       html.setAttribute('data-truely-dark-filter-target', 'force');
-      html.style.removeProperty('filter');
-      html.style.removeProperty('-webkit-filter');
+      stripInvertFromHtml(html);
     } else {
       html.removeAttribute('data-truely-dark-force');
       html.setAttribute('data-truely-dark-filter-target', 'html');
@@ -139,6 +168,7 @@
   }
 
   function injectLightForceCss(cssText) {
+    if (!cssText) return;
     var el = document.getElementById(FORCE_STYLE_ID);
     if (!el) {
       el = document.createElement('style');
@@ -158,10 +188,58 @@
     observer.observe(document.documentElement, { childList: true, subtree: true });
   }
 
+  function stopPreferForceWatchdog() {
+    if (preferForceWatchdogTimer !== null) {
+      clearInterval(preferForceWatchdogTimer);
+      preferForceWatchdogTimer = null;
+    }
+  }
+
+  function runPreferForceWatchdog() {
+    if (!hostnamePrefersForce(location.hostname)) return;
+
+    var html = document.documentElement;
+    if (!html.hasAttribute('data-truely-dark-active')) return;
+
+    var forceMissing = html.getAttribute('data-truely-dark-force') !== 'true';
+    var inlineInvert = filterStringHasInvert(html.style.filter || html.style.webkitFilter);
+    var computedInvert = false;
+    try {
+      computedInvert = filterStringHasInvert(getComputedStyle(html).filter);
+    } catch (e) {
+      /* getComputedStyle blocked */
+    }
+
+    if (forceMissing || inlineInvert || computedInvert) {
+      window.__truelyDarkMain.apply({
+        force: true,
+        mode: html.getAttribute('data-truely-dark-active') || 'soft',
+        bg: FORCE_BG,
+        text: '#e8e8e8',
+      });
+    }
+  }
+
+  function startPreferForceWatchdog() {
+    if (!hostnamePrefersForce(location.hostname)) return;
+    if (preferForceWatchdogTimer !== null) return;
+    preferForceWatchdogTimer = setInterval(runPreferForceWatchdog, 400);
+    requestAnimationFrame(runPreferForceWatchdog);
+  }
+
   window.__truelyDarkMain = {
     pierceShadows: pierceAllShadows,
     apply: function (opts) {
       opts = opts || {};
+
+      if (hostnamePrefersForce(location.hostname)) {
+        opts.force = true;
+        opts.filter = undefined;
+        opts.bg = opts.bg || FORCE_BG;
+        opts.text = opts.text || '#e8e8e8';
+        opts.shadowFilterCss = null;
+      }
+
       var force = opts.force || false;
       applyHtmlPaint(
         resolveDefaultBg(opts),
@@ -175,8 +253,14 @@
       if (opts.watchShadows) {
         startShadowObserver(opts.shadowCss, force ? null : opts.shadowFilterCss);
       }
+
+      if (force || hostnamePrefersForce(location.hostname)) {
+        startPreferForceWatchdog();
+      }
     },
     remove: function () {
+      stopPreferForceWatchdog();
+
       var html = document.documentElement;
       html.removeAttribute('data-truely-dark-active');
       html.removeAttribute('data-truely-dark-force');

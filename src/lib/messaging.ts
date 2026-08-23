@@ -1,4 +1,6 @@
 import type { TruelyDarkMessage } from '../types';
+import { applyPreferForceMainWorldForTab } from './force-main-world';
+import { getHostnameFromUrl, hostPrefersForceStylesheet } from './site-packs';
 
 export async function sendMessage<T = unknown>(
   message: TruelyDarkMessage,
@@ -19,6 +21,9 @@ export async function broadcastSettingsChanged(): Promise<void> {
 
   for (const tab of tabs) {
     if (tab.id) {
+      if (tab.url && hostPrefersForceStylesheet(getHostnameFromUrl(tab.url))) {
+        void applyPreferForceMainWorldForTab(tab.id, tab.url);
+      }
       try {
         await browser.tabs.sendMessage(tab.id, message);
       } catch {

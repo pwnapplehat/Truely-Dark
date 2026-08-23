@@ -9,7 +9,7 @@ import type {
 import { DETECT_CACHE_TTL_MS } from '../types';
 import { applyPreset, migrateSettings } from './defaults';
 import { purgePoisonedDetectCache } from './detect';
-import { getHostnameFromUrl, getOriginFromUrl } from './site-packs';
+import { getHostnameFromUrl, getOriginFromUrl, hostPrefersForceStylesheet } from './site-packs';
 import {
   cycleSiteMode,
   getSiteMode,
@@ -20,6 +20,11 @@ import { getSettings, setSettings, updateSettings } from './storage';
 import { broadcastSettingsChanged, onMessage } from './messaging';
 import { getSystemDarkPreference } from './schedule';
 import { settingsSchema } from './schema';
+import {
+  applyInvertSupplementForTabIfNeeded,
+  applyPreferForceMainWorldForTab,
+  escalatePreferForceMainWorldForTab,
+} from './force-main-world';
 import { gestureActivateSoftForTab } from './gesture-activate';
 import {
   insertSoftCssForTab,
@@ -274,12 +279,19 @@ export function registerBackgroundHandlers(): void {
           const injectionHostname = getHostnameFromUrl(injectionUrl);
           if (contentStrict && !isChromeGalleryHost(injectionHostname)) {
             setTabSoftApplied(injectionTabId, true);
+            if (hostPrefersForceStylesheet(injectionHostname) && injectionUrl) {
+              void applyPreferForceMainWorldForTab(injectionTabId, injectionUrl);
+            }
             return { success: true };
           }
 
           if (isChromeGalleryHost(injectionHostname)) {
             settleGalleryTabBlocked(injectionTabId);
             return { success: true };
+          }
+
+          if (hostPrefersForceStylesheet(injectionHostname) && injectionUrl) {
+            void escalatePreferForceMainWorldForTab(injectionTabId, injectionUrl);
           }
 
           if (
@@ -341,6 +353,22 @@ export function registerBackgroundHandlers(): void {
         const removeTabId = sender.tab?.id ?? (message.payload as { tabId?: number })?.tabId;
         if (removeTabId !== undefined) {
           await removeSoftCssForTab(removeTabId);
+        }
+        return { success: true };
+
+      case 'APPLY_MAIN_WORLD_FORCE':
+        const forceTabId = sender.tab?.id;
+        const forceUrl = sender.tab?.url ?? '';
+        if (forceTabId && forceUrl) {
+          await escalatePreferForceMainWorldForTab(forceTabId, forceUrl);
+        }
+        return { success: true };
+
+      case 'INSERT_INVERT_SUPPLEMENT':
+        const supTabId = sender.tab?.id;
+        const supUrl = sender.tab?.url ?? '';
+        if (supTabId && supUrl) {
+          await applyInvertSupplementForTabIfNeeded(supTabId, supUrl);
         }
         return { success: true };
 
