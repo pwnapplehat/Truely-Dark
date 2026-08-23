@@ -31,6 +31,7 @@ import {
   clearGalleryGestureAttempted,
   isGalleryGestureAttempted,
 } from './gallery-gesture-state';
+import { isPopupLikelyOpen, isPopupSender, markPopupOpen } from './popup-state';
 import {
   clearTabSoftApplied,
   getTabSoftApplied,
@@ -187,6 +188,10 @@ export function registerBackgroundHandlers(): void {
   void purgeStaleDetectCache();
 
   onMessage(async (message, sender) => {
+    if (isPopupSender(sender)) {
+      markPopupOpen();
+    }
+
     switch (message.type) {
       case 'GET_SETTINGS':
         return await getSettings();
@@ -238,6 +243,9 @@ export function registerBackgroundHandlers(): void {
         return await handleImportSettings(message.payload);
 
       case 'GET_TAB_INFO':
+        if (isPopupSender(sender)) {
+          markPopupOpen();
+        }
         let tabUrl =
           (message.payload as { url?: string })?.url ?? sender.tab?.url ?? '';
         let tabId = sender.tab?.id;
@@ -259,6 +267,11 @@ export function registerBackgroundHandlers(): void {
         const { contentStrict } = message.payload as { contentStrict: boolean };
 
         if (injectionTabId !== undefined) {
+          if (contentStrict) {
+            setTabSoftApplied(injectionTabId, true);
+            return { success: true };
+          }
+
           if (
             isInjectionResolveInFlight(injectionTabId) ||
             isTabSoftAppliedSettled(injectionTabId)
@@ -280,6 +293,7 @@ export function registerBackgroundHandlers(): void {
         return { success: true };
 
       case 'GESTURE_ACTIVATE_SOFT':
+        markPopupOpen();
         const gestureSettings = await getSettings();
         const [gestureTab] = await browser.tabs.query({
           active: true,
@@ -399,7 +413,7 @@ export function registerBackgroundHandlers(): void {
         const info = await buildTabInfo(tab.url, settings, tabId);
         if (info.pageRestricted || !info.active) {
           setTabSoftApplied(tabId, false);
-        } else {
+        } else if (!isPopupLikelyOpen()) {
           await settleTabSoftApplied(tabId, tab.windowId, tab.url, false);
         }
       }

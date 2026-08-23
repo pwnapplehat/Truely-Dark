@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   analyzeVisualSamples,
+  isSoftAppliedFromVisualAnalysis,
+  isUsableDarkAnalysis,
   isVisuallyDarkAnalysis,
-  VISUAL_DARK_LUMINANCE_THRESHOLD,
-  VISUAL_MAX_LUMINANCE_THRESHOLD,
+  resolveSoftAppliedFromSignals,
+  VISUAL_APPLIED_AVERAGE_THRESHOLD,
   VISUAL_SAMPLE_FRACTIONS,
-  VISUAL_TOP_BAND_LUMINANCE_THRESHOLD,
   VISUAL_USABLE_TOP_BAND_THRESHOLD,
 } from '../src/lib/visual-verify';
 
@@ -22,9 +23,10 @@ describe('visual-verify strict top-band gate', () => {
     }
     const analysis = analyzeVisualSamples(data, width, height, VISUAL_SAMPLE_FRACTIONS);
     expect(isVisuallyDarkAnalysis(analysis)).toBe(true);
+    expect(isSoftAppliedFromVisualAnalysis(analysis)).toBe(true);
   });
 
-  it('fails when top band is light but average is pulled down by dark bottom', () => {
+  it('fails when top band is fully light but average is pulled down by dark bottom', () => {
     const width = 100;
     const height = 100;
     const data = new Uint8ClampedArray(width * height * 4);
@@ -40,8 +42,8 @@ describe('visual-verify strict top-band gate', () => {
       }
     }
     const analysis = analyzeVisualSamples(data, width, height, VISUAL_SAMPLE_FRACTIONS);
-    expect(analysis.topBandMax).toBeGreaterThan(VISUAL_TOP_BAND_LUMINANCE_THRESHOLD);
-    expect(isVisuallyDarkAnalysis(analysis)).toBe(false);
+    expect(analysis.topBandMax).toBeGreaterThan(VISUAL_USABLE_TOP_BAND_THRESHOLD);
+    expect(isSoftAppliedFromVisualAnalysis(analysis)).toBe(false);
   });
 
   it('fails when max hotspot exceeds threshold', () => {
@@ -54,18 +56,16 @@ describe('visual-verify strict top-band gate', () => {
       data[i + 2] = 20;
       data[i + 3] = 255;
     }
-    // one bright pixel at center
     const ci = (5 * width + 5) * 4;
     data[ci] = 255;
     data[ci + 1] = 255;
     data[ci + 2] = 255;
 
     const analysis = analyzeVisualSamples(data, width, height, [[0.5, 0.5]]);
-    expect(analysis.max).toBeGreaterThan(VISUAL_MAX_LUMINANCE_THRESHOLD);
-    expect(isVisuallyDarkAnalysis(analysis)).toBe(false);
+    expect(isSoftAppliedFromVisualAnalysis(analysis)).toBe(false);
   });
 
-  it('passes usable-dark when average is low and top band gutters are tolerable', () => {
+  it('passes OVH-like usable-dark: dark page + slightly lighter top side gutters', () => {
     const width = 100;
     const height = 100;
     const data = new Uint8ClampedArray(width * height * 4);
@@ -73,8 +73,8 @@ describe('visual-verify strict top-band gate', () => {
       for (let x = 0; x < width; x++) {
         const i = (y * width + x) * 4;
         const inTopBand = y < 25;
-        const sideGutter = x < 8 || x > 91;
-        const v = inTopBand && sideGutter ? 170 : 15;
+        const sideGutter = x < 10 || x > 89;
+        const v = inTopBand && sideGutter ? 185 : 18;
         data[i] = v;
         data[i + 1] = v;
         data[i + 2] = v;
@@ -82,8 +82,21 @@ describe('visual-verify strict top-band gate', () => {
       }
     }
     const analysis = analyzeVisualSamples(data, width, height, VISUAL_SAMPLE_FRACTIONS);
-    expect(analysis.average).toBeLessThan(0.4);
-    expect(analysis.topBandMax).toBeLessThan(VISUAL_USABLE_TOP_BAND_THRESHOLD);
-    expect(isVisuallyDarkAnalysis(analysis)).toBe(true);
+    expect(analysis.average).toBeLessThan(VISUAL_APPLIED_AVERAGE_THRESHOLD);
+    expect(isUsableDarkAnalysis(analysis)).toBe(true);
+    expect(isSoftAppliedFromVisualAnalysis(analysis)).toBe(true);
+    expect(resolveSoftAppliedFromSignals(false, analysis, false)).toBe(true);
+  });
+
+  it('contentStrict OR visual passes when either signal is true', () => {
+    const dark = analyzeVisualSamples(
+      new Uint8ClampedArray([10, 10, 10, 255]),
+      1,
+      1,
+      [[0.5, 0.5]],
+    );
+    expect(resolveSoftAppliedFromSignals(true, dark, false)).toBe(true);
+    expect(resolveSoftAppliedFromSignals(false, dark, false)).toBe(true);
+    expect(resolveSoftAppliedFromSignals(false, null, true)).toBe(false);
   });
 });

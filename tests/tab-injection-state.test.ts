@@ -33,8 +33,8 @@ describe('tab-injection-state', () => {
       () => new Promise((resolve) => setTimeout(() => resolve(true), 50)),
     );
 
-    const a = settleTabSoftApplied(2, 1, 'https://example.com/', true);
-    const b = settleTabSoftApplied(2, 1, 'https://example.com/', true);
+    const a = settleTabSoftApplied(2, 1, 'https://example.com/', false);
+    const b = settleTabSoftApplied(2, 1, 'https://example.com/', false);
 
     expect(isInjectionResolveInFlight(2)).toBe(true);
     expect(await a).toBe(true);
@@ -53,12 +53,12 @@ describe('tab-injection-state', () => {
 
   it('force=true re-resolves after prior settle', async () => {
     vi.mocked(resolveSoftAppliedForTab)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(false);
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
 
     await settleTabSoftApplied(6, 1, 'https://chromewebstore.google.com/', false);
     const forced = await settleTabSoftApplied(6, 1, 'https://chromewebstore.google.com/', false, true);
-    expect(forced).toBe(false);
+    expect(forced).toBe(true);
     expect(resolveSoftAppliedForTab).toHaveBeenCalledTimes(2);
   });
 
@@ -88,6 +88,13 @@ describe('tab-injection-state', () => {
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(getTabSoftApplied(7)).toBe(true);
   }, INJECTION_RESOLVE_TIMEOUT_MS + 800);
+
+  it('settles immediately true when contentStrict is true', async () => {
+    const applied = await settleTabSoftApplied(8, 1, 'https://www.ovhcloud.com/', true);
+    expect(applied).toBe(true);
+    expect(getTabSoftApplied(8)).toBe(true);
+    expect(resolveSoftAppliedForTab).not.toHaveBeenCalled();
+  });
 
   it('markTabNavigation clears in-flight state', () => {
     markTabNavigation(4);

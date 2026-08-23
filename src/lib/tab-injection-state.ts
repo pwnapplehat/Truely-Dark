@@ -11,7 +11,14 @@ export function getTabSoftApplied(tabId: number | undefined): boolean | undefine
   return tabSoftApplied.get(tabId);
 }
 
+/**
+ * Never downgrade true → false (popup overlay captures must not clear a good status).
+ */
 export function setTabSoftApplied(tabId: number, applied: boolean): void {
+  const current = tabSoftApplied.get(tabId);
+  if (current === true && !applied) {
+    return;
+  }
   tabSoftApplied.set(tabId, applied);
 }
 
@@ -45,6 +52,11 @@ export async function settleTabSoftApplied(
   contentStrict: boolean,
   force = false,
 ): Promise<boolean> {
+  if (contentStrict) {
+    setTabSoftApplied(tabId, true);
+    return true;
+  }
+
   const settled = tabSoftApplied.get(tabId);
   if (!force && settled !== undefined) {
     return settled;
@@ -59,20 +71,20 @@ export async function settleTabSoftApplied(
     const resolvePromise = resolveSoftAppliedForTab(tabId, windowId, url, contentStrict).then(
       (applied) => {
         if (!timedOut) {
-          tabSoftApplied.set(tabId, applied);
-          return applied;
+          setTabSoftApplied(tabId, applied);
+          return getTabSoftApplied(tabId) ?? applied;
         }
         if (applied) {
-          tabSoftApplied.set(tabId, true);
+          setTabSoftApplied(tabId, true);
           return true;
         }
-        return tabSoftApplied.get(tabId) ?? false;
+        return getTabSoftApplied(tabId) ?? false;
       },
       () => {
         if (!timedOut) {
-          tabSoftApplied.set(tabId, false);
+          setTabSoftApplied(tabId, false);
         }
-        return false;
+        return getTabSoftApplied(tabId) ?? false;
       },
     );
 
@@ -80,9 +92,9 @@ export async function settleTabSoftApplied(
       setTimeout(() => {
         timedOut = true;
         if (tabSoftApplied.get(tabId) === undefined) {
-          tabSoftApplied.set(tabId, false);
+          setTabSoftApplied(tabId, contentStrict);
         }
-        resolve(false);
+        resolve(getTabSoftApplied(tabId) ?? false);
       }, INJECTION_RESOLVE_TIMEOUT_MS);
     });
 

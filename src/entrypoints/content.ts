@@ -61,10 +61,14 @@ export default defineContentScript({
     const hostname = getHostnameFromUrl(window.location.href);
 
     async function reportInjectionStatus(contentStrict: boolean): Promise<void> {
-      if (hostRequiresVisualVerify(hostname) && injectionStatusReported) {
+      if (hostRequiresVisualVerify(hostname) && injectionStatusReported && !contentStrict) {
         return;
       }
-      injectionStatusReported = true;
+      if (contentStrict) {
+        injectionStatusReported = true;
+      } else if (!injectionStatusReported) {
+        injectionStatusReported = true;
+      }
       try {
         await sendMessage({
           type: 'INJECTION_STATUS',

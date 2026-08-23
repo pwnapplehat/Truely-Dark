@@ -8,10 +8,13 @@ import {
   executeMainWorldNuclearForce,
   executeMainWorldSoftFilter,
 } from './main-world-inject';
+import { isPopupLikelyOpen } from './popup-state';
 import { getHostnameFromUrl, hostRequiresVisualVerify } from './site-packs';
 import {
   captureTabVisualAnalysis,
-  isVisuallyDarkAnalysis,
+  isSoftAppliedFromVisualAnalysis,
+  resolveSoftAppliedFromSignals,
+  type VisualSoftAppliedResult,
 } from './visual-verify';
 
 const VERIFY_PAINT_DELAY_MS = 200;
@@ -21,14 +24,39 @@ async function paintDelay(ms = VERIFY_PAINT_DELAY_MS): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export interface VisualVerifyOptions {
+  skipCapture?: boolean;
+}
+
 /**
- * Sample visible tab pixels — true when viewport is visually dark (strict top-band gate).
+ * Visual verify for stubborn hosts — inconclusive when popup covers the tab.
  */
-export async function verifyVisualDarkness(windowId: number): Promise<boolean> {
+export async function verifyVisualSoftApplied(
+  windowId: number,
+  options: VisualVerifyOptions = {},
+): Promise<VisualSoftAppliedResult> {
+  if (options.skipCapture || isPopupLikelyOpen()) {
+    return { applied: false, inconclusive: true, analysis: null };
+  }
+
   await paintDelay();
   const analysis = await captureTabVisualAnalysis(windowId);
-  if (!analysis) return false;
-  return isVisuallyDarkAnalysis(analysis);
+  if (!analysis) {
+    return { applied: false, inconclusive: true, analysis: null };
+  }
+
+  return {
+    applied: isSoftAppliedFromVisualAnalysis(analysis),
+    inconclusive: false,
+    analysis,
+  };
+}
+
+/** @deprecated Use verifyVisualSoftApplied */
+export async function verifyVisualDarkness(windowId: number): Promise<boolean> {
+  const result = await verifyVisualSoftApplied(windowId);
+  if (result.inconclusive) return false;
+  return result.applied;
 }
 
 /**
@@ -38,6 +66,7 @@ export async function escalateSoftApplication(
   tabId: number,
   windowId: number,
   url: string,
+  options: VisualVerifyOptions = {},
 ): Promise<boolean> {
   const steps: Array<() => Promise<void>> = [
     async () => {
@@ -64,20 +93,23 @@ export async function escalateSoftApplication(
 
   for (const step of steps) {
     await step();
-    if (await verifyVisualDarkness(windowId)) return true;
+    const visual = await verifyVisualSoftApplied(windowId, options);
+    if (visual.inconclusive) continue;
+    if (visual.applied) return true;
   }
 
   return false;
 }
 
 /**
- * Final softApplied truth: stubborn hosts require visual verify; others use content strict check.
+ * Final softApplied truth: contentStrict OR visualDark OR usableDark on verify hosts.
  */
 export async function resolveSoftAppliedForTab(
   tabId: number,
   windowId: number,
   url: string,
   contentStrict: boolean,
+  options: VisualVerifyOptions = {},
 ): Promise<boolean> {
   const hostname = getHostnameFromUrl(url);
 
@@ -85,9 +117,21 @@ export async function resolveSoftAppliedForTab(
     return contentStrict;
   }
 
-  if (await verifyVisualDarkness(windowId)) {
-    return true;
+  if (contentStrict) return true;
+
+  const visual = await verifyVisualSoftApplied(windowId, options);
+  if (!visual.inconclusive && visual.applied) return true;
+
+  if (visual.inconclusive) {
+    return contentStrict;
   }
 
-  return await escalateSoftApplication(tabId, windowId, url);
+  const escalated = await escalateSoftApplication(tabId, windowId, url, options);
+  if (escalated) return true;
+
+  if (visual.analysis) {
+    return resolveSoftAppliedFromSignals(false, visual.analysis, false);
+  }
+
+  return contentStrict;
 }

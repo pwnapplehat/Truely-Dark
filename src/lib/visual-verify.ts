@@ -1,12 +1,14 @@
 import { rgbByteLuminance } from './color';
 
-/** Average sampled luminance below this counts as visually dark. */
+/** Average sampled luminance below this counts as visually dark (strict). */
 export const VISUAL_DARK_LUMINANCE_THRESHOLD = 0.45;
 export const VISUAL_MAX_LUMINANCE_THRESHOLD = 0.55;
 export const VISUAL_TOP_BAND_LUMINANCE_THRESHOLD = 0.6;
-/** Relaxed gate for usable-dark pages (e.g. OVH thin light side gutters). */
-export const VISUAL_USABLE_DARK_AVERAGE_THRESHOLD = 0.4;
-export const VISUAL_USABLE_TOP_BAND_THRESHOLD = 0.72;
+/** Any capture average below this counts as applied on visual-verify hosts. */
+export const VISUAL_APPLIED_AVERAGE_THRESHOLD = 0.5;
+/** Usable-dark: clearly filtered page with tolerable top-band gutters (OVH). */
+export const VISUAL_USABLE_DARK_AVERAGE_THRESHOLD = 0.45;
+export const VISUAL_USABLE_TOP_BAND_THRESHOLD = 0.75;
 export const VISUAL_TOP_BAND_FRACTION = 0.25;
 
 /** Top band + mid + bottom — header/hero weighted heavily. */
@@ -34,6 +36,12 @@ export interface VisualSampleAnalysis {
   average: number;
   max: number;
   topBandMax: number;
+}
+
+export interface VisualSoftAppliedResult {
+  applied: boolean;
+  inconclusive: boolean;
+  analysis: VisualSampleAnalysis | null;
 }
 
 function sampleLuminanceAt(
@@ -101,21 +109,54 @@ export function isVisuallyDarkLuminance(luminance: number): boolean {
   return luminance < VISUAL_DARK_LUMINANCE_THRESHOLD;
 }
 
-/**
- * Strict visual gate with usable-dark fallback for thin light gutters (OVH side bands).
- */
-export function isVisuallyDarkAnalysis(analysis: VisualSampleAnalysis): boolean {
-  const strict =
+/** Strict visual gate (average + max hotspot + top band). */
+export function isVisuallyDarkStrict(analysis: VisualSampleAnalysis): boolean {
+  return (
     analysis.average < VISUAL_DARK_LUMINANCE_THRESHOLD &&
     analysis.max < VISUAL_MAX_LUMINANCE_THRESHOLD &&
-    analysis.topBandMax < VISUAL_TOP_BAND_LUMINANCE_THRESHOLD;
+    analysis.topBandMax < VISUAL_TOP_BAND_LUMINANCE_THRESHOLD
+  );
+}
 
-  if (strict) return true;
-
+/** Usable-dark: dark average with tolerable top-band gutters (OVH side bands). */
+export function isUsableDarkAnalysis(analysis: VisualSampleAnalysis): boolean {
   return (
     analysis.average < VISUAL_USABLE_DARK_AVERAGE_THRESHOLD &&
     analysis.topBandMax < VISUAL_USABLE_TOP_BAND_THRESHOLD
   );
+}
+
+/**
+ * True when capture pixels indicate Soft is visibly applied.
+ * average < 0.5 OR usable-dark OR strict dark.
+ */
+export function isSoftAppliedFromVisualAnalysis(analysis: VisualSampleAnalysis): boolean {
+  if (analysis.average < VISUAL_APPLIED_AVERAGE_THRESHOLD) return true;
+  if (isUsableDarkAnalysis(analysis)) return true;
+  if (isVisuallyDarkStrict(analysis)) return true;
+  return false;
+}
+
+/**
+ * Strict visual gate with usable-dark fallback (legacy alias).
+ */
+export function isVisuallyDarkAnalysis(analysis: VisualSampleAnalysis): boolean {
+  return isSoftAppliedFromVisualAnalysis(analysis);
+}
+
+/**
+ * Combine content strict check with visual analysis — any signal true → applied.
+ */
+export function resolveSoftAppliedFromSignals(
+  contentStrict: boolean,
+  analysis: VisualSampleAnalysis | null,
+  captureInconclusive: boolean,
+): boolean {
+  if (contentStrict) return true;
+  if (captureInconclusive || analysis === null) {
+    return false;
+  }
+  return isSoftAppliedFromVisualAnalysis(analysis);
 }
 
 /**
