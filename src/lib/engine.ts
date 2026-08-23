@@ -2,6 +2,13 @@ import type { EffectiveSiteSettings } from '../types';
 import { parseColor, rgbByteLuminance } from './color';
 import { isExtensionInjectedBackground } from './detect';
 import { computedFilterHasStrictInvert } from './filter-verify';
+import {
+  pierceOpenShadowRoots,
+  generateShadowForceCss,
+  generateShadowInvertPrepCss,
+  SHADOW_FILTER_STYLE_ID,
+  SHADOW_FORCE_STYLE_ID,
+} from './shadow-force';
 
 export const ROOT_ATTR = 'data-truely-dark-active';
 export const FILTER_TARGET_ATTR = 'data-truely-dark-filter-target';
@@ -159,6 +166,8 @@ export function applyForceStylesheetMode(
   }
   styleEl.textContent = css;
   appendStyleElement(doc, styleEl);
+
+  pierceOpenShadowRoots(doc, generateShadowForceCss(settings), SHADOW_FORCE_STYLE_ID);
 }
 
 const CHROME_BACKDROP_RESET = `
@@ -518,6 +527,7 @@ function applyFilterTarget(
   appendStyleElement(doc, styleEl);
 
   applyShadowDomFilters(doc, settings, filter);
+  pierceOpenShadowRoots(doc, generateShadowInvertPrepCss(), SHADOW_FILTER_STYLE_ID);
 }
 
 export function injectPreloadCss(doc: Document = document): void {

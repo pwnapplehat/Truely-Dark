@@ -1,6 +1,8 @@
 import { detectFromDom } from '../lib/detect';
 import {
   applyDarkMode,
+  buildFilterString,
+  computePreInvertBackground,
   injectPreloadCss,
   isDarkModeActive,
   isForceStylesheetActive,
@@ -8,6 +10,11 @@ import {
   refreshShadowDomMediaFilters,
   removeDarkMode,
 } from '../lib/engine';
+import {
+  pierceOpenShadowRoots,
+  generateShadowInvertPrepCss,
+  SHADOW_FILTER_STYLE_ID,
+} from '../lib/shadow-force';
 import { sendMessage } from '../lib/messaging';
 import { resolveEffectiveSettings } from '../lib/resolver';
 import {
@@ -142,7 +149,21 @@ export default defineContentScript({
         applyDarkMode(settings);
         refreshShadowDomMediaFilters(settings);
         contentStrict = isSoftFilterActive();
+        pierceOpenShadowRoots(document, generateShadowInvertPrepCss(), SHADOW_FILTER_STYLE_ID);
       }
+
+      document.dispatchEvent(
+        new CustomEvent('truely-dark-main-apply', {
+          detail: {
+            filter: buildFilterString(settings.brightness, settings.contrast, settings.sepia),
+            bg: computePreInvertBackground(settings.backgroundColor),
+            text: '#000000',
+            mode: settings.mode,
+            shadowFilterCss: generateShadowInvertPrepCss(),
+            watchShadows: hostRequiresVisualVerify(hostname),
+          },
+        }),
+      );
 
       await reportInjectionStatus(contentStrict);
 

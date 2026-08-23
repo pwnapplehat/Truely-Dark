@@ -3,7 +3,72 @@ import {
   computePreInvertBackground,
   generateForceStylesheetCss,
 } from './engine';
+import {
+  generateNuclearForceCss,
+  generateShadowForceCss,
+  generateShadowInvertPrepCss,
+} from './shadow-force';
 import { resolveEffectiveForUrl } from './insert-css-fallback';
+
+const SCRIPT_TARGET = { allFrames: true } as const;
+
+export interface MainWorldApplyOptions {
+  filter?: string;
+  bg: string;
+  text?: string;
+  mode: string;
+  force?: boolean;
+  lightCss?: string;
+  shadowCss?: string;
+  shadowFilterCss?: string;
+  watchShadows?: boolean;
+}
+
+async function executeMainWorldApply(
+  tabId: number,
+  opts: MainWorldApplyOptions,
+): Promise<boolean> {
+  try {
+    await browser.scripting.executeScript({
+      target: { tabId, ...SCRIPT_TARGET },
+      world: 'MAIN',
+      func: (options: MainWorldApplyOptions) => {
+        const api = (window as unknown as { __truelyDarkMain?: { apply: (o: MainWorldApplyOptions) => void } })
+          .__truelyDarkMain;
+        if (api && typeof api.apply === 'function') {
+          api.apply(options);
+          return;
+        }
+        const html = document.documentElement;
+        html.setAttribute('data-truely-dark-active', options.mode || 'soft');
+        if (options.force) {
+          html.setAttribute('data-truely-dark-force', 'true');
+          html.style.removeProperty('filter');
+        } else if (options.filter) {
+          html.style.setProperty('filter', options.filter, 'important');
+          html.style.setProperty('-webkit-filter', options.filter, 'important');
+        }
+        html.style.setProperty('background-color', options.bg, 'important');
+        if (options.text) html.style.setProperty('color', options.text, 'important');
+        if (document.body) {
+          document.body.style.setProperty('background-color', options.bg, 'important');
+          if (options.text) document.body.style.setProperty('color', options.text, 'important');
+        }
+      },
+      args: [opts],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function dispatchMainWorldApply(
+  tabId: number,
+  opts: MainWorldApplyOptions,
+): Promise<boolean> {
+  return executeMainWorldApply(tabId, opts);
+}
 
 export async function executeMainWorldSoftFilter(
   tabId: number,
@@ -19,42 +84,17 @@ export async function executeMainWorldSoftFilter(
     effective.sepia,
   );
   const preInvertBg = computePreInvertBackground(effective.backgroundColor);
+  const shadowFilterCss = generateShadowInvertPrepCss();
 
-  try {
-    await browser.scripting.executeScript({
-      target: { tabId, allFrames: false },
-      world: 'MAIN',
-      func: (filterStr: string, bg: string, mode: string, target: string) => {
-        const html = document.documentElement;
-        html.removeAttribute('data-truely-dark-force');
-        html.setAttribute('data-truely-dark-active', mode);
-        html.setAttribute('data-truely-dark-filter-target', target);
-        html.style.setProperty('background-color', bg, 'important');
-
-        html.style.removeProperty('filter');
-        html.style.removeProperty('-webkit-filter');
-
-        if (target === 'html') {
-          html.style.setProperty('filter', filterStr, 'important');
-          html.style.setProperty('-webkit-filter', filterStr, 'important');
-        }
-
-        if (document.body) {
-          document.body.style.setProperty('background-color', bg, 'important');
-          document.body.style.removeProperty('filter');
-          document.body.style.removeProperty('-webkit-filter');
-          if (target === 'body') {
-            document.body.style.setProperty('filter', filterStr, 'important');
-            document.body.style.setProperty('-webkit-filter', filterStr, 'important');
-          }
-        }
-      },
-      args: [filter, preInvertBg, effective.mode, filterTarget],
-    });
-    return true;
-  } catch {
-    return false;
-  }
+  return dispatchMainWorldApply(tabId, {
+    filter: filterTarget === 'html' ? filter : undefined,
+    bg: preInvertBg,
+    text: '#000000',
+    mode: effective.mode,
+    force: false,
+    shadowFilterCss,
+    watchShadows: true,
+  });
 }
 
 export async function executeMainWorldForceStylesheet(tabId: number, url: string): Promise<boolean> {
@@ -62,41 +102,33 @@ export async function executeMainWorldForceStylesheet(tabId: number, url: string
   if (!effective?.active) return false;
 
   const forceCss = generateForceStylesheetCss(effective);
+  const shadowCss = generateShadowForceCss(effective);
 
-  try {
-    await browser.scripting.executeScript({
-      target: { tabId, allFrames: false },
-      world: 'MAIN',
-      func: (cssText: string, mode: string, bg: string, text: string) => {
-        const html = document.documentElement;
-        html.setAttribute('data-truely-dark-active', mode);
-        html.setAttribute('data-truely-dark-force', 'true');
-        html.setAttribute('data-truely-dark-filter-target', 'force');
-        html.style.removeProperty('filter');
-        html.style.removeProperty('-webkit-filter');
-        html.style.setProperty('background-color', bg, 'important');
-        html.style.setProperty('color', text, 'important');
+  return dispatchMainWorldApply(tabId, {
+    bg: effective.backgroundColor,
+    text: '#e8e8e8',
+    mode: effective.mode,
+    force: true,
+    lightCss: forceCss,
+    shadowCss,
+    watchShadows: true,
+  });
+}
 
-        if (document.body) {
-          document.body.style.removeProperty('filter');
-          document.body.style.removeProperty('-webkit-filter');
-          document.body.style.setProperty('background-color', bg, 'important');
-          document.body.style.setProperty('color', text, 'important');
-        }
+export async function executeMainWorldNuclearForce(tabId: number, url: string): Promise<boolean> {
+  const effective = await resolveEffectiveForUrl(url);
+  if (!effective?.active) return false;
 
-        let styleEl = document.getElementById('truely-dark-force-styles');
-        if (!styleEl) {
-          styleEl = document.createElement('style');
-          styleEl.id = 'truely-dark-force-styles';
-          const parent = document.head ?? document.documentElement;
-          parent.appendChild(styleEl);
-        }
-        styleEl.textContent = cssText;
-      },
-      args: [forceCss, effective.mode, effective.backgroundColor, '#e8e8e8'],
-    });
-    return true;
-  } catch {
-    return false;
-  }
+  const nuclearCss = generateNuclearForceCss(effective);
+  const shadowCss = generateShadowForceCss(effective);
+
+  return dispatchMainWorldApply(tabId, {
+    bg: effective.backgroundColor,
+    text: '#e8e8e8',
+    mode: effective.mode,
+    force: true,
+    lightCss: nuclearCss,
+    shadowCss,
+    watchShadows: true,
+  });
 }

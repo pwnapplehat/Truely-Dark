@@ -100,7 +100,12 @@ const OVH_CLOUD_CSS = `
   html[data-truely-dark-active] [class*="Slider"],
   html[data-truely-dark-active] [class*="carousel"],
   html[data-truely-dark-active] section[class*="homepage"],
-  html[data-truely-dark-active] .homepage-hero {
+  html[data-truely-dark-active] .homepage-hero,
+  html[data-truely-dark-active] [class*="sticky"],
+  html[data-truely-dark-active] [class*="Sticky"],
+  html[data-truely-dark-active] header,
+  html[data-truely-dark-active] nav,
+  html[data-truely-dark-active] [role="banner"] {
     background-color: #ffffff !important;
     background-image: none !important;
     backdrop-filter: none !important;
