@@ -25,6 +25,7 @@ import {
   hostRequiresVisualVerify,
   hostUsesInjectCssFallback,
   isExcludedOrigin,
+  resolveForceBackgroundColor,
 } from '../lib/site-packs';
 import type { DetectionOutcome, EffectiveSiteSettings, TruelyDarkMessage } from '../types';
 
@@ -180,7 +181,7 @@ export default defineContentScript({
               ? undefined
               : buildFilterString(settings.brightness, settings.contrast, settings.sepia),
             bg: preferForce
-              ? settings.backgroundColor
+              ? resolveForceBackgroundColor(settings)
               : computePreInvertBackground(settings.backgroundColor),
             text: preferForce ? '#e8e8e8' : '#000000',
             mode: settings.mode,

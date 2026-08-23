@@ -15,13 +15,15 @@ describe('findSitePack', () => {
     expect(pack?.origins).toContain('chromewebstore.google.com');
   });
 
-  it('matches subdomains of ovhcloud.com with force-first Soft', () => {
+  it('registers ovhcloud force pack without invert white pre-bg', () => {
     const pack = findSitePack('www.ovhcloud.com');
     expect(pack?.mode).toBe('soft');
     expect(pack?.skipDetect).toBe(true);
     expect(pack?.preferForceStylesheet).toBe(true);
     expect(hostPrefersForceStylesheet('www.ovhcloud.com')).toBe(true);
     expect(hostRequiresMarketingVisualVerify('www.ovhcloud.com')).toBe(true);
+    expect(pack?.customCss ?? '').not.toContain('#ffffff');
+    expect(pack?.invertOnlyCustomCss ?? '').not.toContain('#ffffff');
   });
 
   it('matches x.ai with force-first Soft and marketing visual verify', () => {

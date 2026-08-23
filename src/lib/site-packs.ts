@@ -1,4 +1,5 @@
-import type { SitePack } from '../types';
+import type { EffectiveSiteSettings, SitePack } from '../types';
+export const FORCE_MARKETING_BG = '#0d1117';
 
 /** Shared force-mode surfaces for marketing / hero-heavy sites (no invert). */
 export const MARKETING_FORCE_SHELL_CSS = `
@@ -13,7 +14,7 @@ export const MARKETING_FORCE_SHELL_CSS = `
   html[data-truely-dark-active] [class*="Wrapper"],
   html[data-truely-dark-active] [class*="page"],
   html[data-truely-dark-active] [class*="Page"] {
-    background-color: var(--truely-dark-bg, #121212) !important;
+    background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
     background-image: none !important;
     color: #e8eaed !important;
     filter: none !important;
@@ -43,7 +44,7 @@ export const MARKETING_FORCE_SHELL_CSS = `
   html[data-truely-dark-active] [role="contentinfo"],
   html[data-truely-dark-active] [class*="footer"],
   html[data-truely-dark-active] [class*="Footer"] {
-    background-color: var(--truely-dark-bg, #121212) !important;
+    background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
     background-image: none !important;
     color: #e8eaed !important;
   }
@@ -79,8 +80,20 @@ export const MARKETING_FORCE_SHELL_CSS = `
 
 const OVH_FORCE_CSS = `
   html[data-truely-dark-active] {
-    --truely-dark-bg: #121212;
+    --truely-dark-bg: ${FORCE_MARKETING_BG};
   }
+  html[data-truely-dark-active] [class*="ovh"],
+  html[data-truely-dark-active] [class*="Ovh"],
+  html[data-truely-dark-active] [class*="OVH"],
+  html[data-truely-dark-active] [class*="container"],
+  html[data-truely-dark-active] [class*="Container"],
+  html[data-truely-dark-active] [class*="column"],
+  html[data-truely-dark-active] [class*="Column"],
+  html[data-truely-dark-active] [class*="col-"],
+  html[data-truely-dark-active] [class*="sidebar"],
+  html[data-truely-dark-active] [class*="Sidebar"],
+  html[data-truely-dark-active] [class*="gutter"],
+  html[data-truely-dark-active] [class*="Gutter"],
   html[data-truely-dark-active] [class*="logo"],
   html[data-truely-dark-active] [class*="Logo"],
   html[data-truely-dark-active] .header-wrapper,
@@ -94,26 +107,9 @@ const OVH_FORCE_CSS = `
   html[data-truely-dark-active] [class*="carousel"],
   html[data-truely-dark-active] section[class*="homepage"],
   html[data-truely-dark-active] .homepage-hero {
-    background-color: #121212 !important;
+    background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
     background-image: none !important;
     color: #e8eaed !important;
-  }
-`;
-
-/** Neutralize frosted-glass headers that stay light under html invert. */
-const MARKETING_CHROME_CSS = `
-  html[data-truely-dark-active] header,
-  html[data-truely-dark-active] nav,
-  html[data-truely-dark-active] [role="banner"],
-  html[data-truely-dark-active] .header,
-  html[data-truely-dark-active] .navbar,
-  html[data-truely-dark-active] .hero,
-  html[data-truely-dark-active] .hero-section,
-  html[data-truely-dark-active] section {
-    background-color: transparent !important;
-    isolation: auto !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
   }
 `;
 
@@ -406,6 +402,16 @@ export function hostPrefersForceStylesheet(hostname: string): boolean {
 export function hostRequiresMarketingVisualVerify(hostname: string): boolean {
   const pack = findSitePack(hostname);
   return pack?.preferForceStylesheet === true && pack?.requiresVisualVerify === true;
+}
+
+/** Force-mode bg for marketing hosts — dark surfaces only, never invert pre-bg white. */
+export function resolveForceBackgroundColor(
+  settings: Pick<EffectiveSiteSettings, 'backgroundColor' | 'sitePack'>,
+): string {
+  if (settings.sitePack?.preferForceStylesheet) {
+    return FORCE_MARKETING_BG;
+  }
+  return settings.backgroundColor;
 }
 
 export function getOriginFromUrl(url: string): string {

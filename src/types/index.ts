@@ -73,6 +73,11 @@ export interface SitePack {
    * Marketing / hero-heavy sites: use direct dark stylesheet as primary Soft engine (no invert).
    */
   preferForceStylesheet?: boolean;
+  /**
+   * CSS for invert Soft only (light pre-bg under filter). Never applied on force path
+   * or preferForceStylesheet hosts — prevents #ffffff invert leaks on marketing sites.
+   */
+  invertOnlyCustomCss?: string;
 }
 
 export interface EffectiveSiteSettings {

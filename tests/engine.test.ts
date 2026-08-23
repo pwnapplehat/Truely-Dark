@@ -102,7 +102,24 @@ describe('generateDarkCss — invert-safe backgrounds', () => {
     expect(css).toContain('html[data-truely-dark-active] body');
     expect(css).toContain('#ededed');
   });
-  it('does not include force-only site pack CSS in invert generateDarkCss', () => {
+  it('OVH force pack CSS contains no invert pre-bg #ffffff', () => {
+    const pack = findSitePack('www.ovhcloud.com');
+    const forceCss = generateForceStylesheetCss({
+      ...resolveEffectiveSettings({
+        origin: 'https://www.ovhcloud.com',
+        hostname: 'www.ovhcloud.com',
+        settings: { ...DEFAULT_SETTINGS, defaultMode: 'soft' },
+        detectOutcome: { result: 'light', confidence: 'medium' },
+      }),
+      active: true,
+      mode: 'soft',
+    });
+    const combined = `${pack?.customCss ?? ''}${forceCss}`;
+    expect(combined).not.toContain('#ffffff');
+    expect(combined).toContain('#0d1117');
+  });
+
+  it('invert generateDarkCss never includes OVH force customCss', () => {
     const ovhPack = findSitePack('www.ovhcloud.com');
     const css = generateDarkCss({
       ...baseSettings,

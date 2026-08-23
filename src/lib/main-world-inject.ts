@@ -9,6 +9,7 @@ import {
   generateShadowInvertPrepCss,
 } from './shadow-force';
 import { resolveEffectiveForUrl } from './insert-css-fallback';
+import { resolveForceBackgroundColor } from './site-packs';
 
 const SCRIPT_TARGET = { allFrames: true } as const;
 
@@ -105,7 +106,7 @@ export async function executeMainWorldForceStylesheet(tabId: number, url: string
   const shadowCss = generateShadowForceCss(effective);
 
   return dispatchMainWorldApply(tabId, {
-    bg: effective.backgroundColor,
+    bg: resolveForceBackgroundColor(effective),
     text: '#e8e8e8',
     mode: effective.mode,
     force: true,
@@ -123,7 +124,7 @@ export async function executeMainWorldNuclearForce(tabId: number, url: string): 
   const shadowCss = generateShadowForceCss(effective);
 
   return dispatchMainWorldApply(tabId, {
-    bg: effective.backgroundColor,
+    bg: resolveForceBackgroundColor(effective),
     text: '#e8e8e8',
     mode: effective.mode,
     force: true,

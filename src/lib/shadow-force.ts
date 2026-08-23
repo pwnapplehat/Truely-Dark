@@ -1,5 +1,6 @@
 import type { EffectiveSiteSettings } from '../types';
 import { ROOT_ATTR } from './engine';
+import { resolveForceBackgroundColor } from './site-packs';
 
 export const SHADOW_FORCE_STYLE_ID = 'truely-dark-shadow-force';
 export const SHADOW_FILTER_STYLE_ID = 'truely-dark-shadow-filter';
@@ -8,7 +9,7 @@ export const SHADOW_FILTER_STYLE_ID = 'truely-dark-shadow-filter';
  * CSS injected inside each open shadow root for force (direct dark) mode.
  */
 export function generateShadowForceCss(settings: EffectiveSiteSettings): string {
-  const bg = settings.backgroundColor;
+  const bg = resolveForceBackgroundColor(settings);
   const text = '#e8e8e8';
   const link = '#8ab4f8';
 
@@ -147,7 +148,7 @@ function injectStyleIntoShadowRoot(
  * Light-DOM nuclear force selectors (no shadow piercing).
  */
 export function generateNuclearForceCss(settings: EffectiveSiteSettings): string {
-  const bg = settings.backgroundColor;
+  const bg = resolveForceBackgroundColor(settings);
   const text = '#e8e8e8';
   const link = '#8ab4f8';
 

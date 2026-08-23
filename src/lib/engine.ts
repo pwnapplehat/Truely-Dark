@@ -2,7 +2,7 @@ import type { EffectiveSiteSettings } from '../types';
 import { parseColor, rgbByteLuminance } from './color';
 import { isExtensionInjectedBackground } from './detect';
 import { computedFilterHasStrictInvert } from './filter-verify';
-import { MARKETING_FORCE_SHELL_CSS } from './site-packs';
+import { MARKETING_FORCE_SHELL_CSS, resolveForceBackgroundColor } from './site-packs';
 import {
   pierceOpenShadowRoots,
   generateShadowForceCss,
@@ -96,7 +96,7 @@ export function buildFilterString(
  * Original Truely Dark implementation — not vendored Dark Reader logic.
  */
 export function generateForceStylesheetCss(settings: EffectiveSiteSettings): string {
-  const bg = settings.backgroundColor;
+  const bg = resolveForceBackgroundColor(settings);
   const text = '#e8e8e8';
   const link = '#8ab4f8';
   const border = '#3c4043';
@@ -160,6 +160,8 @@ export function applyForceStylesheetMode(
   doc: Document = document,
 ): void {
   const html = doc.documentElement;
+  const forceBg = resolveForceBackgroundColor(settings);
+
   html.setAttribute(ROOT_ATTR, settings.mode);
   html.setAttribute(FORCE_ATTR, 'true');
   html.setAttribute(FILTER_TARGET_ATTR, 'force');
@@ -167,10 +169,10 @@ export function applyForceStylesheetMode(
   clearInlineFilter(html);
   if (doc.body) clearInlineFilter(doc.body);
 
-  html.style.setProperty('background-color', settings.backgroundColor, 'important');
+  html.style.setProperty('background-color', forceBg, 'important');
   html.style.setProperty('color', '#e8e8e8', 'important');
   if (doc.body) {
-    doc.body.style.setProperty('background-color', settings.backgroundColor, 'important');
+    doc.body.style.setProperty('background-color', forceBg, 'important');
     doc.body.style.setProperty('color', '#e8e8e8', 'important');
   }
 
@@ -183,7 +185,7 @@ export function applyForceStylesheetMode(
   styleEl.textContent = css;
   appendStyleElement(doc, styleEl);
 
-  pierceOpenShadowRoots(doc, generateShadowForceCss(settings), SHADOW_FORCE_STYLE_ID);
+  pierceOpenShadowRoots(doc, generateShadowForceCss({ ...settings, backgroundColor: forceBg }), SHADOW_FORCE_STYLE_ID);
 }
 
 const CHROME_BACKDROP_RESET = `
@@ -294,6 +296,10 @@ export function generateDarkCss(
         -webkit-filter: none !important;
       }
     `;
+  }
+
+  if (settings.sitePack?.invertOnlyCustomCss) {
+    css += settings.sitePack.invertOnlyCustomCss;
   }
 
   if (settings.sitePack?.customCss && !settings.sitePack.preferForceStylesheet) {

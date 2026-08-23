@@ -9,6 +9,8 @@
   var SHADOW_FORCE_ID = 'truely-dark-shadow-force';
   var SHADOW_FILTER_ID = 'truely-dark-shadow-filter';
   var FORCE_STYLE_ID = 'truely-dark-force-styles';
+  var FORCE_BG = '#0d1117';
+  var INVERT_PRE_BG = '#ededed';
 
   function injectIntoShadowRoot(root, cssText, styleId, visited) {
     if (!root || visited.has(root)) return;
@@ -38,6 +40,31 @@
     }
   }
 
+  function removeShadowStyleIds(node, styleIds, visited) {
+    if (!node || visited.has(node)) return;
+    visited.add(node);
+
+    if (node.shadowRoot) {
+      var root = node.shadowRoot;
+      for (var s = 0; s < styleIds.length; s++) {
+        var el = root.getElementById(styleIds[s]);
+        if (el) el.remove();
+      }
+      for (var i = 0; i < root.children.length; i++) {
+        removeShadowStyleIds(root.children[i], styleIds, visited);
+      }
+      var descendants = root.querySelectorAll('*');
+      for (var j = 0; j < descendants.length; j++) {
+        removeShadowStyleIds(descendants[j], styleIds, visited);
+      }
+    }
+    if (node.children) {
+      for (var k = 0; k < node.children.length; k++) {
+        removeShadowStyleIds(node.children[k], styleIds, visited);
+      }
+    }
+  }
+
   function walkShadowTree(node, shadowCss, shadowFilterCss, visited) {
     if (!node) return;
     if (node.shadowRoot) {
@@ -63,6 +90,26 @@
     walkShadowTree(document.documentElement, shadowCss, shadowFilterCss, new WeakSet());
   }
 
+  function removeAllShadowStyles() {
+    removeShadowStyleIds(
+      document.documentElement,
+      [SHADOW_FORCE_ID, SHADOW_FILTER_ID],
+      new WeakSet(),
+    );
+  }
+
+  function resolveDefaultBg(opts) {
+    if (opts.bg) return opts.bg;
+    if (opts.force) return FORCE_BG;
+    return INVERT_PRE_BG;
+  }
+
+  function resolveDefaultText(opts) {
+    if (opts.text) return opts.text;
+    if (opts.force) return '#e8e8e8';
+    return '#000000';
+  }
+
   function applyHtmlPaint(bg, text, filterStr, mode, force) {
     var html = document.documentElement;
     html.setAttribute('data-truely-dark-active', mode || 'soft');
@@ -80,10 +127,10 @@
       }
     }
     html.style.setProperty('background-color', bg, 'important');
-    html.style.setProperty('color', text || '#000000', 'important');
+    html.style.setProperty('color', text, 'important');
     if (document.body) {
       document.body.style.setProperty('background-color', bg, 'important');
-      document.body.style.setProperty('color', text || '#000000', 'important');
+      document.body.style.setProperty('color', text, 'important');
       if (!force) {
         document.body.style.removeProperty('filter');
         document.body.style.removeProperty('-webkit-filter');
@@ -115,16 +162,40 @@
     pierceShadows: pierceAllShadows,
     apply: function (opts) {
       opts = opts || {};
+      var force = opts.force || false;
       applyHtmlPaint(
-        opts.bg || '#ffffff',
-        opts.text,
+        resolveDefaultBg(opts),
+        resolveDefaultText(opts),
         opts.filter,
         opts.mode || 'soft',
-        opts.force || false,
+        force,
       );
       if (opts.lightCss) injectLightForceCss(opts.lightCss);
-      pierceAllShadows(opts.shadowCss, opts.shadowFilterCss);
-      if (opts.watchShadows) startShadowObserver(opts.shadowCss, opts.shadowFilterCss);
+      pierceAllShadows(opts.shadowCss, force ? null : opts.shadowFilterCss);
+      if (opts.watchShadows) {
+        startShadowObserver(opts.shadowCss, force ? null : opts.shadowFilterCss);
+      }
+    },
+    remove: function () {
+      var html = document.documentElement;
+      html.removeAttribute('data-truely-dark-active');
+      html.removeAttribute('data-truely-dark-force');
+      html.removeAttribute('data-truely-dark-filter-target');
+      html.style.removeProperty('filter');
+      html.style.removeProperty('-webkit-filter');
+      html.style.removeProperty('background-color');
+      html.style.removeProperty('color');
+      if (document.body) {
+        document.body.style.removeProperty('filter');
+        document.body.style.removeProperty('-webkit-filter');
+        document.body.style.removeProperty('background-color');
+        document.body.style.removeProperty('color');
+      }
+      var forceEl = document.getElementById(FORCE_STYLE_ID);
+      if (forceEl) forceEl.remove();
+      removeAllShadowStyles();
+      if (observer) observer.disconnect();
+      observer = null;
     },
   };
 
@@ -134,23 +205,6 @@
   });
 
   document.addEventListener('truely-dark-main-remove', function () {
-    var html = document.documentElement;
-    html.removeAttribute('data-truely-dark-active');
-    html.removeAttribute('data-truely-dark-force');
-    html.removeAttribute('data-truely-dark-filter-target');
-    html.style.removeProperty('filter');
-    html.style.removeProperty('-webkit-filter');
-    html.style.removeProperty('background-color');
-    html.style.removeProperty('color');
-    if (document.body) {
-      document.body.style.removeProperty('filter');
-      document.body.style.removeProperty('-webkit-filter');
-      document.body.style.removeProperty('background-color');
-      document.body.style.removeProperty('color');
-    }
-    var forceEl = document.getElementById(FORCE_STYLE_ID);
-    if (forceEl) forceEl.remove();
-    if (observer) observer.disconnect();
-    observer = null;
+    window.__truelyDarkMain.remove();
   });
 })();
