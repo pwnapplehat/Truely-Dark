@@ -12,7 +12,19 @@ import { resolveEffectiveSettings } from '../lib/resolver';
 import { getHostnameFromUrl, getOriginFromUrl, isExcludedOrigin } from '../lib/site-packs';
 import type { DetectionOutcome, EffectiveSiteSettings, TruelyDarkMessage } from '../types';
 
-const THEME_ATTRS = ['data-theme', 'data-color-mode', 'data-mode', 'data-dark-theme'];
+const THEME_ATTRS = ['data-theme', 'data-color-mode', 'data-mode', 'data-dark-theme', 'class'];
+
+const THEME_CLASS_PATTERN = /\b(theme|dark|light|color-scheme|color-mode)\b/i;
+
+function isThemeRelatedMutation(mutation: MutationRecord): boolean {
+  if (mutation.type !== 'attributes' || !mutation.attributeName) return false;
+  const name = mutation.attributeName;
+  if (name !== 'class') return THEME_ATTRS.includes(name);
+  const target = mutation.target;
+  if (!(target instanceof Element)) return false;
+  if (target !== document.documentElement && target !== document.body) return false;
+  return THEME_CLASS_PATTERN.test(target.className);
+}
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -194,12 +206,7 @@ export default defineContentScript({
       if (detectObserver) detectObserver.disconnect();
 
       detectObserver = new MutationObserver((mutations) => {
-        const relevant = mutations.some(
-          (m) =>
-            m.type === 'attributes' &&
-            m.attributeName !== null &&
-            THEME_ATTRS.includes(m.attributeName),
-        );
+        const relevant = mutations.some(isThemeRelatedMutation);
         if (relevant) debouncedRefresh();
       });
 

@@ -15,7 +15,10 @@ Truely Dark is a lightweight, flash-free dark mode extension for Chrome and Fire
 ### Why Truely Dark?
 
 - **Flash-free** — Dark background injected at document start, before content loads
-- **Smart skip** — Detects sites that are already dark (GitHub, YouTube, etc.) and leaves them alone
+- **Smart skip** — Detects sites that are already dark (GitHub dark theme, YouTube dark, etc.) and leaves them alone
+- **Mixed-page safe** — Marketing pages with light headers and dark footers get Soft (never false native skip)
+- **Honest status** — Popup verifies invert filter before claiming "active"; shows failure if injection did not apply
+- **Chrome Web Store** — Darkens `chromewebstore.google.com` like other extensions (not treated as restricted)
 - **Media preserved** — Photos and videos stay natural with counter-invert (default on)
 - **Per-site control** — Auto, Soft, On, or Off for any website
 - **Battery saver** — Optional low-power mode using cached detection
@@ -29,6 +32,8 @@ Truely Dark is a lightweight, flash-free dark mode extension for Chrome and Fire
 - Schedule with system theme follow
 - Keyboard shortcuts: Alt+Shift+D (global), Alt+Shift+S (current site)
 - Import/export settings as JSON
+
+See [MANUAL_TEST.md](MANUAL_TEST.md) for a 5-minute regression checklist before store submission.
 
 ### Privacy
 

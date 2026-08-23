@@ -3,46 +3,11 @@ import { CollapsibleSection, ModeSelector, Slider, Toggle } from '../../componen
 import '../../components/controls.css';
 import '../../assets/global.css';
 import { sendMessage } from '../../lib/messaging';
+import { siteStatusLabel, statusDotClass } from '../../lib/tab-status';
 import type { SiteMode, TabInfo, TruelyDarkSettings } from '../../types';
 import './popup.css';
 
-function siteStatusLabel(tabInfo: TabInfo): string {
-  if (tabInfo.pageRestricted) {
-    return 'Browser blocks dark mode on this page';
-  }
-  if (tabInfo.nativeDark) {
-    return 'Natively dark — Truely Dark skipped';
-  }
-  if (tabInfo.injectionPending) {
-    return 'Applying dark mode…';
-  }
-  if (tabInfo.active && !tabInfo.softApplied) {
-    return 'Soft enabled — filter could not apply on this page';
-  }
-  if (tabInfo.active && tabInfo.resolvedMode === 'on') {
-    return 'Extension dark mode active (On)';
-  }
-  if (tabInfo.active) {
-    return 'Extension dark mode active (Soft)';
-  }
-  return 'Dark mode off on this site';
-}
-
-function statusDotClass(tabInfo: TabInfo): string {
-  if (tabInfo.pageRestricted || tabInfo.nativeDark) {
-    return 'popup-status-dot--native';
-  }
-  if (tabInfo.injectionPending) {
-    return 'popup-status-dot--inactive';
-  }
-  if (tabInfo.active && tabInfo.softApplied) {
-    return 'popup-status-dot--active';
-  }
-  if (tabInfo.active && !tabInfo.softApplied) {
-    return 'popup-status-dot--inactive';
-  }
-  return 'popup-status-dot--inactive';
-}
+export { siteStatusLabel, statusDotClass };
 
 export function PopupApp() {
   const [settings, setSettings] = useState<TruelyDarkSettings | null>(null);

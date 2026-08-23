@@ -174,6 +174,10 @@ pnpm build:firefox  # Firefox
 pnpm dev    # Starts WXT dev server with HMR
 ```
 
+### Manual regression (5 minutes)
+
+See [MANUAL_TEST.md](MANUAL_TEST.md) for the full checklist covering Chrome Web Store, OVH, GitHub light/dark, Wikipedia, and restricted pages.
+
 ## Scripts
 
 | Command | Description |

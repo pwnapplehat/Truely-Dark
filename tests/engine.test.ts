@@ -72,6 +72,31 @@ describe('generateDarkCss — invert-safe backgrounds', () => {
       'html[data-truely-dark-active] body',
     );
   });
+
+  it('includes media preserve selectors and fullscreen video reset', () => {
+    const css = generateDarkCss({
+      ...baseSettings,
+      active: true,
+      mode: 'soft',
+      preserveMedia: true,
+    });
+
+    expect(css).toContain('picture');
+    expect(css).toContain('svg');
+    expect(css).toContain('video:fullscreen');
+    expect(css).toContain('filter: none');
+  });
+
+  it('sets invert-safe preload background on html and body', () => {
+    const css = generateDarkCss({
+      ...baseSettings,
+      active: true,
+      mode: 'soft',
+      backgroundColor: '#121212',
+    });
+    expect(css).toContain('html[data-truely-dark-active] body');
+    expect(css).toContain('#ededed');
+  });
 });
 
 describe('applyDarkMode integration', () => {

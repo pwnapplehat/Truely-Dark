@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Truely Dark** — Last updated: August 22, 2026
+**Truely Dark** — Last updated: August 23, 2026
 
 ## Summary
 
@@ -27,6 +27,7 @@ Truely Dark stores the following data **only in your browser's local storage** (
 | Preset selection | Remember your chosen preset |
 | Schedule settings | Remember your dark mode schedule |
 | Already-dark detection cache | Avoid re-detecting dark sites (per-origin, expires after 7 days) |
+| Per-tab injection status | Remember whether Soft filter verified on active tab (session only, not synced) |
 
 This data never leaves your device. It is not synced to any cloud service.
 
