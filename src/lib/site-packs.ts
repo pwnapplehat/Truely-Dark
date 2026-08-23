@@ -196,6 +196,17 @@ const OVH_FORCE_CSS = `
     height: auto !important;
     overflow: visible !important;
   }
+  html[data-truely-dark-active][data-truely-dark-force] footer,
+  html[data-truely-dark-active][data-truely-dark-force] .ods-footer,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="ods-footer"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="lazy-rendering--footer"] {
+    contain: none !important;
+    content-visibility: visible !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: auto !important;
+  }
   html[data-truely-dark-active][data-truely-dark-force] aside.ovhcloud-menu-navbar,
   html[data-truely-dark-active][data-truely-dark-force] aside[class*="menu-navbar"],
   html[data-truely-dark-active][data-truely-dark-force] .ovhcloud-mainmenu,
@@ -676,6 +687,29 @@ const XAI_FORCE_CSS = `
   html[data-truely-dark-active] thead th * {
     color: #e8eaed !important;
     opacity: 1 !important;
+  }
+  html[data-truely-dark-active] .sticky-section-header,
+  html[data-truely-dark-active] .sticky-section-header * {
+    background: #0a0a0a !important;
+    background-color: #0a0a0a !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: #e8eaed !important;
+    opacity: 1 !important;
+    isolation: auto !important;
+    mix-blend-mode: normal !important;
+  }
+  html[data-truely-dark-active] .sticky-section-header::before,
+  html[data-truely-dark-active] .sticky-section-header::after {
+    background: none !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    opacity: 0 !important;
+    mix-blend-mode: normal !important;
+    content: none !important;
   }
 `;
 
