@@ -35,6 +35,8 @@ const baseTab = (partial: Partial<TabInfo>): TabInfo => ({
   pageRestricted: false,
   softApplied: false,
   injectionPending: false,
+  galleryHost: false,
+  needsGalleryGesture: false,
   ...partial,
 });
 

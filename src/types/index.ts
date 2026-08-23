@@ -97,7 +97,8 @@ export type MessageType =
   | 'DETECT_RESULT'
   | 'INJECTION_STATUS'
   | 'INSERT_CSS_FALLBACK'
-  | 'REMOVE_INSERT_CSS';
+  | 'REMOVE_INSERT_CSS'
+  | 'GESTURE_ACTIVATE_SOFT';
 
 export interface TruelyDarkMessage {
   type: MessageType;
@@ -121,6 +122,10 @@ export interface TabInfo {
   softApplied: boolean;
   /** Content script has not yet reported injection status this navigation. */
   injectionPending: boolean;
+  /** chromewebstore.google.com / chrome.google.com — may need icon-click injection. */
+  galleryHost: boolean;
+  /** Sideloaded gallery: show click-to-darken hint when auto-inject failed. */
+  needsGalleryGesture: boolean;
 }
 
 export const STORAGE_KEY = 'truely_dark_settings_v2';

@@ -14,6 +14,8 @@ const baseTab = (partial: Partial<TabInfo>): TabInfo => ({
   pageRestricted: false,
   softApplied: true,
   injectionPending: false,
+  galleryHost: false,
+  needsGalleryGesture: false,
   ...partial,
 });
 
@@ -55,6 +57,19 @@ describe('siteStatusLabel', () => {
     expect(
       siteStatusLabel(baseTab({ active: false, nativeDark: true, softApplied: false })),
     ).toContain('Natively dark');
+  });
+
+  it('shows gallery gesture hint when CWS needs icon click', () => {
+    expect(
+      siteStatusLabel(
+        baseTab({
+          hostname: 'chromewebstore.google.com',
+          galleryHost: true,
+          needsGalleryGesture: true,
+          softApplied: false,
+        }),
+      ),
+    ).toContain('Click Truely Dark icon');
   });
 });
 

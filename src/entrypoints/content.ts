@@ -55,11 +55,16 @@ export default defineContentScript({
     let batterySaver = false;
     let lastEffectiveSettings: EffectiveSiteSettings | null = null;
     let lastDetectOutcome: DetectionOutcome | undefined;
+    let injectionStatusReported = false;
 
     const origin = getOriginFromUrl(window.location.href);
     const hostname = getHostnameFromUrl(window.location.href);
 
     async function reportInjectionStatus(contentStrict: boolean): Promise<void> {
+      if (hostRequiresVisualVerify(hostname) && injectionStatusReported) {
+        return;
+      }
+      injectionStatusReported = true;
       try {
         await sendMessage({
           type: 'INJECTION_STATUS',
@@ -332,9 +337,18 @@ export default defineContentScript({
       setupMutationObserver();
     }
 
-    window.addEventListener('pageshow', () => debouncedRefresh());
-    window.addEventListener('popstate', () => debouncedRefresh());
-    window.addEventListener('hashchange', () => debouncedRefresh());
+    window.addEventListener('pageshow', () => {
+      injectionStatusReported = false;
+      debouncedRefresh();
+    });
+    window.addEventListener('popstate', () => {
+      injectionStatusReported = false;
+      debouncedRefresh();
+    });
+    window.addEventListener('hashchange', () => {
+      injectionStatusReported = false;
+      debouncedRefresh();
+    });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') debouncedRefresh();
     });

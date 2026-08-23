@@ -25,7 +25,16 @@ export function PopupApp() {
     try {
       const s = await sendMessage<TruelyDarkSettings>({ type: 'GET_SETTINGS' });
       setSettings(s);
-      await loadTabInfo();
+      let tab = await loadTabInfo();
+
+      const shouldGesture = tab.galleryHost || tab.needsGalleryGesture;
+
+      if (shouldGesture) {
+        await sendMessage({ type: 'GESTURE_ACTIVATE_SOFT' });
+        tab = await loadTabInfo();
+      }
+
+      setTabInfo(tab);
       setError(false);
     } catch {
       setError(true);
@@ -69,7 +78,12 @@ export function PopupApp() {
         payload: { origin: tabInfo.origin, mode },
       });
       setSettings(updated);
-      await loadTabInfo();
+      let tab = await loadTabInfo();
+      if (tab.galleryHost && mode !== 'off') {
+        await sendMessage({ type: 'GESTURE_ACTIVATE_SOFT' });
+        tab = await loadTabInfo();
+      }
+      setTabInfo(tab);
     },
     [tabInfo?.origin, loadTabInfo],
   );

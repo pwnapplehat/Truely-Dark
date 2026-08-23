@@ -12,8 +12,16 @@ export default defineConfig({
     version: '1.0.0',
     author: 'Chauhan Sahil',
     homepage_url: 'https://github.com/pwnapplehat/Truely-Dark',
-    permissions: ['storage', 'tabs', 'scripting', 'alarms'],
-    host_permissions: ['<all_urls>'],
+    permissions: ['storage', 'tabs', 'scripting', 'alarms', 'activeTab'],
+    host_permissions: [
+      '<all_urls>',
+      'https://chromewebstore.google.com/*',
+      'https://chrome.google.com/*',
+    ],
+    optional_permissions: [
+      'https://chromewebstore.google.com/*',
+      'https://chrome.google.com/*',
+    ],
     commands: {
       'toggle-global': {
         suggested_key: {

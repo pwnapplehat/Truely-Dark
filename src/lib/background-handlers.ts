@@ -20,19 +20,22 @@ import { getSettings, setSettings, updateSettings } from './storage';
 import { broadcastSettingsChanged, onMessage } from './messaging';
 import { getSystemDarkPreference } from './schedule';
 import { settingsSchema } from './schema';
+import { gestureActivateSoftForTab } from './gesture-activate';
 import {
   insertSoftCssForTab,
   maybeProactiveInsertCss,
   removeSoftCssForTab,
 } from './insert-css-fallback';
-import { resolveSoftAppliedForTab } from './soft-escalation';
-
-/** Per-tab Soft filter verification from content scripts. */
-const tabSoftApplied = new Map<number, boolean | undefined>();
-
-function markTabNavigation(tabId: number): void {
-  tabSoftApplied.set(tabId, undefined);
-}
+import { isChromeGalleryHost } from './gallery-access';
+import {
+  clearTabSoftApplied,
+  getTabSoftApplied,
+  isInjectionResolveInFlight,
+  isTabSoftAppliedSettled,
+  markTabNavigation,
+  settleTabSoftApplied,
+  setTabSoftApplied,
+} from './tab-injection-state';
 
 async function purgeStaleDetectCache(): Promise<void> {
   const settings = await getSettings();
@@ -62,6 +65,8 @@ async function buildTabInfo(
       pageRestricted: true,
       softApplied: false,
       injectionPending: false,
+      galleryHost: false,
+      needsGalleryGesture: false,
     };
   }
 
@@ -75,9 +80,12 @@ async function buildTabInfo(
     systemDark,
   });
 
-  const reportedApplied = tabId !== undefined ? tabSoftApplied.get(tabId) : undefined;
+  const reportedApplied = getTabSoftApplied(tabId);
   const injectionPending = effective.active && reportedApplied === undefined;
   const softApplied = effective.active && reportedApplied === true;
+  const galleryHost = isChromeGalleryHost(hostname);
+  const needsGalleryGesture =
+    galleryHost && effective.active && !softApplied && !injectionPending;
 
   return {
     origin,
@@ -91,6 +99,8 @@ async function buildTabInfo(
     pageRestricted: false,
     softApplied,
     injectionPending,
+    galleryHost,
+    needsGalleryGesture,
   };
 }
 
@@ -233,21 +243,44 @@ export function registerBackgroundHandlers(): void {
         const { contentStrict } = message.payload as { contentStrict: boolean };
 
         if (injectionTabId !== undefined) {
-          tabSoftApplied.set(injectionTabId, undefined);
+          if (
+            isInjectionResolveInFlight(injectionTabId) ||
+            isTabSoftAppliedSettled(injectionTabId)
+          ) {
+            return { success: true };
+          }
 
           if (injectionWindowId !== undefined && injectionUrl) {
-            const applied = await resolveSoftAppliedForTab(
+            await settleTabSoftApplied(
               injectionTabId,
               injectionWindowId,
               injectionUrl,
               contentStrict,
             );
-            tabSoftApplied.set(injectionTabId, applied);
           } else {
-            tabSoftApplied.set(injectionTabId, false);
+            setTabSoftApplied(injectionTabId, false);
           }
         }
         return { success: true };
+
+      case 'GESTURE_ACTIVATE_SOFT':
+        const [gestureTab] = await browser.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        if (
+          gestureTab?.id !== undefined &&
+          gestureTab.url &&
+          gestureTab.windowId !== undefined
+        ) {
+          const applied = await gestureActivateSoftForTab(
+            gestureTab.id,
+            gestureTab.windowId,
+            gestureTab.url,
+          );
+          return { success: true, applied };
+        }
+        return { success: false, applied: false };
 
       case 'INSERT_CSS_FALLBACK':
         const fallbackTabId = sender.tab?.id;
@@ -324,17 +357,31 @@ export function registerBackgroundHandlers(): void {
   });
 
   browser.tabs.onRemoved.addListener((tabId: number) => {
-    tabSoftApplied.delete(tabId);
+    clearTabSoftApplied(tabId);
     void removeSoftCssForTab(tabId);
   });
 
   browser.tabs.onUpdated.addListener(
     async (tabId: number, changeInfo: { status?: string; url?: string }, tab: Browser.tabs.Tab) => {
-      if (changeInfo.url || changeInfo.status === 'loading') {
+      if (changeInfo.url) {
         markTabNavigation(tabId);
       }
       if (changeInfo.status === 'loading' && tab.url) {
         await maybeProactiveInsertCss(tabId, tab.url);
+      }
+      if (
+        changeInfo.status === 'complete' &&
+        tab.url &&
+        tab.windowId !== undefined &&
+        !isTabSoftAppliedSettled(tabId)
+      ) {
+        const settings = await getSettings();
+        const info = await buildTabInfo(tab.url, settings, tabId);
+        if (info.pageRestricted || !info.active) {
+          setTabSoftApplied(tabId, false);
+        } else {
+          await settleTabSoftApplied(tabId, tab.windowId, tab.url, false);
+        }
       }
     },
   );

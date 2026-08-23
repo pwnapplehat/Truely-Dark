@@ -1,3 +1,4 @@
+import { isChromeGalleryHost } from './gallery-access';
 import type { TabInfo } from '../types';
 
 /**
@@ -11,7 +12,13 @@ export function siteStatusLabel(tabInfo: TabInfo): string {
     return 'Natively dark — Truely Dark skipped';
   }
   if (tabInfo.injectionPending) {
+    if (tabInfo.galleryHost) {
+      return 'Applying dark mode… (Chrome Web Store may need icon click)';
+    }
     return 'Applying dark mode…';
+  }
+  if (tabInfo.active && !tabInfo.softApplied && tabInfo.needsGalleryGesture) {
+    return 'Click Truely Dark icon on this tab to darken Chrome Web Store';
   }
   if (tabInfo.active && !tabInfo.softApplied) {
     return 'Soft enabled — filter could not apply on this page';

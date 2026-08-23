@@ -84,6 +84,10 @@ const CHROME_WEB_STORE_CSS = `
 `;
 
 const OVH_CLOUD_CSS = `
+  html[data-truely-dark-active] {
+    background-color: #ffffff !important;
+    background-image: none !important;
+  }
   html[data-truely-dark-active] .topbar,
   html[data-truely-dark-active] .header-wrapper,
   html[data-truely-dark-active] .main-header,
@@ -113,6 +117,12 @@ const OVH_CLOUD_CSS = `
     isolation: auto !important;
     contain: none !important;
     mix-blend-mode: normal !important;
+  }
+  html[data-truely-dark-active] body,
+  html[data-truely-dark-active] #root,
+  html[data-truely-dark-active] main {
+    background-color: #ffffff !important;
+    background-image: none !important;
   }
 `;
 

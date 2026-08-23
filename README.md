@@ -104,12 +104,17 @@ Detection ignores Truely Dark preload (`#121212`, `color-scheme: dark`), unused 
 
 ## Chrome Web Store regression check
 
-`chromewebstore.google.com` is a normal HTTPS page — Truely Dark darkens it like Dark Reader and other extensions.
+`chromewebstore.google.com` is a normal HTTPS page — Truely Dark darkens it like other dark extensions.
+
+**Sideloaded / unpacked builds:** Chromium may block automatic content scripts on the Web Store (“No access needed” in `chrome://extensions`). Truely Dark uses **user-gesture injection** when you click the extension icon:
 
 1. Load unpacked from `.output/chrome-mv3`
 2. Open `https://chromewebstore.google.com/`
-3. Set **Soft** or **Auto** — the store UI should visibly invert
-4. Popup should show **Extension dark mode active (Soft)** with a green dot (not “Applying…” or injection failed)
+3. Set **Soft** or **Auto**
+4. **Click the Truely Dark toolbar icon** — popup open triggers `activeTab` + `scripting` injection (MAIN world + shadow pierce)
+5. Page should visibly darken; popup shows green active or honest “could not apply”
+
+Store-published builds with normal install may auto-inject without the extra click.
 
 Also verify: `https://www.ovhcloud.com/en-in/` (Soft), `https://github.com` (Auto + light theme → Soft; dark theme → skip), `https://en.wikipedia.org`, `https://news.ycombinator.com`.
 
