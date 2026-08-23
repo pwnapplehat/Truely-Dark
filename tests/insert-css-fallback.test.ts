@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findSitePack, hostRequiresVisualVerify } from '../src/lib/site-packs';
+import { findSitePack, hostPrefersForceStylesheet, hostRequiresVisualVerify } from '../src/lib/site-packs';
 
 describe('insertCSS fallback registration', () => {
   it('registers chromewebstore for background insertCSS fallback', () => {
@@ -15,10 +15,16 @@ describe('insertCSS fallback registration', () => {
     expect(hostRequiresVisualVerify('chrome.google.com')).toBe(true);
   });
 
-  it('registers ovhcloud for visual verify and force stylesheet', () => {
+  it('registers ovhcloud for visual verify and force-first stylesheet', () => {
     expect(hostRequiresVisualVerify('www.ovhcloud.com')).toBe(true);
     const pack = findSitePack('www.ovhcloud.com');
     expect(pack?.forceStylesheetFallback).toBe(true);
+    expect(pack?.preferForceStylesheet).toBe(true);
+  });
+
+  it('registers x.ai for force-first marketing Soft', () => {
+    expect(hostPrefersForceStylesheet('x.ai')).toBe(true);
+    expect(hostRequiresVisualVerify('www.x.ai')).toBe(true);
   });
 
   it('does not register insertCSS fallback for generic sites', () => {

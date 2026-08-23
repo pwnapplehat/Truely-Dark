@@ -3,17 +3,19 @@ import {
   applyDarkMode,
   buildFilterString,
   computePreInvertBackground,
+  generateForceStylesheetCss,
   injectPreloadCss,
   isDarkModeActive,
-  isForceStylesheetActive,
   isSoftFilterActive,
   refreshShadowDomMediaFilters,
   removeDarkMode,
 } from '../lib/engine';
 import {
   pierceOpenShadowRoots,
+  generateShadowForceCss,
   generateShadowInvertPrepCss,
   SHADOW_FILTER_STYLE_ID,
+  SHADOW_FORCE_STYLE_ID,
 } from '../lib/shadow-force';
 import { sendMessage } from '../lib/messaging';
 import { resolveEffectiveSettings } from '../lib/resolver';
@@ -135,10 +137,7 @@ export default defineContentScript({
     }
 
     async function applyWithVerification(settings: EffectiveSiteSettings): Promise<boolean> {
-      if (isForceStylesheetActive()) {
-        await reportInjectionStatus(false);
-        return false;
-      }
+      const preferForce = settings.sitePack?.preferForceStylesheet === true;
 
       applyDarkMode(settings);
       let contentStrict = isSoftFilterActive();
@@ -147,28 +146,48 @@ export default defineContentScript({
         await requestInsertCssFallback('html');
         applyDarkMode(settings);
         contentStrict = isSoftFilterActive();
-        if (!contentStrict) {
+        if (!contentStrict && !preferForce) {
           await requestInsertCssFallback('body');
           applyDarkMode(settings);
           contentStrict = isSoftFilterActive();
         }
       }
 
-      if (!contentStrict) {
+      if (!contentStrict && !preferForce) {
         applyDarkMode(settings);
         refreshShadowDomMediaFilters(settings);
         contentStrict = isSoftFilterActive();
         pierceOpenShadowRoots(document, generateShadowInvertPrepCss(), SHADOW_FILTER_STYLE_ID);
       }
 
+      if (preferForce && !contentStrict) {
+        applyDarkMode(settings);
+        pierceOpenShadowRoots(
+          document,
+          generateShadowForceCss(settings),
+          SHADOW_FORCE_STYLE_ID,
+        );
+        contentStrict = isSoftFilterActive();
+      }
+
+      const forceCss = preferForce ? generateForceStylesheetCss(settings) : undefined;
+      const shadowCss = preferForce ? generateShadowForceCss(settings) : undefined;
+
       document.dispatchEvent(
         new CustomEvent('truely-dark-main-apply', {
           detail: {
-            filter: buildFilterString(settings.brightness, settings.contrast, settings.sepia),
-            bg: computePreInvertBackground(settings.backgroundColor),
-            text: '#000000',
+            filter: preferForce
+              ? undefined
+              : buildFilterString(settings.brightness, settings.contrast, settings.sepia),
+            bg: preferForce
+              ? settings.backgroundColor
+              : computePreInvertBackground(settings.backgroundColor),
+            text: preferForce ? '#e8e8e8' : '#000000',
             mode: settings.mode,
-            shadowFilterCss: generateShadowInvertPrepCss(),
+            force: preferForce,
+            lightCss: forceCss,
+            shadowCss,
+            shadowFilterCss: preferForce ? undefined : generateShadowInvertPrepCss(),
             watchShadows: hostRequiresVisualVerify(hostname),
           },
         }),
@@ -185,12 +204,10 @@ export default defineContentScript({
     function scheduleSoftRetries(settings: EffectiveSiteSettings): void {
       const retry = async (): Promise<void> => {
         if (!lastEffectiveSettings?.active) return;
-        if (isForceStylesheetActive()) {
-          await reportInjectionStatus(false);
-          return;
-        }
         await applyWithVerification(settings);
-        refreshShadowDomMediaFilters(settings);
+        if (!settings.sitePack?.preferForceStylesheet) {
+          refreshShadowDomMediaFilters(settings);
+        }
       };
 
       requestAnimationFrame(() => void retry());

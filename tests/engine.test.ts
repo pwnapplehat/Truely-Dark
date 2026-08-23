@@ -3,15 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../src/lib/defaults';
 import {
   applyDarkMode,
+  applyForceStylesheetMode,
   computePreInvertBackground,
   generateDarkCss,
+  generateForceStylesheetCss,
   isDarkModeActive,
   isSoftFilterActive,
   PRELOAD_CSS,
   removeDarkMode,
+  verifyForceApplication,
   verifySoftApplication,
   verifySoftFilterApplied,
 } from '../src/lib/engine';
+import { findSitePack } from '../src/lib/site-packs';
 import { resolveEffectiveSettings } from '../src/lib/resolver';
 
 describe('computePreInvertBackground', () => {
@@ -97,6 +101,55 @@ describe('generateDarkCss — invert-safe backgrounds', () => {
     });
     expect(css).toContain('html[data-truely-dark-active] body');
     expect(css).toContain('#ededed');
+  });
+  it('does not include force-only site pack CSS in invert generateDarkCss', () => {
+    const ovhPack = findSitePack('www.ovhcloud.com');
+    const css = generateDarkCss({
+      ...baseSettings,
+      active: true,
+      mode: 'soft',
+      sitePack: ovhPack,
+    });
+    expect(css).not.toContain('[class*="homepage-hero"]');
+    expect(css).toContain('invert(1)');
+  });
+});
+
+describe('force-first marketing Soft', () => {
+  const ovhEffective = resolveEffectiveSettings({
+    origin: 'https://www.ovhcloud.com',
+    hostname: 'www.ovhcloud.com',
+    settings: { ...DEFAULT_SETTINGS, defaultMode: 'soft' },
+    detectOutcome: { result: 'light', confidence: 'medium' },
+  });
+
+  it('applyDarkMode uses force path for preferForceStylesheet packs', () => {
+    document.documentElement.innerHTML = '<head></head><body style="background:#fff">Hi</body>';
+    const result = applyDarkMode({ ...ovhEffective, active: true, mode: 'soft' });
+    expect(result.filterTarget).toBe('force');
+    expect(document.documentElement.getAttribute('data-truely-dark-force')).toBe('true');
+    expect(isSoftFilterActive()).toBe(true);
+    removeDarkMode();
+  });
+
+  it('generateForceStylesheetCss includes marketing shell without invert pre-bg', () => {
+    const css = generateForceStylesheetCss({
+      ...ovhEffective,
+      active: true,
+      mode: 'soft',
+    });
+    expect(css).toContain('--truely-dark-bg');
+    expect(css).not.toContain('invert(1)');
+    expect(css).toContain('[class*="logo"]');
+  });
+
+  it('verifyForceApplication rejects invert filter on force path', () => {
+    document.documentElement.innerHTML = '<head></head><body></body>';
+    applyForceStylesheetMode({ ...ovhEffective, active: true, mode: 'soft' });
+    expect(verifyForceApplication()).toBe(true);
+    document.documentElement.style.setProperty('filter', 'invert(1)', 'important');
+    expect(verifyForceApplication()).toBe(false);
+    removeDarkMode();
   });
 });
 

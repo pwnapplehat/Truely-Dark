@@ -90,6 +90,12 @@ const SITES: SiteCase[] = [
     expectActive: true,
   },
   {
+    hostname: 'x.ai',
+    origin: 'https://x.ai',
+    detect: makeDetection('light', 'medium'),
+    expectActive: true,
+  },
+  {
     hostname: 'x.com',
     origin: 'https://x.com',
     detect: makeDetection('light', 'medium'),
@@ -164,6 +170,7 @@ describe('v1 site coverage — site packs exist', () => {
     'github.com',
     'www.reddit.com',
     'x.com',
+    'x.ai',
     'www.linkedin.com',
     'www.amazon.com',
     'stackoverflow.com',

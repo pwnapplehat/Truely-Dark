@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   analyzeVisualSamples,
+  isMarketingVisualQuality,
   isSoftAppliedFromVisualAnalysis,
   isUsableDarkAnalysis,
   isVisuallyDarkAnalysis,
   resolveSoftAppliedFromSignals,
   VISUAL_APPLIED_AVERAGE_THRESHOLD,
+  VISUAL_GUTTER_MAX_THRESHOLD,
   VISUAL_SAMPLE_FRACTIONS,
   VISUAL_USABLE_TOP_BAND_THRESHOLD,
 } from '../src/lib/visual-verify';
@@ -65,16 +67,15 @@ describe('visual-verify strict top-band gate', () => {
     expect(isSoftAppliedFromVisualAnalysis(analysis)).toBe(false);
   });
 
-  it('passes OVH-like usable-dark: dark page + slightly lighter top side gutters', () => {
+  it('fails marketing quality when side gutters are bright', () => {
     const width = 100;
     const height = 100;
     const data = new Uint8ClampedArray(width * height * 4);
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const i = (y * width + x) * 4;
-        const inTopBand = y < 25;
-        const sideGutter = x < 10 || x > 89;
-        const v = inTopBand && sideGutter ? 185 : 18;
+        const sideGutter = x < 8 || x > 91;
+        const v = sideGutter ? 220 : 18;
         data[i] = v;
         data[i + 1] = v;
         data[i + 2] = v;
@@ -82,10 +83,30 @@ describe('visual-verify strict top-band gate', () => {
       }
     }
     const analysis = analyzeVisualSamples(data, width, height, VISUAL_SAMPLE_FRACTIONS);
-    expect(analysis.average).toBeLessThan(VISUAL_APPLIED_AVERAGE_THRESHOLD);
-    expect(isUsableDarkAnalysis(analysis)).toBe(true);
+    expect(analysis.gutterMax).toBeGreaterThan(VISUAL_GUTTER_MAX_THRESHOLD);
     expect(isSoftAppliedFromVisualAnalysis(analysis)).toBe(true);
-    expect(resolveSoftAppliedFromSignals(false, analysis, false)).toBe(true);
+    expect(isMarketingVisualQuality(analysis)).toBe(false);
+  });
+
+  it('invert usable-dark does not satisfy marketing quality on bright gutters', () => {
+    const width = 100;
+    const height = 100;
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        const narrowGutter = x < 4 || x > 95;
+        const v = narrowGutter ? 230 : 18;
+        data[i] = v;
+        data[i + 1] = v;
+        data[i + 2] = v;
+        data[i + 3] = 255;
+      }
+    }
+    const analysis = analyzeVisualSamples(data, width, height, VISUAL_SAMPLE_FRACTIONS);
+    expect(analysis.gutterMax).toBeGreaterThan(VISUAL_GUTTER_MAX_THRESHOLD);
+    expect(isSoftAppliedFromVisualAnalysis(analysis)).toBe(true);
+    expect(isMarketingVisualQuality(analysis)).toBe(false);
   });
 
   it('contentStrict OR visual passes when either signal is true', () => {

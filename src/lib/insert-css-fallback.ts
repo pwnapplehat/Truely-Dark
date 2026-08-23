@@ -12,7 +12,9 @@ import {
   findSitePack,
   getHostnameFromUrl,
   getOriginFromUrl,
+  hostPrefersForceStylesheet,
   hostUsesInjectCssFallback,
+  isExcludedOrigin,
 } from './site-packs';
 import { getSettings } from './storage';
 
@@ -68,6 +70,11 @@ export async function insertSoftCssForTab(
   url: string,
   filterTarget: FilterTarget = 'html',
 ): Promise<boolean> {
+  const hostname = getHostnameFromUrl(url);
+  if (hostPrefersForceStylesheet(hostname)) {
+    return insertForceStylesheetForTab(tabId, url);
+  }
+
   const effective = await resolveEffectiveForUrl(url);
   if (!effective?.active) {
     await removeInsertedCss(tabId);

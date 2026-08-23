@@ -2,10 +2,12 @@ import type { EffectiveSiteSettings } from '../types';
 import { parseColor, rgbByteLuminance } from './color';
 import { isExtensionInjectedBackground } from './detect';
 import { computedFilterHasStrictInvert } from './filter-verify';
+import { MARKETING_FORCE_SHELL_CSS } from './site-packs';
 import {
   pierceOpenShadowRoots,
   generateShadowForceCss,
   generateShadowInvertPrepCss,
+  removePiercedShadowStyles,
   SHADOW_FILTER_STYLE_ID,
   SHADOW_FORCE_STYLE_ID,
 } from './shadow-force';
@@ -41,7 +43,7 @@ function clearAdoptedStylesheet(doc: Document): void {
   ADOPTED_SHEETS.delete(doc);
 }
 
-export type FilterTarget = 'html' | 'body';
+export type FilterTarget = 'html' | 'body' | 'force';
 
 export interface ApplyDarkModeResult {
   filterTarget: FilterTarget;
@@ -98,8 +100,12 @@ export function generateForceStylesheetCss(settings: EffectiveSiteSettings): str
   const text = '#e8e8e8';
   const link = '#8ab4f8';
   const border = '#3c4043';
+  const preferForce = settings.sitePack?.preferForceStylesheet === true;
 
-  return `
+  let css = `
+    html[${ROOT_ATTR}] {
+      --truely-dark-bg: ${bg};
+    }
     html[${ROOT_ATTR}],
     html[${ROOT_ATTR}] body {
       background-color: ${bg} !important;
@@ -137,6 +143,16 @@ export function generateForceStylesheetCss(settings: EffectiveSiteSettings): str
       color: ${text} !important;
     }
   `;
+
+  if (preferForce) {
+    css += MARKETING_FORCE_SHELL_CSS;
+  }
+
+  if (settings.sitePack?.customCss) {
+    css += settings.sitePack.customCss;
+  }
+
+  return css;
 }
 
 export function applyForceStylesheetMode(
@@ -280,7 +296,7 @@ export function generateDarkCss(
     `;
   }
 
-  if (settings.sitePack?.customCss) {
+  if (settings.sitePack?.customCss && !settings.sitePack.preferForceStylesheet) {
     css += settings.sitePack.customCss;
   }
 
@@ -357,6 +373,39 @@ function clearInlineBackground(el: HTMLElement): void {
   el.style.removeProperty('background-color');
 }
 
+/** Force-mode root surfaces must be dark (no invert pre-bg leak). */
+export const MIN_FORCE_ROOT_LUMINANCE = 0.45;
+
+/**
+ * Verified force stylesheet: force attr set, no invert filter, dark root background.
+ */
+export function verifyForceApplication(doc: Document = document): boolean {
+  const html = doc.documentElement;
+  if (html.getAttribute(FORCE_ATTR) !== 'true') return false;
+
+  const view = doc.defaultView;
+  if (!view) return false;
+
+  const htmlFilter = view.getComputedStyle(html).filter;
+  if (computedFilterHasStrictInvert(htmlFilter)) return false;
+
+  const htmlBg = view.getComputedStyle(html).backgroundColor;
+  if (!htmlBg) return false;
+
+  const htmlRgb = parseColor(htmlBg);
+  if (!htmlRgb) return false;
+  if (rgbByteLuminance(htmlRgb.r, htmlRgb.g, htmlRgb.b) >= MIN_FORCE_ROOT_LUMINANCE) {
+    return false;
+  }
+
+  if (doc.body) {
+    const bodyFilter = view.getComputedStyle(doc.body).filter;
+    if (computedFilterHasStrictInvert(bodyFilter)) return false;
+  }
+
+  return true;
+}
+
 /**
  * True when computed filter on the target element includes invert().
  */
@@ -364,6 +413,8 @@ export function verifySoftFilterApplied(
   doc: Document,
   filterTarget: FilterTarget = 'html',
 ): boolean {
+  if (filterTarget === 'force') return false;
+
   const view = doc.defaultView;
   if (!view) return false;
 
@@ -573,6 +624,14 @@ export function applyDarkMode(
     return { filterTarget: 'html', applied: false };
   }
 
+  if (settings.sitePack?.preferForceStylesheet) {
+    html.setAttribute(ROOT_ATTR, settings.mode);
+    restorePreloadDark(doc);
+    applyForceStylesheetMode(settings, doc);
+    const applied = verifyForceApplication(doc);
+    return { filterTarget: 'force', applied };
+  }
+
   const preInvertBg = computePreInvertBackground(settings.backgroundColor);
   const filter = buildFilterString(
     settings.brightness,
@@ -614,10 +673,18 @@ export function removeDarkMode(doc: Document = document): void {
 
   restorePreloadDark(doc);
   clearShadowDomFilters(doc);
+  removePiercedShadowStyles(doc, [SHADOW_FORCE_STYLE_ID, SHADOW_FILTER_STYLE_ID]);
 
   const styleEl = doc.getElementById(STYLE_ID);
   if (styleEl) styleEl.remove();
+  doc.getElementById(PRELOAD_STYLE_ID)?.remove();
   doc.getElementById('truely-dark-force-styles')?.remove();
+
+  try {
+    doc.dispatchEvent(new CustomEvent('truely-dark-main-remove'));
+  } catch {
+    // CustomEvent may be blocked in some contexts
+  }
 }
 
 export function isDarkModeActive(doc: Document = document): boolean {
@@ -626,7 +693,9 @@ export function isDarkModeActive(doc: Document = document): boolean {
 
 export function isSoftFilterActive(doc: Document = document): boolean {
   if (!isDarkModeActive(doc)) return false;
-  if (doc.documentElement.getAttribute(FORCE_ATTR) === 'true') return false;
+  if (doc.documentElement.getAttribute(FORCE_ATTR) === 'true') {
+    return verifyForceApplication(doc);
+  }
   const target =
     doc.documentElement.getAttribute(FILTER_TARGET_ATTR) === 'body' ? 'body' : 'html';
   return verifySoftApplication(doc, target as FilterTarget);

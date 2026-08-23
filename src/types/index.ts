@@ -69,6 +69,10 @@ export interface SitePack {
   requiresVisualVerify?: boolean;
   /** Allow direct dark stylesheet when invert filter path fails visually. */
   forceStylesheetFallback?: boolean;
+  /**
+   * Marketing / hero-heavy sites: use direct dark stylesheet as primary Soft engine (no invert).
+   */
+  preferForceStylesheet?: boolean;
 }
 
 export interface EffectiveSiteSettings {

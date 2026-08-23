@@ -10,9 +10,15 @@ import {
 } from './main-world-inject';
 import { isPopupLikelyOpen } from './popup-state';
 import { isChromeGalleryHost } from './gallery-access';
-import { getHostnameFromUrl, hostRequiresVisualVerify } from './site-packs';
+import {
+  getHostnameFromUrl,
+  hostPrefersForceStylesheet,
+  hostRequiresMarketingVisualVerify,
+  hostRequiresVisualVerify,
+} from './site-packs';
 import {
   captureTabVisualAnalysis,
+  isMarketingVisualQuality,
   isSoftAppliedFromVisualAnalysis,
   resolveSoftAppliedFromSignals,
   type VisualSoftAppliedResult,
@@ -27,6 +33,17 @@ async function paintDelay(ms = VERIFY_PAINT_DELAY_MS): Promise<void> {
 
 export interface VisualVerifyOptions {
   skipCapture?: boolean;
+  hostname?: string;
+}
+
+function isVisualAppliedForHost(
+  hostname: string,
+  analysis: import('./visual-verify').VisualSampleAnalysis,
+): boolean {
+  if (hostRequiresMarketingVisualVerify(hostname)) {
+    return isMarketingVisualQuality(analysis);
+  }
+  return isSoftAppliedFromVisualAnalysis(analysis);
 }
 
 /**
@@ -46,8 +63,10 @@ export async function verifyVisualSoftApplied(
     return { applied: false, inconclusive: true, analysis: null };
   }
 
+  const hostname = options.hostname ?? '';
+
   return {
-    applied: isSoftAppliedFromVisualAnalysis(analysis),
+    applied: isVisualAppliedForHost(hostname, analysis),
     inconclusive: false,
     analysis,
   };
@@ -69,15 +88,10 @@ export async function escalateSoftApplication(
   url: string,
   options: VisualVerifyOptions = {},
 ): Promise<boolean> {
-  const steps: Array<() => Promise<void>> = [
-    async () => {
-      await insertSoftCssForTab(tabId, url, 'html');
-      await executeMainWorldSoftFilter(tabId, url, 'html');
-    },
-    async () => {
-      await insertSoftCssForTab(tabId, url, 'body');
-      await executeMainWorldSoftFilter(tabId, url, 'body');
-    },
+  const hostname = getHostnameFromUrl(url);
+  const verifyOptions: VisualVerifyOptions = { ...options, hostname };
+
+  const forceSteps: Array<() => Promise<void>> = [
     async () => {
       await insertForceStylesheetForTab(tabId, url);
       await executeMainWorldForceStylesheet(tabId, url);
@@ -92,9 +106,23 @@ export async function escalateSoftApplication(
     },
   ];
 
+  const invertSteps: Array<() => Promise<void>> = [
+    async () => {
+      await insertSoftCssForTab(tabId, url, 'html');
+      await executeMainWorldSoftFilter(tabId, url, 'html');
+    },
+    async () => {
+      await insertSoftCssForTab(tabId, url, 'body');
+      await executeMainWorldSoftFilter(tabId, url, 'body');
+    },
+    ...forceSteps,
+  ];
+
+  const steps = hostPrefersForceStylesheet(hostname) ? forceSteps : invertSteps;
+
   for (const step of steps) {
     await step();
-    const visual = await verifyVisualSoftApplied(windowId, options);
+    const visual = await verifyVisualSoftApplied(windowId, verifyOptions);
     if (visual.inconclusive) continue;
     if (visual.applied) return true;
   }
@@ -113,31 +141,38 @@ export async function resolveSoftAppliedForTab(
   options: VisualVerifyOptions = {},
 ): Promise<boolean> {
   const hostname = getHostnameFromUrl(url);
+  const verifyOptions: VisualVerifyOptions = { ...options, hostname };
 
   if (!hostRequiresVisualVerify(hostname)) {
     return contentStrict;
   }
 
-  if (contentStrict && !isChromeGalleryHost(hostname)) {
+  if (
+    contentStrict &&
+    !isChromeGalleryHost(hostname) &&
+    !hostRequiresMarketingVisualVerify(hostname)
+  ) {
     return true;
   }
 
   if (isChromeGalleryHost(hostname)) {
-    const visual = await verifyVisualSoftApplied(windowId, options);
+    const visual = await verifyVisualSoftApplied(windowId, verifyOptions);
     return !visual.inconclusive && visual.applied;
   }
 
-  if (contentStrict) return true;
-
-  const visual = await verifyVisualSoftApplied(windowId, options);
+  const visual = await verifyVisualSoftApplied(windowId, verifyOptions);
   if (!visual.inconclusive && visual.applied) return true;
 
   if (visual.inconclusive) {
-    return contentStrict;
+    return hostRequiresMarketingVisualVerify(hostname) ? false : contentStrict;
   }
 
-  const escalated = await escalateSoftApplication(tabId, windowId, url, options);
+  const escalated = await escalateSoftApplication(tabId, windowId, url, verifyOptions);
   if (escalated) return true;
+
+  if (visual.analysis && hostRequiresMarketingVisualVerify(hostname)) {
+    return false;
+  }
 
   if (visual.analysis) {
     return resolveSoftAppliedFromSignals(false, visual.analysis, false);

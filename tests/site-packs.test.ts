@@ -3,6 +3,8 @@ import {
   findSitePack,
   getHostnameFromUrl,
   getOriginFromUrl,
+  hostPrefersForceStylesheet,
+  hostRequiresMarketingVisualVerify,
   isExcludedOrigin,
   SITE_PACKS,
 } from '../src/lib/site-packs';
@@ -13,10 +15,19 @@ describe('findSitePack', () => {
     expect(pack?.origins).toContain('chromewebstore.google.com');
   });
 
-  it('matches subdomains of ovhcloud.com', () => {
+  it('matches subdomains of ovhcloud.com with force-first Soft', () => {
     const pack = findSitePack('www.ovhcloud.com');
     expect(pack?.mode).toBe('soft');
     expect(pack?.skipDetect).toBe(true);
+    expect(pack?.preferForceStylesheet).toBe(true);
+    expect(hostPrefersForceStylesheet('www.ovhcloud.com')).toBe(true);
+    expect(hostRequiresMarketingVisualVerify('www.ovhcloud.com')).toBe(true);
+  });
+
+  it('matches x.ai with force-first Soft and marketing visual verify', () => {
+    const pack = findSitePack('x.ai');
+    expect(pack?.preferForceStylesheet).toBe(true);
+    expect(hostRequiresMarketingVisualVerify('www.x.ai')).toBe(true);
   });
 
   it('matches google.com search', () => {
@@ -56,6 +67,7 @@ describe('SITE_PACKS coverage', () => {
     const allOrigins = SITE_PACKS.flatMap((p) => p.origins);
     expect(allOrigins).toContain('chromewebstore.google.com');
     expect(allOrigins).toContain('ovhcloud.com');
+    expect(allOrigins).toContain('x.ai');
     expect(allOrigins).toContain('youtube.com');
     expect(allOrigins).toContain('reddit.com');
     expect(allOrigins).toContain('github.com');

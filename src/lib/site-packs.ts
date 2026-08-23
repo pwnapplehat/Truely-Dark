@@ -1,5 +1,105 @@
 import type { SitePack } from '../types';
 
+/** Shared force-mode surfaces for marketing / hero-heavy sites (no invert). */
+export const MARKETING_FORCE_SHELL_CSS = `
+  html[data-truely-dark-active],
+  html[data-truely-dark-active] body,
+  html[data-truely-dark-active] #__next,
+  html[data-truely-dark-active] #root,
+  html[data-truely-dark-active] main,
+  html[data-truely-dark-active] [class*="layout"],
+  html[data-truely-dark-active] [class*="Layout"],
+  html[data-truely-dark-active] [class*="wrapper"],
+  html[data-truely-dark-active] [class*="Wrapper"],
+  html[data-truely-dark-active] [class*="page"],
+  html[data-truely-dark-active] [class*="Page"] {
+    background-color: var(--truely-dark-bg, #121212) !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    min-height: 100vh;
+  }
+  html[data-truely-dark-active] header,
+  html[data-truely-dark-active] nav,
+  html[data-truely-dark-active] [role="banner"],
+  html[data-truely-dark-active] section,
+  html[data-truely-dark-active] article,
+  html[data-truely-dark-active] aside,
+  html[data-truely-dark-active] [class*="hero"],
+  html[data-truely-dark-active] [class*="Hero"],
+  html[data-truely-dark-active] [class*="card"],
+  html[data-truely-dark-active] [class*="Card"],
+  html[data-truely-dark-active] [class*="topbar"],
+  html[data-truely-dark-active] [class*="Topbar"] {
+    background-color: #1a1a1a !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    isolation: auto !important;
+  }
+  html[data-truely-dark-active] footer,
+  html[data-truely-dark-active] [role="contentinfo"],
+  html[data-truely-dark-active] [class*="footer"],
+  html[data-truely-dark-active] [class*="Footer"] {
+    background-color: var(--truely-dark-bg, #121212) !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active] h1,
+  html[data-truely-dark-active] h2,
+  html[data-truely-dark-active] h3,
+  html[data-truely-dark-active] h4,
+  html[data-truely-dark-active] p,
+  html[data-truely-dark-active] span,
+  html[data-truely-dark-active] li,
+  html[data-truely-dark-active] label {
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active] small,
+  html[data-truely-dark-active] [class*="subtitle"],
+  html[data-truely-dark-active] [class*="description"] {
+    color: #bdc1c6 !important;
+  }
+  html[data-truely-dark-active] a,
+  html[data-truely-dark-active] a:visited {
+    color: #7baaf7 !important;
+  }
+  html[data-truely-dark-active] a:hover {
+    color: #a8c7fa !important;
+  }
+  html[data-truely-dark-active] img,
+  html[data-truely-dark-active] svg,
+  html[data-truely-dark-active] picture,
+  html[data-truely-dark-active] video {
+    background-color: transparent !important;
+  }
+`;
+
+const OVH_FORCE_CSS = `
+  html[data-truely-dark-active] {
+    --truely-dark-bg: #121212;
+  }
+  html[data-truely-dark-active] [class*="logo"],
+  html[data-truely-dark-active] [class*="Logo"],
+  html[data-truely-dark-active] .header-wrapper,
+  html[data-truely-dark-active] .main-header,
+  html[data-truely-dark-active] .sub-header,
+  html[data-truely-dark-active] [class*="navbar"],
+  html[data-truely-dark-active] [class*="Navbar"],
+  html[data-truely-dark-active] [class*="banner"],
+  html[data-truely-dark-active] [class*="Banner"],
+  html[data-truely-dark-active] [class*="slider"],
+  html[data-truely-dark-active] [class*="carousel"],
+  html[data-truely-dark-active] section[class*="homepage"],
+  html[data-truely-dark-active] .homepage-hero {
+    background-color: #121212 !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+  }
+`;
+
 /** Neutralize frosted-glass headers that stay light under html invert. */
 const MARKETING_CHROME_CSS = `
   html[data-truely-dark-active] header,
@@ -83,48 +183,37 @@ const CHROME_WEB_STORE_CSS = `
   }
 `;
 
-const OVH_CLOUD_CSS = `
+const XAI_FORCE_CSS = `
   html[data-truely-dark-active] {
-    background-color: #ffffff !important;
-    background-image: none !important;
+    --truely-dark-bg: #0a0a0a;
   }
-  html[data-truely-dark-active] .topbar,
-  html[data-truely-dark-active] .header-wrapper,
-  html[data-truely-dark-active] .main-header,
-  html[data-truely-dark-active] .sub-header,
-  html[data-truely-dark-active] [class*="topbar"],
-  html[data-truely-dark-active] [class*="Topbar"],
+  html[data-truely-dark-active] [class*="pricing"],
+  html[data-truely-dark-active] [class*="Pricing"],
+  html[data-truely-dark-active] [class*="plan"],
+  html[data-truely-dark-active] [class*="Plan"],
+  html[data-truely-dark-active] [class*="tier"],
+  html[data-truely-dark-active] [class*="Tier"],
+  html[data-truely-dark-active] [class*="feature"],
+  html[data-truely-dark-active] [class*="Feature"],
+  html[data-truely-dark-active] [class*="compare"],
+  html[data-truely-dark-active] [class*="Compare"] {
+    background-color: #141414 !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active] [class*="logo"],
+  html[data-truely-dark-active] [class*="Logo"],
   html[data-truely-dark-active] [class*="navbar"],
   html[data-truely-dark-active] [class*="Navbar"],
-  html[data-truely-dark-active] [class*="hero"],
-  html[data-truely-dark-active] [class*="Hero"],
-  html[data-truely-dark-active] [class*="banner"],
-  html[data-truely-dark-active] [class*="Banner"],
-  html[data-truely-dark-active] [class*="slider"],
-  html[data-truely-dark-active] [class*="Slider"],
-  html[data-truely-dark-active] [class*="carousel"],
-  html[data-truely-dark-active] section[class*="homepage"],
-  html[data-truely-dark-active] .homepage-hero,
-  html[data-truely-dark-active] [class*="sticky"],
-  html[data-truely-dark-active] [class*="Sticky"],
-  html[data-truely-dark-active] header,
-  html[data-truely-dark-active] nav,
-  html[data-truely-dark-active] [role="banner"] {
-    background-color: #ffffff !important;
+  html[data-truely-dark-active] [class*="header"],
+  html[data-truely-dark-active] [class*="Header"] {
+    background-color: #0a0a0a !important;
     background-image: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    isolation: auto !important;
-    contain: none !important;
-    mix-blend-mode: normal !important;
-  }
-  html[data-truely-dark-active] body,
-  html[data-truely-dark-active] #root,
-  html[data-truely-dark-active] main {
-    background-color: #ffffff !important;
-    background-image: none !important;
+    color: #e8eaed !important;
   }
 `;
+
+const OVH_FORCE_PACK_CSS = `${OVH_FORCE_CSS}`;
 
 const GITHUB_CSS = `
   .js-navigation-container,
@@ -218,7 +307,21 @@ export const SITE_PACKS: SitePack[] = [
     customCss: YOUTUBE_CSS,
   },
   {
-    origins: ['twitter.com', 'x.com', 'www.twitter.com', 'www.x.com'],
+    origins: ['twitter.com', 'www.twitter.com'],
+    mode: 'auto',
+    skipDetect: false,
+  },
+  {
+    origins: ['x.ai', 'www.x.ai'],
+    mode: 'auto',
+    skipDetect: false,
+    requiresVisualVerify: true,
+    preferForceStylesheet: true,
+    forceStylesheetFallback: true,
+    customCss: XAI_FORCE_CSS,
+  },
+  {
+    origins: ['x.com', 'www.x.com'],
     mode: 'auto',
     skipDetect: false,
   },
@@ -238,8 +341,9 @@ export const SITE_PACKS: SitePack[] = [
     mode: 'soft',
     skipDetect: true,
     requiresVisualVerify: true,
+    preferForceStylesheet: true,
     forceStylesheetFallback: true,
-    customCss: `${MARKETING_CHROME_CSS}\n${OVH_CLOUD_CSS}`,
+    customCss: OVH_FORCE_PACK_CSS,
   },
   {
     origins: ['amazon.com', 'www.amazon.com'],
@@ -257,7 +361,8 @@ export const SITE_PACKS: SitePack[] = [
     origins: ['medium.com', 'www.medium.com'],
     mode: 'auto',
     skipDetect: false,
-    customCss: MARKETING_CHROME_CSS,
+    preferForceStylesheet: true,
+    requiresVisualVerify: true,
   },
   {
     origins: ['notion.so', 'www.notion.so'],
@@ -291,6 +396,16 @@ export function hostRequiresVisualVerify(hostname: string): boolean {
 export function hostUsesForceStylesheetFallback(hostname: string): boolean {
   const pack = findSitePack(hostname);
   return pack?.forceStylesheetFallback === true;
+}
+
+export function hostPrefersForceStylesheet(hostname: string): boolean {
+  const pack = findSitePack(hostname);
+  return pack?.preferForceStylesheet === true;
+}
+
+export function hostRequiresMarketingVisualVerify(hostname: string): boolean {
+  const pack = findSitePack(hostname);
+  return pack?.preferForceStylesheet === true && pack?.requiresVisualVerify === true;
 }
 
 export function getOriginFromUrl(url: string): string {

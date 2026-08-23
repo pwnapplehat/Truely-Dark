@@ -132,4 +132,25 @@
     var detail = ev.detail || {};
     window.__truelyDarkMain.apply(detail);
   });
+
+  document.addEventListener('truely-dark-main-remove', function () {
+    var html = document.documentElement;
+    html.removeAttribute('data-truely-dark-active');
+    html.removeAttribute('data-truely-dark-force');
+    html.removeAttribute('data-truely-dark-filter-target');
+    html.style.removeProperty('filter');
+    html.style.removeProperty('-webkit-filter');
+    html.style.removeProperty('background-color');
+    html.style.removeProperty('color');
+    if (document.body) {
+      document.body.style.removeProperty('filter');
+      document.body.style.removeProperty('-webkit-filter');
+      document.body.style.removeProperty('background-color');
+      document.body.style.removeProperty('color');
+    }
+    var forceEl = document.getElementById(FORCE_STYLE_ID);
+    if (forceEl) forceEl.remove();
+    if (observer) observer.disconnect();
+    observer = null;
+  });
 })();

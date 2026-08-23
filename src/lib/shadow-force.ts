@@ -80,6 +80,42 @@ export function pierceOpenShadowRoots(
   walk(doc.documentElement);
 }
 
+/**
+ * Remove pierced style elements from open shadow roots (off-mode cleanup).
+ */
+export function removePiercedShadowStyles(
+  doc: Document,
+  styleIds: string[],
+): void {
+  const visited = new WeakSet<Node>();
+
+  const walk = (node: Node): void => {
+    if (!node || visited.has(node)) return;
+    visited.add(node);
+
+    if (node instanceof Element && node.shadowRoot) {
+      const root = node.shadowRoot;
+      for (const id of styleIds) {
+        root.getElementById(id)?.remove();
+      }
+      for (const child of root.children) {
+        walk(child);
+      }
+      for (const el of root.querySelectorAll('*')) {
+        walk(el);
+      }
+    }
+
+    if (node instanceof Element) {
+      for (const child of node.children) {
+        walk(child);
+      }
+    }
+  };
+
+  walk(doc.documentElement);
+}
+
 function injectStyleIntoShadowRoot(
   root: ShadowRoot,
   cssText: string,

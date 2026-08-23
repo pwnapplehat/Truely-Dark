@@ -10,6 +10,36 @@ export const VISUAL_APPLIED_AVERAGE_THRESHOLD = 0.5;
 export const VISUAL_USABLE_DARK_AVERAGE_THRESHOLD = 0.45;
 export const VISUAL_USABLE_TOP_BAND_THRESHOLD = 0.75;
 export const VISUAL_TOP_BAND_FRACTION = 0.25;
+/** Side gutter samples above this luminance fail marketing visual quality. */
+export const VISUAL_GUTTER_MAX_THRESHOLD = 0.65;
+/** Bottom band samples above this luminance fail marketing footer quality. */
+export const VISUAL_FOOTER_BAND_MAX_THRESHOLD = 0.6;
+export const VISUAL_BOTTOM_BAND_FRACTION = 0.85;
+
+/** Left/right edge samples for light gutter detection. */
+export const VISUAL_GUTTER_SAMPLE_FRACTIONS: ReadonlyArray<readonly [number, number]> = [
+  [0.02, 0.15],
+  [0.98, 0.15],
+  [0.02, 0.35],
+  [0.98, 0.35],
+  [0.02, 0.5],
+  [0.98, 0.5],
+  [0.02, 0.65],
+  [0.98, 0.65],
+  [0.02, 0.8],
+  [0.98, 0.8],
+];
+
+/** Bottom band samples for light footer + light text detection. */
+export const VISUAL_FOOTER_SAMPLE_FRACTIONS: ReadonlyArray<readonly [number, number]> = [
+  [0.1, 0.88],
+  [0.3, 0.9],
+  [0.5, 0.92],
+  [0.7, 0.9],
+  [0.9, 0.88],
+  [0.25, 0.95],
+  [0.75, 0.95],
+];
 
 /** Top band + mid + bottom — header/hero weighted heavily. */
 export const VISUAL_SAMPLE_FRACTIONS: ReadonlyArray<readonly [number, number]> = [
@@ -36,6 +66,8 @@ export interface VisualSampleAnalysis {
   average: number;
   max: number;
   topBandMax: number;
+  gutterMax: number;
+  footerBandMax: number;
 }
 
 export interface VisualSoftAppliedResult {
@@ -57,6 +89,19 @@ function sampleLuminanceAt(
   return rgbByteLuminance(data[i] ?? 0, data[i + 1] ?? 0, data[i + 2] ?? 0);
 }
 
+function maxLuminanceFromFractions(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  fractions: ReadonlyArray<readonly [number, number]>,
+): number {
+  let max = 0;
+  for (const [fx, fy] of fractions) {
+    max = Math.max(max, sampleLuminanceAt(data, width, height, fx, fy));
+  }
+  return max;
+}
+
 /**
  * Analyze luminance samples — top band weighted in sample list.
  */
@@ -67,7 +112,7 @@ export function analyzeVisualSamples(
   fractions: ReadonlyArray<readonly [number, number]> = VISUAL_SAMPLE_FRACTIONS,
 ): VisualSampleAnalysis {
   if (width <= 0 || height <= 0 || fractions.length === 0) {
-    return { average: 1, max: 1, topBandMax: 1 };
+    return { average: 1, max: 1, topBandMax: 1, gutterMax: 1, footerBandMax: 1 };
   }
 
   let total = 0;
@@ -83,10 +128,25 @@ export function analyzeVisualSamples(
     }
   }
 
+  const gutterMax = maxLuminanceFromFractions(
+    data,
+    width,
+    height,
+    VISUAL_GUTTER_SAMPLE_FRACTIONS,
+  );
+  const footerBandMax = maxLuminanceFromFractions(
+    data,
+    width,
+    height,
+    VISUAL_FOOTER_SAMPLE_FRACTIONS,
+  );
+
   return {
     average: total / fractions.length,
     max,
     topBandMax,
+    gutterMax,
+    footerBandMax,
   };
 }
 
@@ -135,6 +195,16 @@ export function isSoftAppliedFromVisualAnalysis(analysis: VisualSampleAnalysis):
   if (isUsableDarkAnalysis(analysis)) return true;
   if (isVisuallyDarkStrict(analysis)) return true;
   return false;
+}
+
+/**
+ * Marketing / SPA hosts: dark page without large light gutters or light footer bands.
+ */
+export function isMarketingVisualQuality(analysis: VisualSampleAnalysis): boolean {
+  if (!isSoftAppliedFromVisualAnalysis(analysis)) return false;
+  if (analysis.gutterMax > VISUAL_GUTTER_MAX_THRESHOLD) return false;
+  if (analysis.footerBandMax > VISUAL_FOOTER_BAND_MAX_THRESHOLD) return false;
+  return true;
 }
 
 /**

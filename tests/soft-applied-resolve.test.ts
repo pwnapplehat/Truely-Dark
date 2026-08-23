@@ -29,7 +29,15 @@ describe('resolveSoftAppliedForTab OVH signals', () => {
     vi.mocked(captureTabVisualAnalysis).mockReset();
   });
 
-  it('returns true immediately when contentStrict is true (visual-verify host)', async () => {
+  it('requires marketing visual quality when contentStrict is true on OVH', async () => {
+    vi.mocked(captureTabVisualAnalysis).mockResolvedValue({
+      average: 0.15,
+      max: 0.2,
+      topBandMax: 0.2,
+      gutterMax: 0.2,
+      footerBandMax: 0.2,
+    });
+
     const applied = await resolveSoftAppliedForTab(
       1,
       1,
@@ -37,30 +45,16 @@ describe('resolveSoftAppliedForTab OVH signals', () => {
       true,
     );
     expect(applied).toBe(true);
-    expect(captureTabVisualAnalysis).not.toHaveBeenCalled();
+    expect(captureTabVisualAnalysis).toHaveBeenCalled();
   });
 
-  it('returns true from OVH-like capture without contentStrict', async () => {
-    const width = 100;
-    const height = 100;
-    const data = new Uint8ClampedArray(width * height * 4);
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const i = (y * width + x) * 4;
-        const inTopBand = y < 25;
-        const sideGutter = x < 10 || x > 89;
-        const v = inTopBand && sideGutter ? 185 : 18;
-        data[i] = v;
-        data[i + 1] = v;
-        data[i + 2] = v;
-        data[i + 3] = 255;
-      }
-    }
-
+  it('returns true from dark OVH-like capture without contentStrict', async () => {
     vi.mocked(captureTabVisualAnalysis).mockResolvedValue({
       average: 0.2,
-      max: 0.7,
-      topBandMax: 0.72,
+      max: 0.25,
+      topBandMax: 0.25,
+      gutterMax: 0.25,
+      footerBandMax: 0.2,
     });
 
     const applied = await resolveSoftAppliedForTab(
@@ -70,6 +64,24 @@ describe('resolveSoftAppliedForTab OVH signals', () => {
       false,
     );
     expect(applied).toBe(true);
+  });
+
+  it('fails OVH-like capture with light side gutters (marketing quality bar)', async () => {
+    vi.mocked(captureTabVisualAnalysis).mockResolvedValue({
+      average: 0.2,
+      max: 0.7,
+      topBandMax: 0.72,
+      gutterMax: 0.72,
+      footerBandMax: 0.2,
+    });
+
+    const applied = await resolveSoftAppliedForTab(
+      4,
+      1,
+      'https://www.ovhcloud.com/en-in/',
+      false,
+    );
+    expect(applied).toBe(false);
   });
 
   it('skips capture when popup is open and returns false without downgrading contentStrict', async () => {
