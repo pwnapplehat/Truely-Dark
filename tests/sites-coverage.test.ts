@@ -168,6 +168,8 @@ describe('v1 site coverage — site packs exist', () => {
     'docs.google.com',
     'sheets.google.com',
     'github.com',
+    'apple.com',
+    'wikipedia.org',
     'www.reddit.com',
     'x.com',
     'x.ai',

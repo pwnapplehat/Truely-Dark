@@ -78,38 +78,174 @@ export const MARKETING_FORCE_SHELL_CSS = `
   }
 `;
 
-const OVH_FORCE_CSS = `
-  html[data-truely-dark-active] {
-    --truely-dark-bg: ${FORCE_MARKETING_BG};
-  }
-  html[data-truely-dark-active] [class*="ovh"],
-  html[data-truely-dark-active] [class*="Ovh"],
-  html[data-truely-dark-active] [class*="OVH"],
-  html[data-truely-dark-active] [class*="container"],
-  html[data-truely-dark-active] [class*="Container"],
-  html[data-truely-dark-active] [class*="column"],
-  html[data-truely-dark-active] [class*="Column"],
-  html[data-truely-dark-active] [class*="col-"],
-  html[data-truely-dark-active] [class*="sidebar"],
-  html[data-truely-dark-active] [class*="Sidebar"],
-  html[data-truely-dark-active] [class*="gutter"],
-  html[data-truely-dark-active] [class*="Gutter"],
-  html[data-truely-dark-active] [class*="logo"],
-  html[data-truely-dark-active] [class*="Logo"],
-  html[data-truely-dark-active] .header-wrapper,
-  html[data-truely-dark-active] .main-header,
-  html[data-truely-dark-active] .sub-header,
-  html[data-truely-dark-active] [class*="navbar"],
-  html[data-truely-dark-active] [class*="Navbar"],
-  html[data-truely-dark-active] [class*="banner"],
-  html[data-truely-dark-active] [class*="Banner"],
-  html[data-truely-dark-active] [class*="slider"],
-  html[data-truely-dark-active] [class*="carousel"],
-  html[data-truely-dark-active] section[class*="homepage"],
-  html[data-truely-dark-active] .homepage-hero {
+/** Nuclear force paint — marketing hosts with stubborn light gutters/footer (OVH). */
+export const MARKETING_FORCE_NUCLEAR_CSS = `
+  html[data-truely-dark-active][data-truely-dark-force] *:not(img):not(svg):not(video):not(picture):not(canvas):not(source) {
     background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
     background-image: none !important;
     color: #e8eaed !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-color: #3c4043 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] a,
+  html[data-truely-dark-active][data-truely-dark-force] a:visited {
+    color: #7baaf7 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] img,
+  html[data-truely-dark-active][data-truely-dark-force] svg,
+  html[data-truely-dark-active][data-truely-dark-force] video,
+  html[data-truely-dark-active][data-truely-dark-force] picture,
+  html[data-truely-dark-active][data-truely-dark-force] canvas {
+    background-color: transparent !important;
+  }
+`;
+
+/** Form surfaces on force marketing hosts — readable newsletter inputs. */
+export const FORCE_FORM_SURFACE_CSS = `
+  html[data-truely-dark-active][data-truely-dark-force] input:not([type="image"]):not([type="checkbox"]):not([type="radio"]),
+  html[data-truely-dark-active][data-truely-dark-force] textarea,
+  html[data-truely-dark-active][data-truely-dark-force] select {
+    background-color: #1a1a1a !important;
+    color: #e8eaed !important;
+    border-color: #3c4043 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] [class*="newsletter"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Newsletter"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="subscribe"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Subscribe"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="keep-in-touch"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="KeepInTouch"] {
+    background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] [class*="newsletter"] *,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="subscribe"] *,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="keep-in-touch"] * {
+    color: #e8eaed !important;
+  }
+`;
+
+const OVH_FORCE_CSS = `
+  html[data-truely-dark-active][data-truely-dark-force] {
+    --truely-dark-bg: ${FORCE_MARKETING_BG};
+  }
+  html[data-truely-dark-active][data-truely-dark-force] [class*="ovh"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Ovh"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="OVH"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="container"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Container"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="column"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Column"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="col-"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="sidebar"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Sidebar"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="gutter"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Gutter"],
+  html[data-truely-dark-active][data-truely-dark-force] .header-wrapper,
+  html[data-truely-dark-active][data-truely-dark-force] .main-header,
+  html[data-truely-dark-active][data-truely-dark-force] .sub-header,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="navbar"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Navbar"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="banner"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Banner"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="slider"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="carousel"],
+  html[data-truely-dark-active][data-truely-dark-force] section[class*="homepage"],
+  html[data-truely-dark-active][data-truely-dark-force] .homepage-hero,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="copyright"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Copyright"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="legal"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Legal"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="bottom-bar"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="subfooter"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="sub-footer"],
+  html[data-truely-dark-active][data-truely-dark-force] [id*="footer"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="site-footer"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="SiteFooter"] {
+    background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] [class*="hero"] *,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Hero"] *,
+  html[data-truely-dark-active][data-truely-dark-force] h1,
+  html[data-truely-dark-active][data-truely-dark-force] h2,
+  html[data-truely-dark-active][data-truely-dark-force] h3,
+  html[data-truely-dark-active][data-truely-dark-force] h4,
+  html[data-truely-dark-active][data-truely-dark-force] p,
+  html[data-truely-dark-active][data-truely-dark-force] span,
+  html[data-truely-dark-active][data-truely-dark-force] li,
+  html[data-truely-dark-active][data-truely-dark-force] label {
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] [class*="logo"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Logo"] {
+    background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
+    background-image: none !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] [class*="logo"] img,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Logo"] img {
+    background-color: transparent !important;
+  }
+`;
+
+/** Invert Soft supplement — light promo tiles / cards that resist html invert. */
+const APPLE_INVERT_SURFACE_CSS = `
+  html[data-truely-dark-active] [class*="unit"],
+  html[data-truely-dark-active] [class*="Unit"],
+  html[data-truely-dark-active] [class*="promo"],
+  html[data-truely-dark-active] [class*="Promo"],
+  html[data-truely-dark-active] section[class*="module"],
+  html[data-truely-dark-active] [class*="homepage-section"],
+  html[data-truely-dark-active] li[class*="product"] {
+    background-color: #1a1a1a !important;
+    background-image: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active] [class*="unit"] *,
+  html[data-truely-dark-active] [class*="promo"] * {
+    color: #e8eaed !important;
+  }
+`;
+
+/** Invert Soft supplement — lavender navbox + white footer badges. */
+const WIKIPEDIA_INVERT_SURFACE_CSS = `
+  html[data-truely-dark-active] .navbox,
+  html[data-truely-dark-active] .navbox-inner,
+  html[data-truely-dark-active] .navbox-title,
+  html[data-truely-dark-active] .navbox-list,
+  html[data-truely-dark-active] table.navbox,
+  html[data-truely-dark-active] .navbox th,
+  html[data-truely-dark-active] .navbox td {
+    background-color: #1a1a1a !important;
+    background-image: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    color: #e8eaed !important;
+    border-color: #3c4043 !important;
+  }
+  html[data-truely-dark-active] #footer,
+  html[data-truely-dark-active] .mw-footer,
+  html[data-truely-dark-active] .footer-info,
+  html[data-truely-dark-active] #footer-info,
+  html[data-truely-dark-active] .mw-portlet-footer {
+    background-color: ${FORCE_MARKETING_BG} !important;
+    background-image: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active] .mw-footer img,
+  html[data-truely-dark-active] #footer img,
+  html[data-truely-dark-active] .footer-info img {
+    background-color: transparent !important;
+    filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.95) !important;
+    -webkit-filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.95) !important;
   }
 `;
 
@@ -209,7 +345,7 @@ const XAI_FORCE_CSS = `
   }
 `;
 
-const OVH_FORCE_PACK_CSS = `${OVH_FORCE_CSS}`;
+const OVH_FORCE_PACK_CSS = `${MARKETING_FORCE_NUCLEAR_CSS}${FORCE_FORM_SURFACE_CSS}${OVH_FORCE_CSS}`;
 
 const GITHUB_CSS = `
   .js-navigation-container,
@@ -289,6 +425,18 @@ export const SITE_PACKS: SitePack[] = [
     mode: 'auto',
     skipDetect: false,
     customCss: GOOGLE_SEARCH_CSS,
+  },
+  {
+    origins: ['apple.com', 'www.apple.com'],
+    mode: 'auto',
+    skipDetect: false,
+    invertOnlyCustomCss: APPLE_INVERT_SURFACE_CSS,
+  },
+  {
+    origins: ['wikipedia.org'],
+    mode: 'auto',
+    skipDetect: false,
+    invertOnlyCustomCss: WIKIPEDIA_INVERT_SURFACE_CSS,
   },
   {
     origins: ['github.com', 'www.github.com'],

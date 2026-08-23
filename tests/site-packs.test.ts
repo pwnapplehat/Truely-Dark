@@ -15,15 +15,25 @@ describe('findSitePack', () => {
     expect(pack?.origins).toContain('chromewebstore.google.com');
   });
 
-  it('registers ovhcloud force pack without invert white pre-bg', () => {
+  it('OVH force pack includes nuclear force CSS (no #ffffff)', () => {
     const pack = findSitePack('www.ovhcloud.com');
     expect(pack?.mode).toBe('soft');
-    expect(pack?.skipDetect).toBe(true);
     expect(pack?.preferForceStylesheet).toBe(true);
     expect(hostPrefersForceStylesheet('www.ovhcloud.com')).toBe(true);
-    expect(hostRequiresMarketingVisualVerify('www.ovhcloud.com')).toBe(true);
-    expect(pack?.customCss ?? '').not.toContain('#ffffff');
-    expect(pack?.invertOnlyCustomCss ?? '').not.toContain('#ffffff');
+    const css = pack?.customCss ?? '';
+    expect(css).toContain('data-truely-dark-force');
+    expect(css).not.toContain('#ffffff');
+    expect(css).toContain('[data-truely-dark-force] *:not(img)');
+  });
+
+  it('apple.com has invert surface supplement for promo tiles', () => {
+    const pack = findSitePack('www.apple.com');
+    expect(pack?.invertOnlyCustomCss).toContain('promo');
+  });
+
+  it('wikipedia.org has invert surface supplement for navbox/footer', () => {
+    const pack = findSitePack('en.wikipedia.org');
+    expect(pack?.invertOnlyCustomCss).toContain('navbox');
   });
 
   it('matches x.ai with force-first Soft and marketing visual verify', () => {
