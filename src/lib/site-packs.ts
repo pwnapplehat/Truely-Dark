@@ -238,12 +238,76 @@ const OVH_FORCE_CSS = `
   }
   html[data-truely-dark-active][data-truely-dark-force] section[class*="homepage"],
   html[data-truely-dark-active][data-truely-dark-force] .homepage-hero,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="domain-search"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="DomainSearch"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="domain-name"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="search-domain"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="homepage-search"],
+  html[data-truely-dark-active][data-truely-dark-force] section[class*="domain"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="partner"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Partner"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="customers"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Customers"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="logo-strip"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="logo-list"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="brands"],
   html[data-truely-dark-active][data-truely-dark-force] [class*="site-footer"],
   html[data-truely-dark-active][data-truely-dark-force] [class*="SiteFooter"],
   html[data-truely-dark-active][data-truely-dark-force] [class*="subfooter"],
   html[data-truely-dark-active][data-truely-dark-force] [class*="sub-footer"] {
     background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
     background-image: none !important;
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] [class*="domain-search"] *,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="DomainSearch"] *,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="partner"] *,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Partner"] *,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="customers"] *,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Customers"] * {
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] [class*="partner"] img,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Partner"] img,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="customers"] img,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Customers"] img,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="logo-strip"] img,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="brands"] img {
+    background-color: transparent !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] footer,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="site-footer"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="SiteFooter"] {
+    position: relative !important;
+    z-index: 2 !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] footer [class*="column"],
+  html[data-truely-dark-active][data-truely-dark-force] footer [class*="Column"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="footer-column"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="footer-link"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="FooterLink"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="footer-nav"] {
+    position: relative !important;
+    z-index: 3 !important;
+    display: block !important;
+    clear: none !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] [class*="copyright"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Copyright"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="bottom-bar"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="legal-bar"] {
+    position: relative !important;
+    z-index: 1 !important;
+    top: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    clear: both !important;
+    margin-top: 1rem !important;
+    background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
     color: #e8eaed !important;
   }
   html[data-truely-dark-active][data-truely-dark-force] [class*="mainmenu"],
@@ -268,6 +332,31 @@ const OVH_FORCE_CSS = `
 
 /** Apple force Soft — dark promo surfaces, images stay natural (no invert). */
 const APPLE_FORCE_CSS = `
+  html[data-truely-dark-active][data-truely-dark-force] [class*="ribbon"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Ribbon"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="donation"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Donation"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="globalmessage"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="GlobalMessage"],
+  html[data-truely-dark-active][data-truely-dark-force] .ac-ls-promo,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="ac-ls"],
+  html[data-truely-dark-active][data-truely-dark-force] #ac-localnav,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="localnav"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="promo-strip"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="PromoStrip"],
+  html[data-truely-dark-active][data-truely-dark-force] body > div[class*="banner"]:not([class*="unit"]),
+  html[data-truely-dark-active][data-truely-dark-force] section[class*="banner"]:not(.unit):not([class*="hero"]) {
+    background-color: #1d1d1f !important;
+    background-image: none !important;
+    color: #f5f5f7 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] [class*="ribbon"] *,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="donation"] *,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="globalmessage"] *,
+  html[data-truely-dark-active][data-truely-dark-force] .ac-ls-promo *,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="ac-ls"] * {
+    color: #f5f5f7 !important;
+  }
   html[data-truely-dark-active][data-truely-dark-force] #globalnav,
   html[data-truely-dark-active][data-truely-dark-force] .globalnav,
   html[data-truely-dark-active][data-truely-dark-force] nav.globalnav {
@@ -484,6 +573,37 @@ const XAI_FORCE_CSS = `
   html[data-truely-dark-active] [class*="Compare"] {
     background-color: #141414 !important;
     background-image: none !important;
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active] [class*="compare"][class*="sticky"],
+  html[data-truely-dark-active] [class*="Compare"][class*="sticky"],
+  html[data-truely-dark-active] [class*="sticky"][class*="compare"],
+  html[data-truely-dark-active] [class*="sticky"][class*="Compare"],
+  html[data-truely-dark-active] [class*="plan-comparison"],
+  html[data-truely-dark-active] [class*="PlanComparison"],
+  html[data-truely-dark-active] [class*="comparison-header"],
+  html[data-truely-dark-active] [class*="ComparisonHeader"],
+  html[data-truely-dark-active] [class*="sticky-header"],
+  html[data-truely-dark-active] [class*="StickyHeader"],
+  html[data-truely-dark-active] [class*="compare"] thead,
+  html[data-truely-dark-active] [class*="Compare"] thead,
+  html[data-truely-dark-active] [class*="compare"] th,
+  html[data-truely-dark-active] [class*="Compare"] th,
+  html[data-truely-dark-active] [class*="compare"] [role="row"],
+  html[data-truely-dark-active] [class*="Compare"] [role="row"] {
+    background-color: #0a0a0a !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: #e8eaed !important;
+    opacity: 1 !important;
+  }
+  html[data-truely-dark-active] [class*="compare"] th *,
+  html[data-truely-dark-active] [class*="Compare"] th *,
+  html[data-truely-dark-active] [class*="compare"] thead *,
+  html[data-truely-dark-active] [class*="Compare"] thead *,
+  html[data-truely-dark-active] [class*="sticky"][class*="compare"] *,
+  html[data-truely-dark-active] [class*="sticky"][class*="Compare"] * {
     color: #e8eaed !important;
   }
 `;

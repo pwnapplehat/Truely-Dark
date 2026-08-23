@@ -45,9 +45,23 @@ describe('findSitePack', () => {
     expect(css).toContain('#footer');
   });
 
-  it('x.ai force pack disables header backdrop-filter', () => {
+  it('OVH force pack darkens domain-search and partner strips', () => {
+    const pack = findSitePack('www.ovhcloud.com');
+    const css = pack?.customCss ?? '';
+    expect(css).toContain('domain-search');
+    expect(css).toContain('partner');
+    expect(css).toContain('copyright');
+  });
+
+  it('apple.com darkens top donation/ribbon strip', () => {
+    const pack = findSitePack('www.apple.com');
+    expect(pack?.customCss).toMatch(/donation|ribbon|ac-ls/i);
+  });
+
+  it('x.ai force pack darkens sticky compare header row', () => {
     const pack = findSitePack('x.ai');
-    expect(pack?.customCss).toContain('backdrop-filter: none');
+    expect(pack?.customCss).toContain('compare');
+    expect(pack?.customCss).toContain('sticky');
   });
 
   it('matches x.ai with force-first Soft and marketing visual verify', () => {
