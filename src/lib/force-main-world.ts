@@ -1,13 +1,9 @@
 import {
   insertForceStylesheetForTab,
   insertInvertSupplementForTab,
-  insertNuclearForceCssForTab,
   resolveEffectiveForUrl,
 } from './insert-css-fallback';
-import {
-  executeMainWorldForceStylesheet,
-  executeMainWorldNuclearForce,
-} from './main-world-inject';
+import { executeMainWorldForceStylesheet } from './main-world-inject';
 import { getHostnameFromUrl, hostPrefersForceStylesheet } from './site-packs';
 
 /**
@@ -36,10 +32,9 @@ export async function escalatePreferForceMainWorldForTab(
   tabId: number,
   url: string,
 ): Promise<boolean> {
-  const applied = await applyPreferForceMainWorldForTab(tabId, url);
-  if (applied) return true;
+  const first = await applyPreferForceMainWorldForTab(tabId, url);
+  if (first) return true;
 
-  const nuclearInserted = await insertNuclearForceCssForTab(tabId, url);
-  const nuclearMain = await executeMainWorldNuclearForce(tabId, url);
-  return nuclearInserted || nuclearMain;
+  await executeMainWorldForceStylesheet(tabId, url);
+  return applyPreferForceMainWorldForTab(tabId, url);
 }

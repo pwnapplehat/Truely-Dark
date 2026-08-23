@@ -1,12 +1,13 @@
 import type { EffectiveSiteSettings } from '../types';
 import { ROOT_ATTR } from './engine';
-import { resolveForceBackgroundColor } from './site-packs';
+import { hostPrefersForceStylesheet, resolveForceBackgroundColor } from './site-packs';
 
 export const SHADOW_FORCE_STYLE_ID = 'truely-dark-shadow-force';
 export const SHADOW_FILTER_STYLE_ID = 'truely-dark-shadow-filter';
 
 /**
  * CSS injected inside each open shadow root for force (direct dark) mode.
+ * Shell-only — never paint every descendant opaque.
  */
 export function generateShadowForceCss(settings: EffectiveSiteSettings): string {
   const bg = resolveForceBackgroundColor(settings);
@@ -20,12 +21,7 @@ export function generateShadowForceCss(settings: EffectiveSiteSettings): string 
       color: ${text} !important;
       color-scheme: dark !important;
     }
-    :host * {
-      background-color: ${bg} !important;
-      background-image: none !important;
-      color: ${text} !important;
-    }
-    a, a:visited {
+  a, a:visited {
       color: ${link} !important;
     }
     img, svg, video, picture, canvas {
@@ -145,12 +141,48 @@ function injectStyleIntoShadowRoot(
 }
 
 /**
- * Light-DOM nuclear force selectors (no shadow piercing).
+ * Escalation force CSS — shell surfaces only (no universal * paint).
  */
-export function generateNuclearForceCss(settings: EffectiveSiteSettings): string {
+export function generateNuclearForceCss(
+  settings: EffectiveSiteSettings,
+  hostname?: string,
+): string {
   const bg = resolveForceBackgroundColor(settings);
   const text = '#e8e8e8';
   const link = '#8ab4f8';
+  const preferForce =
+    settings.sitePack?.preferForceStylesheet === true ||
+    (hostname ? hostPrefersForceStylesheet(hostname) : false);
+
+  if (preferForce) {
+    return `
+      html[${ROOT_ATTR}],
+      html[${ROOT_ATTR}] body,
+      html[${ROOT_ATTR}] main,
+      html[${ROOT_ATTR}] [role="main"],
+      html[${ROOT_ATTR}] #root,
+      html[${ROOT_ATTR}] #__next {
+        background-color: ${bg} !important;
+        background-image: none !important;
+        color: ${text} !important;
+        filter: none !important;
+        -webkit-filter: none !important;
+        color-scheme: dark !important;
+      }
+      html[${ROOT_ATTR}] footer,
+      html[${ROOT_ATTR}] [role="contentinfo"],
+      html[${ROOT_ATTR}] [class*="footer"],
+      html[${ROOT_ATTR}] [class*="Footer"] {
+        background-color: ${bg} !important;
+        background-image: none !important;
+        color: ${text} !important;
+      }
+      html[${ROOT_ATTR}] a,
+      html[${ROOT_ATTR}] a:visited {
+        color: ${link} !important;
+      }
+    `;
+  }
 
   return `
     html[${ROOT_ATTR}],
@@ -161,7 +193,12 @@ export function generateNuclearForceCss(settings: EffectiveSiteSettings): string
       filter: none !important;
       -webkit-filter: none !important;
     }
-    html[${ROOT_ATTR}] *:not(img):not(svg):not(video):not(picture):not(canvas) {
+    html[${ROOT_ATTR}] main,
+    html[${ROOT_ATTR}] [role="main"],
+    html[${ROOT_ATTR}] header,
+    html[${ROOT_ATTR}] nav,
+    html[${ROOT_ATTR}] footer,
+    html[${ROOT_ATTR}] section {
       background-color: ${bg} !important;
       background-image: none !important;
       color: ${text} !important;

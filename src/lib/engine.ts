@@ -122,6 +122,7 @@ export function generateForceStylesheetCss(settings: EffectiveSiteSettings): str
   let css = `
     html[${ROOT_ATTR}] {
       --truely-dark-bg: ${bg};
+      color-scheme: dark !important;
     }
     html[${ROOT_ATTR}],
     html[${ROOT_ATTR}] body {
@@ -133,13 +134,14 @@ export function generateForceStylesheetCss(settings: EffectiveSiteSettings): str
     }
     html[${ROOT_ATTR}] main,
     html[${ROOT_ATTR}] [role="main"],
+    html[${ROOT_ATTR}] #root,
+    html[${ROOT_ATTR}] #__next,
     html[${ROOT_ATTR}] header,
     html[${ROOT_ATTR}] nav,
     html[${ROOT_ATTR}] footer,
     html[${ROOT_ATTR}] section,
     html[${ROOT_ATTR}] article,
     html[${ROOT_ATTR}] aside,
-    html[${ROOT_ATTR}] div,
     html[${ROOT_ATTR}] c-wiz {
       background-color: ${bg} !important;
       background-image: none !important;

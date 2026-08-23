@@ -97,12 +97,8 @@ export async function escalateSoftApplication(
       await executeMainWorldForceStylesheet(tabId, url);
     },
     async () => {
-      await insertNuclearForceCssForTab(tabId, url);
-      await executeMainWorldNuclearForce(tabId, url);
-    },
-    async () => {
       await paintDelay(ESCALATION_RETRY_DELAY_MS);
-      await executeMainWorldNuclearForce(tabId, url);
+      await executeMainWorldForceStylesheet(tabId, url);
     },
   ];
 

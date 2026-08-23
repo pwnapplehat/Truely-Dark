@@ -180,7 +180,13 @@ export async function insertNuclearForceCssForTab(tabId: number, url: string): P
     return false;
   }
 
-  const css = generateNuclearForceCss(effective);
+  const hostname = getHostnameFromUrl(url);
+  if (hostPrefersForceStylesheet(hostname)) {
+    await removeInsertedNuclearCss(tabId);
+    return false;
+  }
+
+  const css = generateNuclearForceCss(effective, hostname);
   const previous = tabNuclearCss.get(tabId);
 
   if (previous === css) return true;

@@ -15,7 +15,7 @@ describe('findSitePack', () => {
     expect(pack?.origins).toContain('chromewebstore.google.com');
   });
 
-  it('OVH force pack includes nuclear force CSS (no #ffffff)', () => {
+  it('OVH force pack uses targeted surfaces without universal * paint', () => {
     const pack = findSitePack('www.ovhcloud.com');
     expect(pack?.mode).toBe('soft');
     expect(pack?.preferForceStylesheet).toBe(true);
@@ -23,7 +23,9 @@ describe('findSitePack', () => {
     const css = pack?.customCss ?? '';
     expect(css).toContain('data-truely-dark-force');
     expect(css).not.toContain('#ffffff');
-    expect(css).toContain('[data-truely-dark-force] *:not(img)');
+    expect(css).not.toMatch(/\*:not\(img\)/);
+    expect(css).toContain('ovhcloud-mainmenu');
+    expect(css).toContain('redirection-banners');
   });
 
   it('apple.com has invert surface supplement for promo tiles', () => {

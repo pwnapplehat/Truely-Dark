@@ -122,10 +122,15 @@ export async function executeMainWorldForceStylesheet(tabId: number, url: string
 }
 
 export async function executeMainWorldNuclearForce(tabId: number, url: string): Promise<boolean> {
+  const hostname = getHostnameFromUrl(url);
+  if (hostPrefersForceStylesheet(hostname)) {
+    return executeMainWorldForceStylesheet(tabId, url);
+  }
+
   const effective = await resolveEffectiveForUrl(url);
   if (!effective?.active) return false;
 
-  const nuclearCss = generateNuclearForceCss(effective);
+  const nuclearCss = generateNuclearForceCss(effective, hostname);
   const shadowCss = generateShadowForceCss(effective);
 
   return dispatchMainWorldApply(tabId, {
