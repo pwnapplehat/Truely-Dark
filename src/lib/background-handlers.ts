@@ -26,7 +26,7 @@ import {
   maybeProactiveInsertCss,
   removeSoftCssForTab,
 } from './insert-css-fallback';
-import { isChromeGalleryHost } from './gallery-access';
+import { isChromeGalleryHost, isChromeGalleryUrl } from './gallery-access';
 import {
   clearGalleryGestureAttempted,
   isGalleryGestureAttempted,
@@ -71,7 +71,7 @@ async function buildTabInfo(
       softApplied: false,
       injectionPending: false,
       galleryHost: false,
-      needsGalleryGesture: false,
+      galleryInjectionBlocked: false,
       enableOnRestrictedPages: settings.enableOnRestrictedPages,
       galleryGestureAttempted: false,
     };
@@ -94,13 +94,8 @@ async function buildTabInfo(
   const galleryGestureAttempted =
     tabId !== undefined ? isGalleryGestureAttempted(tabId) : false;
   const enableOnRestrictedPages = settings.enableOnRestrictedPages;
-  const needsGalleryGesture =
-    galleryHost &&
-    effective.active &&
-    !softApplied &&
-    !injectionPending &&
-    !galleryGestureAttempted &&
-    enableOnRestrictedPages;
+  const galleryInjectionBlocked =
+    galleryHost && effective.active && !softApplied && !injectionPending;
 
   return {
     origin,
@@ -115,7 +110,7 @@ async function buildTabInfo(
     softApplied,
     injectionPending,
     galleryHost,
-    needsGalleryGesture,
+    galleryInjectionBlocked,
     enableOnRestrictedPages,
     galleryGestureAttempted,
   };
@@ -267,8 +262,14 @@ export function registerBackgroundHandlers(): void {
         const { contentStrict } = message.payload as { contentStrict: boolean };
 
         if (injectionTabId !== undefined) {
-          if (contentStrict) {
+          const injectionHostname = getHostnameFromUrl(injectionUrl);
+          if (contentStrict && !isChromeGalleryHost(injectionHostname)) {
             setTabSoftApplied(injectionTabId, true);
+            return { success: true };
+          }
+
+          if (isChromeGalleryHost(injectionHostname)) {
+            setTabSoftApplied(injectionTabId, false);
             return { success: true };
           }
 
@@ -412,6 +413,8 @@ export function registerBackgroundHandlers(): void {
         const settings = await getSettings();
         const info = await buildTabInfo(tab.url, settings, tabId);
         if (info.pageRestricted || !info.active) {
+          setTabSoftApplied(tabId, false);
+        } else if (isChromeGalleryUrl(tab.url)) {
           setTabSoftApplied(tabId, false);
         } else if (!isPopupLikelyOpen()) {
           await settleTabSoftApplied(tabId, tab.windowId, tab.url, false);

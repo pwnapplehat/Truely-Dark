@@ -63,9 +63,8 @@ export async function gestureActivateSoftForTab(
 
   if (gallery) {
     const visuallyDark = await verifyVisualDarkness(windowId);
-    const applied = visuallyDark || injectionSucceeded;
-    setTabSoftApplied(tabId, applied);
-    return applied;
+    setTabSoftApplied(tabId, visuallyDark);
+    return visuallyDark;
   }
 
   let applied = await settleTabSoftApplied(tabId, windowId, url, false, true);

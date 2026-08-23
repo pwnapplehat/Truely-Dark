@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { GALLERY_INJECTION_BLOCKED_LABEL } from '../src/lib/gallery-access';
 import { isTruthfulActiveStatus, siteStatusLabel, statusDotClass } from '../src/lib/tab-status';
 import type { TabInfo } from '../src/types';
 
@@ -15,7 +16,7 @@ const baseTab = (partial: Partial<TabInfo>): TabInfo => ({
   softApplied: true,
   injectionPending: false,
   galleryHost: false,
-  needsGalleryGesture: false,
+  galleryInjectionBlocked: false,
   enableOnRestrictedPages: false,
   galleryGestureAttempted: false,
   ...partial,
@@ -61,45 +62,26 @@ describe('siteStatusLabel', () => {
     ).toContain('Natively dark');
   });
 
-  it('shows gallery gesture hint when CWS needs icon click', () => {
+  it('shows Chrome blocks message on gallery when injection failed', () => {
     expect(
       siteStatusLabel(
         baseTab({
           hostname: 'chromewebstore.google.com',
           galleryHost: true,
-          needsGalleryGesture: true,
-          enableOnRestrictedPages: true,
+          galleryInjectionBlocked: true,
           softApplied: false,
         }),
       ),
-    ).toContain('Click Truely Dark icon');
-  });
-
-  it('shows restricted-pages hint when gallery toggle is off', () => {
+    ).toBe(GALLERY_INJECTION_BLOCKED_LABEL);
     expect(
-      siteStatusLabel(
+      isTruthfulActiveStatus(
         baseTab({
-          hostname: 'chromewebstore.google.com',
           galleryHost: true,
-          enableOnRestrictedPages: false,
+          galleryInjectionBlocked: true,
           softApplied: false,
         }),
       ),
-    ).toContain('Restricted pages');
-  });
-
-  it('shows flag hint after gallery gesture attempted', () => {
-    expect(
-      siteStatusLabel(
-        baseTab({
-          hostname: 'chromewebstore.google.com',
-          galleryHost: true,
-          galleryGestureAttempted: true,
-          enableOnRestrictedPages: true,
-          softApplied: false,
-        }),
-      ),
-    ).toContain('extensions-on-chrome-urls');
+    ).toBe(false);
   });
 });
 

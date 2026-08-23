@@ -9,6 +9,7 @@ import {
   executeMainWorldSoftFilter,
 } from './main-world-inject';
 import { isPopupLikelyOpen } from './popup-state';
+import { isChromeGalleryHost } from './gallery-access';
 import { getHostnameFromUrl, hostRequiresVisualVerify } from './site-packs';
 import {
   captureTabVisualAnalysis,
@@ -115,6 +116,15 @@ export async function resolveSoftAppliedForTab(
 
   if (!hostRequiresVisualVerify(hostname)) {
     return contentStrict;
+  }
+
+  if (contentStrict && !isChromeGalleryHost(hostname)) {
+    return true;
+  }
+
+  if (isChromeGalleryHost(hostname)) {
+    const visual = await verifyVisualSoftApplied(windowId, options);
+    return !visual.inconclusive && visual.applied;
   }
 
   if (contentStrict) return true;

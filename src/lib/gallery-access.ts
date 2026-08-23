@@ -2,13 +2,13 @@ import { getHostnameFromUrl } from './site-packs';
 
 const GALLERY_HOSTNAMES = ['chromewebstore.google.com', 'chrome.google.com'] as const;
 
-/** Chromium flag required for many sideloaded builds on gallery URLs. */
-export const CHROME_EXTENSIONS_ON_CHROME_URLS_FLAG =
-  'chrome://flags/#extensions-on-chrome-urls';
+/** Popup status when Chromium blocks gallery injection (HTTPS Web Store, not chrome://). */
+export const GALLERY_INJECTION_BLOCKED_LABEL =
+  'Chrome blocks extensions on the Web Store';
 
 /**
- * Chrome Web Store / chrome.google.com gallery pages.
- * Sideloaded MV3 may block static content scripts — user-gesture injection required.
+ * Chrome Web Store gallery hosts — Chromium hard-blocks extension injection on these HTTPS pages.
+ * The extensions-on-chrome-urls flag applies to chrome:// URLs, not the public gallery.
  */
 export function isChromeGalleryHost(hostname: string): boolean {
   const normalized = hostname.toLowerCase();

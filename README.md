@@ -102,26 +102,21 @@ Detection ignores Truely Dark preload (`#121212`, `color-scheme: dark`), unused 
 - **Cross-origin iframes:** Cannot inject; parent filter does not cross origin boundaries
 - **PDF / `embed`:** Browser PDF viewer is not styleable — use the browser’s built-in dark PDF mode if available
 
-## Chrome Web Store regression check
+## Chrome Web Store — known Chromium limitation
 
-`chromewebstore.google.com` is a normal HTTPS page — Truely Dark darkens it like other dark extensions.
+The public Chrome Web Store (`chromewebstore.google.com`, `chrome.google.com/webstore`) is **browser-protected**. Chromium blocks extension content scripts, `insertCSS`, and `executeScript` on the HTTPS gallery — this is **not a Truely Dark bug** (Dark Reader and other invert extensions hit the same wall).
 
-**Sideloaded / unpacked builds:** Chromium may block automatic content scripts on the Web Store (“No access needed” in `chrome://extensions`). Enable **Options → Enable on restricted pages**, then click the Truely Dark toolbar icon on the store tab:
+- Popup shows: **“Chrome blocks extensions on the Web Store”** when Soft/On cannot apply
+- `chrome://flags/#extensions-on-chrome-urls` applies to **`chrome://` URLs only**, not the HTTPS store
+- Truely Dark still darkens normal websites; set the store tab to **Off** to avoid a misleading “could not apply” on a page we cannot change
 
-1. Load unpacked from `.output/chrome-mv3`
-2. Open **Options** → enable **Enable on restricted pages**
-3. Optional: set Chromium flag `chrome://flags/#extensions-on-chrome-urls` to **Enabled** (required for some sideloaded builds)
-4. Open `https://chromewebstore.google.com/` and set **Soft** or **Auto**
-5. **Click the Truely Dark toolbar icon** — popup open triggers `activeTab` + `scripting` injection (MAIN world + shadow pierce)
-6. Page should visibly darken; popup shows green active or honest “could not apply” (with flag hint if Chromium still blocks)
+**Optional workaround (store only):** Chrome’s **Auto Dark Mode for Web Contents** flag or OS-level dark mode may dim the store UI — Truely Dark does not control that path.
 
-Store-published builds with normal install may auto-inject without the extra click.
-
-Also verify: `https://www.ovhcloud.com/en-in/` (Soft), `https://github.com` (Auto + light theme → Soft; dark theme → skip), `https://en.wikipedia.org`, `https://news.ycombinator.com`.
+Also verify: `https://www.ovhcloud.com/en-in/` (Soft — should show green when visibly dark), `https://github.com`, `https://en.wikipedia.org`, `https://news.ycombinator.com`.
 
 ## Restricted browser pages
 
-Only non-scriptable URLs are excluded: `chrome://`, `edge://`, `about:`, `chrome-extension://`, etc. The popup shows **“Browser blocks dark mode on this page”** for those tabs. HTTPS pages (including the Chrome Web Store) are never treated as restricted.
+Only non-scriptable URLs are excluded: `chrome://`, `edge://`, `about:`, `chrome-extension://`, etc. The popup shows **“Browser blocks dark mode on this page”** for those tabs. The HTTPS Chrome Web Store is scriptable in principle but **Chromium blocks extension injection** on gallery hosts — see the Chrome Web Store section above.
 
 ## Google Docs & Sheets
 

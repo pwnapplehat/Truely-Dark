@@ -41,7 +41,7 @@ export interface TruelyDarkSettings {
   sepia: number;
   preserveMedia: boolean;
   batterySaver: boolean;
-  /** Try user-gesture injection on Chrome Web Store / chrome.google.com gallery pages. */
+  /** Try optional injection attempts on Chrome Web Store gallery pages. */
   enableOnRestrictedPages: boolean;
   preset: PresetId;
   schedule: ScheduleSettings;
@@ -124,13 +124,13 @@ export interface TabInfo {
   softApplied: boolean;
   /** Content script has not yet reported injection status this navigation. */
   injectionPending: boolean;
-  /** chromewebstore.google.com / chrome.google.com — may need icon-click injection. */
+  /** chromewebstore.google.com / chrome.google.com gallery — Chromium blocks injection. */
   galleryHost: boolean;
-  /** Sideloaded gallery: show click-to-darken hint when auto-inject failed. */
-  needsGalleryGesture: boolean;
-  /** User enabled gallery injection in Options. */
+  /** Gallery active but injection failed — show browser-blocked status (not Soft active). */
+  galleryInjectionBlocked: boolean;
+  /** User enabled optional gallery injection attempts in Options. */
   enableOnRestrictedPages: boolean;
-  /** Icon-click gesture already attempted this navigation. */
+  /** Gallery gesture attempted this navigation (diagnostics only). */
   galleryGestureAttempted: boolean;
 }
 

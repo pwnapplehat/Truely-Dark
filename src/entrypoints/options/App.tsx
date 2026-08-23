@@ -134,19 +134,21 @@ export function OptionsApp() {
         />
         <Toggle
           label="Enable on restricted pages"
-          description="Allow injection on Chrome Web Store (sideloaded builds)"
+          description="Try injection on Chrome Web Store (usually blocked by Chromium)"
           checked={settings.enableOnRestrictedPages}
           onChange={(enableOnRestrictedPages) => update({ enableOnRestrictedPages })}
         />
-        {settings.enableOnRestrictedPages && (
-          <p className="hint-text">
-            Sideloaded extensions may still need Chromium flag{' '}
-            <a href="chrome://flags/#extensions-on-chrome-urls" rel="noopener noreferrer">
-              Extensions on Chrome URLs
-            </a>
-            . Then click the Truely Dark icon on the Web Store tab.
-          </p>
-        )}
+        <p className="hint-text">
+          Chromium protects the HTTPS Chrome Web Store (<code>chromewebstore.google.com</code>) —
+          extensions cannot inject CSS or scripts there (same class of limitation as Dark Reader).
+          The <code>extensions-on-chrome-urls</code> flag only affects <code>chrome://</code> URLs,
+          not the public store gallery.
+        </p>
+        <p className="hint-text">
+          Optional OS-level workaround for the store only: enable Chrome&apos;s{' '}
+          <strong>Auto Dark Mode for Web Contents</strong> (chrome://flags) or your OS dark mode —
+          Truely Dark will still darken normal websites.
+        </p>
       </Section>
 
       <Section title="Presets">

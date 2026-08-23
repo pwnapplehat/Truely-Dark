@@ -1,4 +1,4 @@
-import { isChromeGalleryHost } from './gallery-access';
+import { GALLERY_INJECTION_BLOCKED_LABEL } from './gallery-access';
 import type { TabInfo } from '../types';
 
 /**
@@ -12,29 +12,10 @@ export function siteStatusLabel(tabInfo: TabInfo): string {
     return 'Natively dark — Truely Dark skipped';
   }
   if (tabInfo.injectionPending) {
-    if (tabInfo.galleryHost) {
-      return 'Applying dark mode…';
-    }
     return 'Applying dark mode…';
   }
-  if (
-    tabInfo.active &&
-    tabInfo.galleryHost &&
-    !tabInfo.softApplied &&
-    !tabInfo.enableOnRestrictedPages
-  ) {
-    return 'Enable “Restricted pages” in Options to darken Chrome Web Store';
-  }
-  if (tabInfo.active && !tabInfo.softApplied && tabInfo.needsGalleryGesture) {
-    return 'Click Truely Dark icon on this tab to darken Chrome Web Store';
-  }
-  if (
-    tabInfo.active &&
-    !tabInfo.softApplied &&
-    tabInfo.galleryHost &&
-    tabInfo.galleryGestureAttempted
-  ) {
-    return 'Soft enabled — could not apply (try chrome://flags/#extensions-on-chrome-urls)';
+  if (tabInfo.galleryInjectionBlocked) {
+    return GALLERY_INJECTION_BLOCKED_LABEL;
   }
   if (tabInfo.active && !tabInfo.softApplied) {
     return 'Soft enabled — filter could not apply on this page';
@@ -73,5 +54,6 @@ export function statusDotClass(tabInfo: TabInfo): string {
 export function isTruthfulActiveStatus(tabInfo: TabInfo): boolean {
   if (!tabInfo.active || tabInfo.pageRestricted || tabInfo.nativeDark) return false;
   if (tabInfo.injectionPending) return false;
+  if (tabInfo.galleryInjectionBlocked) return false;
   return tabInfo.softApplied;
 }
