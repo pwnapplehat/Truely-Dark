@@ -13,13 +13,13 @@ Reload the extension after each build.
 
 ## Critical paths (~3 minutes)
 
-### Chrome Web Store (MUST darken)
+### Chrome Web Store (Chromium limitation — honest status)
 
 | Step | Action | Pass criteria |
 |------|--------|---------------|
-| 1 | Open `https://chromewebstore.google.com/` | Page loads |
-| 2 | Set mode to **Soft** in popup | Popup: green dot + "Extension dark mode active (Soft)" |
-| 3 | Visual check | Store UI is visibly inverted/darkened (not white) |
+| 1 | Open `https://chromewebstore.google.com/` | Page loads (likely stays light) |
+| 2 | Set mode to **Soft** in popup | **"Chrome blocks extensions on the Web Store"** — not green active, not flag CTA |
+| 3 | Visual check | Store may stay light — this is expected (Chromium blocks injection) |
 
 ### OVHcloud (Soft reliability)
 
@@ -50,7 +50,7 @@ Reload the extension after each build.
 | URL | Pass criteria |
 |-----|---------------|
 | `chrome://extensions` | "Browser blocks dark mode on this page" — **not** "Soft active" |
-| `https://chromewebstore.google.com/` | Must **NOT** show restricted message |
+| `https://chromewebstore.google.com/` | **"Chrome blocks extensions on the Web Store"** (not restricted chrome:// message) |
 
 ---
 
