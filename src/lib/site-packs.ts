@@ -88,15 +88,20 @@ const OVH_CLOUD_CSS = `
   html[data-truely-dark-active] .header-wrapper,
   html[data-truely-dark-active] .main-header,
   html[data-truely-dark-active] .sub-header,
+  html[data-truely-dark-active] [class*="topbar"],
+  html[data-truely-dark-active] [class*="Topbar"],
   html[data-truely-dark-active] [class*="navbar"],
   html[data-truely-dark-active] [class*="Navbar"],
   html[data-truely-dark-active] [class*="hero"],
   html[data-truely-dark-active] [class*="Hero"],
   html[data-truely-dark-active] [class*="banner"],
   html[data-truely-dark-active] [class*="Banner"],
+  html[data-truely-dark-active] [class*="slider"],
+  html[data-truely-dark-active] [class*="Slider"],
+  html[data-truely-dark-active] [class*="carousel"],
   html[data-truely-dark-active] section[class*="homepage"],
   html[data-truely-dark-active] .homepage-hero {
-    background-color: transparent !important;
+    background-color: #ffffff !important;
     background-image: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
@@ -147,6 +152,8 @@ export const SITE_PACKS: SitePack[] = [
     mode: 'auto',
     skipDetect: false,
     injectCssFallback: true,
+    requiresVisualVerify: true,
+    forceStylesheetFallback: true,
     customCss: CHROME_WEB_STORE_CSS,
   },
   {
@@ -154,6 +161,8 @@ export const SITE_PACKS: SitePack[] = [
     mode: 'auto',
     skipDetect: false,
     injectCssFallback: true,
+    requiresVisualVerify: true,
+    forceStylesheetFallback: true,
     customCss: CHROME_WEB_STORE_CSS,
   },
   {
@@ -213,6 +222,8 @@ export const SITE_PACKS: SitePack[] = [
     origins: ['ovhcloud.com', 'www.ovhcloud.com'],
     mode: 'soft',
     skipDetect: true,
+    requiresVisualVerify: true,
+    forceStylesheetFallback: true,
     customCss: `${MARKETING_CHROME_CSS}\n${OVH_CLOUD_CSS}`,
   },
   {
@@ -255,6 +266,16 @@ export function findSitePack(hostname: string): SitePack | undefined {
 export function hostUsesInjectCssFallback(hostname: string): boolean {
   const pack = findSitePack(hostname);
   return pack?.injectCssFallback === true;
+}
+
+export function hostRequiresVisualVerify(hostname: string): boolean {
+  const pack = findSitePack(hostname);
+  return pack?.requiresVisualVerify === true;
+}
+
+export function hostUsesForceStylesheetFallback(hostname: string): boolean {
+  const pack = findSitePack(hostname);
+  return pack?.forceStylesheetFallback === true;
 }
 
 export function getOriginFromUrl(url: string): string {

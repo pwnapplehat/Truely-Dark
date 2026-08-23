@@ -3,13 +3,20 @@ import {
   applyDarkMode,
   injectPreloadCss,
   isDarkModeActive,
+  isForceStylesheetActive,
   isSoftFilterActive,
   refreshShadowDomMediaFilters,
   removeDarkMode,
 } from '../lib/engine';
 import { sendMessage } from '../lib/messaging';
 import { resolveEffectiveSettings } from '../lib/resolver';
-import { getHostnameFromUrl, getOriginFromUrl, hostUsesInjectCssFallback, isExcludedOrigin } from '../lib/site-packs';
+import {
+  getHostnameFromUrl,
+  getOriginFromUrl,
+  hostRequiresVisualVerify,
+  hostUsesInjectCssFallback,
+  isExcludedOrigin,
+} from '../lib/site-packs';
 import type { DetectionOutcome, EffectiveSiteSettings, TruelyDarkMessage } from '../types';
 
 const THEME_ATTRS = ['data-theme', 'data-color-mode', 'data-mode', 'data-dark-theme', 'class'];
@@ -45,11 +52,11 @@ export default defineContentScript({
     const origin = getOriginFromUrl(window.location.href);
     const hostname = getHostnameFromUrl(window.location.href);
 
-    async function reportInjectionStatus(applied: boolean): Promise<void> {
+    async function reportInjectionStatus(contentStrict: boolean): Promise<void> {
       try {
         await sendMessage({
           type: 'INJECTION_STATUS',
-          payload: { applied },
+          payload: { contentStrict },
         });
       } catch {
         // Background may not be ready yet
@@ -112,30 +119,48 @@ export default defineContentScript({
     }
 
     async function applyWithVerification(settings: EffectiveSiteSettings): Promise<boolean> {
-      applyDarkMode(settings);
-      if (isSoftFilterActive()) return true;
-
-      if (hostUsesInjectCssFallback(hostname)) {
-        await requestInsertCssFallback('html');
-        applyDarkMode(settings);
-        if (isSoftFilterActive()) return true;
-
-        await requestInsertCssFallback('body');
-        applyDarkMode(settings);
+      if (isForceStylesheetActive()) {
+        await reportInjectionStatus(false);
+        return false;
       }
 
       applyDarkMode(settings);
-      refreshShadowDomMediaFilters(settings);
+      let contentStrict = isSoftFilterActive();
 
-      return isSoftFilterActive();
+      if (!contentStrict && hostUsesInjectCssFallback(hostname)) {
+        await requestInsertCssFallback('html');
+        applyDarkMode(settings);
+        contentStrict = isSoftFilterActive();
+        if (!contentStrict) {
+          await requestInsertCssFallback('body');
+          applyDarkMode(settings);
+          contentStrict = isSoftFilterActive();
+        }
+      }
+
+      if (!contentStrict) {
+        applyDarkMode(settings);
+        refreshShadowDomMediaFilters(settings);
+        contentStrict = isSoftFilterActive();
+      }
+
+      await reportInjectionStatus(contentStrict);
+
+      if (hostRequiresVisualVerify(hostname)) {
+        return false;
+      }
+      return contentStrict;
     }
 
     function scheduleSoftRetries(settings: EffectiveSiteSettings): void {
       const retry = async (): Promise<void> => {
         if (!lastEffectiveSettings?.active) return;
-        const applied = await applyWithVerification(settings);
+        if (isForceStylesheetActive()) {
+          await reportInjectionStatus(false);
+          return;
+        }
+        await applyWithVerification(settings);
         refreshShadowDomMediaFilters(settings);
-        void reportInjectionStatus(applied);
       };
 
       requestAnimationFrame(() => void retry());
@@ -153,9 +178,7 @@ export default defineContentScript({
         const styleMissing = !document.getElementById('truely-dark-styles');
         const attrMissing = !isDarkModeActive();
         if (styleMissing || attrMissing) {
-          void applyWithVerification(settings).then((applied) => {
-            void reportInjectionStatus(applied);
-          });
+          void applyWithVerification(settings);
         }
       });
 
@@ -210,8 +233,7 @@ export default defineContentScript({
         }
 
         if (effective.active) {
-          const applied = await applyWithVerification(effective);
-          void reportInjectionStatus(applied);
+          await applyWithVerification(effective);
           setupStyleGuard(effective);
           scheduleSoftRetries(effective);
         } else {

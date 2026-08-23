@@ -25,6 +25,7 @@ import {
   maybeProactiveInsertCss,
   removeSoftCssForTab,
 } from './insert-css-fallback';
+import { resolveSoftAppliedForTab } from './soft-escalation';
 
 /** Per-tab Soft filter verification from content scripts. */
 const tabSoftApplied = new Map<number, boolean | undefined>();
@@ -227,14 +228,23 @@ export function registerBackgroundHandlers(): void {
 
       case 'INJECTION_STATUS':
         const injectionTabId = sender.tab?.id;
-        const { applied } = message.payload as { applied: boolean };
+        const injectionWindowId = sender.tab?.windowId;
+        const injectionUrl = sender.tab?.url ?? '';
+        const { contentStrict } = message.payload as { contentStrict: boolean };
+
         if (injectionTabId !== undefined) {
-          tabSoftApplied.set(injectionTabId, applied);
-          if (!applied) {
-            const tabUrl = sender.tab?.url ?? '';
-            if (tabUrl) {
-              await maybeProactiveInsertCss(injectionTabId, tabUrl);
-            }
+          tabSoftApplied.set(injectionTabId, undefined);
+
+          if (injectionWindowId !== undefined && injectionUrl) {
+            const applied = await resolveSoftAppliedForTab(
+              injectionTabId,
+              injectionWindowId,
+              injectionUrl,
+              contentStrict,
+            );
+            tabSoftApplied.set(injectionTabId, applied);
+          } else {
+            tabSoftApplied.set(injectionTabId, false);
           }
         }
         return { success: true };
@@ -319,8 +329,8 @@ export function registerBackgroundHandlers(): void {
   });
 
   browser.tabs.onUpdated.addListener(
-    async (tabId: number, changeInfo: { status?: string }, tab: Browser.tabs.Tab) => {
-      if (changeInfo.status === 'loading') {
+    async (tabId: number, changeInfo: { status?: string; url?: string }, tab: Browser.tabs.Tab) => {
+      if (changeInfo.url || changeInfo.status === 'loading') {
         markTabNavigation(tabId);
       }
       if (changeInfo.status === 'loading' && tab.url) {

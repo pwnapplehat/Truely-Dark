@@ -1,5 +1,9 @@
 import type { EffectiveSiteSettings } from '../types';
-import { generateDarkCss, type FilterTarget } from './engine';
+import {
+  generateDarkCss,
+  generateForceStylesheetCss,
+  type FilterTarget,
+} from './engine';
 import { resolveEffectiveSettings } from './resolver';
 import { isConfigurableWebPage } from './restricted-hosts';
 import { getSystemDarkPreference } from './schedule';
@@ -13,6 +17,7 @@ import { getSettings } from './storage';
 
 /** Exact CSS last inserted per tab — required for scripting.removeCSS. */
 const tabInsertedCss = new Map<number, string>();
+const tabForceCss = new Map<number, string>();
 
 export function getInsertedCssForTab(tabId: number): string | undefined {
   return tabInsertedCss.get(tabId);
@@ -98,8 +103,64 @@ export async function insertSoftCssForTab(
   }
 }
 
+async function removeInsertedForceCss(tabId: number): Promise<void> {
+  const css = tabForceCss.get(tabId);
+  if (!css) return;
+
+  try {
+    await browser.scripting.removeCSS({
+      target: { tabId, allFrames: true },
+      css,
+      origin: 'USER',
+    });
+  } catch {
+    // Tab may have navigated away
+  }
+
+  tabForceCss.delete(tabId);
+}
+
+export async function insertForceStylesheetForTab(tabId: number, url: string): Promise<boolean> {
+  const effective = await resolveEffectiveForUrl(url);
+  if (!effective?.active) {
+    await removeInsertedForceCss(tabId);
+    return false;
+  }
+
+  const css = generateForceStylesheetCss(effective);
+  const previous = tabForceCss.get(tabId);
+
+  if (previous === css) return true;
+
+  if (previous) {
+    try {
+      await browser.scripting.removeCSS({
+        target: { tabId, allFrames: true },
+        css: previous,
+        origin: 'USER',
+      });
+    } catch {
+      // Continue
+    }
+  }
+
+  try {
+    await browser.scripting.insertCSS({
+      target: { tabId, allFrames: true },
+      css,
+      origin: 'USER',
+    });
+    tabForceCss.set(tabId, css);
+    return true;
+  } catch {
+    tabForceCss.delete(tabId);
+    return false;
+  }
+}
+
 export async function removeSoftCssForTab(tabId: number): Promise<void> {
   await removeInsertedCss(tabId);
+  await removeInsertedForceCss(tabId);
 }
 
 export async function maybeProactiveInsertCss(tabId: number, url: string): Promise<void> {

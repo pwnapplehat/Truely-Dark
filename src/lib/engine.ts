@@ -1,9 +1,11 @@
 import type { EffectiveSiteSettings } from '../types';
 import { parseColor, rgbByteLuminance } from './color';
 import { isExtensionInjectedBackground } from './detect';
+import { computedFilterHasStrictInvert } from './filter-verify';
 
 export const ROOT_ATTR = 'data-truely-dark-active';
 export const FILTER_TARGET_ATTR = 'data-truely-dark-filter-target';
+export const FORCE_ATTR = 'data-truely-dark-force';
 const STYLE_ID = 'truely-dark-styles';
 const PRELOAD_STYLE_ID = 'truely-dark-preload';
 const SHADOW_STYLE_ID = 'truely-dark-shadow-styles';
@@ -78,6 +80,85 @@ export function buildFilterString(
   const c = contrast / 100;
   const s = sepia / 100;
   return `invert(1) hue-rotate(180deg) brightness(${b}) contrast(${c}) sepia(${s})`;
+}
+
+/**
+ * Direct dark stylesheet when invert filter cannot paint (CWS / layered hosts).
+ * Original Truely Dark implementation — not vendored Dark Reader logic.
+ */
+export function generateForceStylesheetCss(settings: EffectiveSiteSettings): string {
+  const bg = settings.backgroundColor;
+  const text = '#e8e8e8';
+  const link = '#8ab4f8';
+  const border = '#3c4043';
+
+  return `
+    html[${ROOT_ATTR}],
+    html[${ROOT_ATTR}] body {
+      background-color: ${bg} !important;
+      background-image: none !important;
+      color: ${text} !important;
+      filter: none !important;
+      -webkit-filter: none !important;
+    }
+    html[${ROOT_ATTR}] main,
+    html[${ROOT_ATTR}] [role="main"],
+    html[${ROOT_ATTR}] header,
+    html[${ROOT_ATTR}] nav,
+    html[${ROOT_ATTR}] footer,
+    html[${ROOT_ATTR}] section,
+    html[${ROOT_ATTR}] article,
+    html[${ROOT_ATTR}] aside,
+    html[${ROOT_ATTR}] div,
+    html[${ROOT_ATTR}] c-wiz {
+      background-color: ${bg} !important;
+      background-image: none !important;
+      color: ${text} !important;
+      border-color: ${border} !important;
+    }
+    html[${ROOT_ATTR}] a,
+    html[${ROOT_ATTR}] a:visited {
+      color: ${link} !important;
+    }
+    html[${ROOT_ATTR}] h1,
+    html[${ROOT_ATTR}] h2,
+    html[${ROOT_ATTR}] h3,
+    html[${ROOT_ATTR}] h4,
+    html[${ROOT_ATTR}] p,
+    html[${ROOT_ATTR}] span,
+    html[${ROOT_ATTR}] li {
+      color: ${text} !important;
+    }
+  `;
+}
+
+export function applyForceStylesheetMode(
+  settings: EffectiveSiteSettings,
+  doc: Document = document,
+): void {
+  const html = doc.documentElement;
+  html.setAttribute(ROOT_ATTR, settings.mode);
+  html.setAttribute(FORCE_ATTR, 'true');
+  html.setAttribute(FILTER_TARGET_ATTR, 'force');
+
+  clearInlineFilter(html);
+  if (doc.body) clearInlineFilter(doc.body);
+
+  html.style.setProperty('background-color', settings.backgroundColor, 'important');
+  html.style.setProperty('color', '#e8e8e8', 'important');
+  if (doc.body) {
+    doc.body.style.setProperty('background-color', settings.backgroundColor, 'important');
+    doc.body.style.setProperty('color', '#e8e8e8', 'important');
+  }
+
+  const css = generateForceStylesheetCss(settings);
+  let styleEl = doc.getElementById(STYLE_ID) as HTMLStyleElement | null;
+  if (!styleEl) {
+    styleEl = doc.createElement('style');
+    styleEl.id = STYLE_ID;
+  }
+  styleEl.textContent = css;
+  appendStyleElement(doc, styleEl);
 }
 
 const CHROME_BACKDROP_RESET = `
@@ -281,7 +362,7 @@ export function verifySoftFilterApplied(
   if (!el) return false;
 
   const computed = view.getComputedStyle(el).filter;
-  return computed.includes('invert');
+  return computedFilterHasStrictInvert(computed);
 }
 
 /** Pre-invert root surfaces must be light so invert reads dark — not FOUC #121212. */
@@ -510,12 +591,15 @@ export function removeDarkMode(doc: Document = document): void {
   const html = doc.documentElement;
   html.removeAttribute(ROOT_ATTR);
   html.removeAttribute(FILTER_TARGET_ATTR);
+  html.removeAttribute(FORCE_ATTR);
   clearInlineBackground(html);
   clearInlineFilter(html);
+  html.style.removeProperty('color');
 
   if (doc.body) {
     clearInlineBackground(doc.body);
     clearInlineFilter(doc.body);
+    doc.body.style.removeProperty('color');
   }
 
   restorePreloadDark(doc);
@@ -523,6 +607,7 @@ export function removeDarkMode(doc: Document = document): void {
 
   const styleEl = doc.getElementById(STYLE_ID);
   if (styleEl) styleEl.remove();
+  doc.getElementById('truely-dark-force-styles')?.remove();
 }
 
 export function isDarkModeActive(doc: Document = document): boolean {
@@ -531,7 +616,12 @@ export function isDarkModeActive(doc: Document = document): boolean {
 
 export function isSoftFilterActive(doc: Document = document): boolean {
   if (!isDarkModeActive(doc)) return false;
+  if (doc.documentElement.getAttribute(FORCE_ATTR) === 'true') return false;
   const target =
     doc.documentElement.getAttribute(FILTER_TARGET_ATTR) === 'body' ? 'body' : 'html';
   return verifySoftApplication(doc, target as FilterTarget);
+}
+
+export function isForceStylesheetActive(doc: Document = document): boolean {
+  return doc.documentElement.getAttribute(FORCE_ATTR) === 'true';
 }

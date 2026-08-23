@@ -63,6 +63,10 @@ export interface SitePack {
    * content-script styles (e.g. Chrome Web Store).
    */
   injectCssFallback?: boolean;
+  /** Background captureVisibleTab must confirm darkening before softApplied. */
+  requiresVisualVerify?: boolean;
+  /** Allow direct dark stylesheet when invert filter path fails visually. */
+  forceStylesheetFallback?: boolean;
 }
 
 export interface EffectiveSiteSettings {
