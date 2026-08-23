@@ -89,6 +89,11 @@ export const SITE_PACKS: SitePack[] = [
     skipDetect: false,
   },
   {
+    origins: ['ovhcloud.com', 'www.ovhcloud.com'],
+    mode: 'soft',
+    skipDetect: true,
+  },
+  {
     origins: ['notion.so', 'www.notion.so'],
     mode: 'auto',
     skipDetect: false,

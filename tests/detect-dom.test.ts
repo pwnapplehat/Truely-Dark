@@ -47,6 +47,43 @@ function buildRedditLightDom(): Document {
   return document;
 }
 
+function buildMixedMarketingDom(): Document {
+  document.documentElement.innerHTML = `
+    <head>
+      <meta name="theme-color" content="#0d1117">
+    </head>
+    <body style="background-color: #ffffff">
+      <header style="background-color: #ffffff">Nav</header>
+      <section class="hero" style="background-color: #e8f4fc">Hero</section>
+      <main style="background-color: #ffffff">Content</main>
+      <footer style="background-color: #0d1117">Footer cards</footer>
+    </body>
+  `;
+  return document;
+}
+
+function buildUniformDarkDom(): Document {
+  document.documentElement.innerHTML = `
+    <body style="background-color: #0d1117">
+      <header style="background-color: #0d1117">Nav</header>
+      <main style="background-color: #121212">Main</main>
+      <footer style="background-color: #0a0a0a">Footer</footer>
+    </body>
+  `;
+  return document;
+}
+
+function buildUniformLightDom(): Document {
+  document.documentElement.innerHTML = `
+    <body style="background-color: #ffffff">
+      <header style="background-color: #ffffff">Nav</header>
+      <main style="background-color: #f5f5f5">Main</main>
+      <footer style="background-color: #fafafa">Footer</footer>
+    </body>
+  `;
+  return document;
+}
+
 describe('detectFromDom — GitHub and Reddit false-positive regression', () => {
   beforeEach(() => {
     document.documentElement.removeAttribute('data-truely-dark-active');
@@ -118,5 +155,71 @@ describe('detectFromDom — GitHub and Reddit false-positive regression', () => 
     const outcome = detectFromDom(document);
 
     expect(outcome.result).not.toBe('dark');
+  });
+});
+
+describe('detectFromDom — mixed marketing pages', () => {
+  beforeEach(() => {
+    document.documentElement.removeAttribute('data-truely-dark-active');
+    document.documentElement.removeAttribute('data-color-mode');
+    document.documentElement.removeAttribute('data-dark-theme');
+    document.documentElement.removeAttribute('data-theme');
+    document.documentElement.removeAttribute('theme');
+    document.documentElement.className = '';
+    document.getElementById('truely-dark-preload')?.remove();
+    document.getElementById('truely-dark-styles')?.remove();
+  });
+
+  it('light hero + dark footer (OVH-like) → mixed, Soft active', () => {
+    buildMixedMarketingDom();
+    const outcome = detectFromDom(document);
+
+    expect(outcome.result).toBe('mixed');
+
+    const resolved = resolveEffectiveSettings({
+      origin: 'https://www.ovhcloud.com',
+      hostname: 'www.ovhcloud.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(resolved.active).toBe(true);
+    expect(resolved.mode).toBe('soft');
+    expect(resolved.nativeDark).toBe(false);
+  });
+
+  it('uniform dark header/main/footer → native skip', () => {
+    buildUniformDarkDom();
+    const outcome = detectFromDom(document);
+
+    expect(outcome).toEqual({ result: 'dark', confidence: 'high' });
+
+    const resolved = resolveEffectiveSettings({
+      origin: 'https://example-dark.com',
+      hostname: 'example-dark.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(resolved.active).toBe(false);
+    expect(resolved.nativeDark).toBe(true);
+  });
+
+  it('uniform light regions → Soft active', () => {
+    buildUniformLightDom();
+    const outcome = detectFromDom(document);
+
+    expect(outcome.result).toBe('light');
+
+    const resolved = resolveEffectiveSettings({
+      origin: 'https://example-light.com',
+      hostname: 'example-light.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(resolved.active).toBe(true);
+    expect(resolved.mode).toBe('soft');
+    expect(resolved.nativeDark).toBe(false);
   });
 });

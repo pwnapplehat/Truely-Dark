@@ -2,7 +2,7 @@ export type SiteMode = 'auto' | 'soft' | 'on' | 'off';
 
 export type PresetId = 'midnight' | 'oled' | 'paper-night' | 'high-contrast' | 'custom';
 
-export type DetectResult = 'dark' | 'light' | 'unknown';
+export type DetectResult = 'dark' | 'light' | 'mixed' | 'unknown';
 
 export type DetectConfidence = 'high' | 'medium' | 'low';
 

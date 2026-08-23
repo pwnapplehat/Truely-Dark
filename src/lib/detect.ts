@@ -1,7 +1,57 @@
 import type { DetectConfidence, DetectResult, DetectionOutcome } from '../types';
 
 const DARK_LUMINANCE_THRESHOLD = 0.35;
+const LIGHT_LUMINANCE_THRESHOLD = 0.7;
 const COLORFUL_VARIANCE_THRESHOLD = 0.08;
+
+/** Exported for tests — luminance above this counts as a clearly light surface. */
+export const REGION_LIGHT_LUMINANCE = LIGHT_LUMINANCE_THRESHOLD;
+
+/** Exported for tests — luminance below this counts as a clearly dark surface. */
+export const REGION_DARK_LUMINANCE = DARK_LUMINANCE_THRESHOLD;
+
+const REGION_GROUPS: ReadonlyArray<{ id: string; selectors: readonly string[] }> = [
+  {
+    id: 'header',
+    selectors: [
+      'header',
+      '[role="banner"]',
+      'nav',
+      '.header',
+      '#header',
+      '.navbar',
+      '.navigation',
+      '.site-header',
+      '.top-bar',
+      '.banner',
+    ],
+  },
+  {
+    id: 'main',
+    selectors: [
+      'main',
+      '[role="main"]',
+      '.hero',
+      '.hero-section',
+      '#hero',
+      'section.hero',
+      '.main-content',
+      'article',
+      '.banner',
+      'section:first-of-type',
+    ],
+  },
+  {
+    id: 'footer',
+    selectors: [
+      'footer',
+      '[role="contentinfo"]',
+      '.footer',
+      '#footer',
+      '.site-footer',
+    ],
+  },
+];
 
 /** Truely Dark preload paints this — must not count as site-native dark. */
 export const EXTENSION_PRELOAD_BG = '#121212';
@@ -293,7 +343,90 @@ function collectAuthoredSignals(doc: Document): AuthoredSignalInput {
   };
 }
 
-function detectFromContentLuminance(doc: Document): DetectionOutcome {
+function getElementBackgroundLuminance(el: Element, doc: Document): number | null {
+  const view = doc.defaultView;
+  if (!view) return null;
+
+  let current: Element | null = el;
+  while (current) {
+    const bg = view.getComputedStyle(current).backgroundColor;
+    if (bg && !isExtensionInjectedBackground(bg)) {
+      const rgb = parseColor(bg);
+      if (rgb) {
+        return computeLuminance(rgb.r / 255, rgb.g / 255, rgb.b / 255);
+      }
+    }
+    if (current === doc.documentElement) break;
+    current = current.parentElement;
+  }
+
+  return null;
+}
+
+/**
+ * Sample one luminance per major viewport region (header/nav, main/hero, footer).
+ */
+export function sampleRegionalLuminances(doc: Document): number[] {
+  const luminances: number[] = [];
+
+  for (const group of REGION_GROUPS) {
+    for (const selector of group.selectors) {
+      const el = doc.querySelector(selector);
+      if (!el) continue;
+      const lum = getElementBackgroundLuminance(el, doc);
+      if (lum !== null) {
+        luminances.push(lum);
+        break;
+      }
+    }
+  }
+
+  return luminances;
+}
+
+/**
+ * Classify regional luminance samples into a detection outcome.
+ * Mixed light+dark marketing pages → mixed (apply Soft, never native skip).
+ * Uniform dark with no light surfaces → high-confidence native skip.
+ */
+export function analyzeRegionalLuminances(luminances: number[]): DetectionOutcome {
+  const samples = luminances.filter((lum) => lum >= 0 && Number.isFinite(lum));
+  if (samples.length === 0) {
+    return { result: 'unknown', confidence: 'low' };
+  }
+
+  const lightRegions = samples.filter((lum) => lum > LIGHT_LUMINANCE_THRESHOLD);
+  const darkRegions = samples.filter((lum) => lum < DARK_LUMINANCE_THRESHOLD);
+
+  if (lightRegions.length > 0 && darkRegions.length > 0) {
+    return { result: 'mixed', confidence: 'medium' };
+  }
+
+  if (lightRegions.length > 0) {
+    return { result: 'light', confidence: 'medium' };
+  }
+
+  if (darkRegions.length > 0 && lightRegions.length === 0) {
+    const majorityDark = darkRegions.length >= Math.ceil(samples.length / 2);
+    if (majorityDark && samples.length >= 2) {
+      return { result: 'dark', confidence: 'high' };
+    }
+    if (samples.length === 1) {
+      return { result: 'unknown', confidence: 'low' };
+    }
+    if (majorityDark) {
+      return { result: 'dark', confidence: 'high' };
+    }
+  }
+
+  return { result: 'unknown', confidence: 'low' };
+}
+
+function detectFromRegionalLuminance(doc: Document): DetectionOutcome {
+  const regional = analyzeRegionalLuminances(sampleRegionalLuminances(doc));
+  if (regional.result !== 'unknown') return regional;
+
+  // Legacy single-element fallback for pages without semantic regions
   const contentSelectors = [
     'main',
     'article',
@@ -307,12 +440,9 @@ function detectFromContentLuminance(doc: Document): DetectionOutcome {
   for (const selector of contentSelectors) {
     const el = doc.querySelector(selector);
     if (!el) continue;
-    const bg = doc.defaultView?.getComputedStyle(el).backgroundColor;
-    if (!bg || isExtensionInjectedBackground(bg)) continue;
-    const rgb = parseColor(bg);
-    if (!rgb) continue;
-    const lum = computeLuminance(rgb.r / 255, rgb.g / 255, rgb.b / 255);
-    if (lum > 0.75) {
+    const lum = getElementBackgroundLuminance(el, doc);
+    if (lum === null) continue;
+    if (lum > LIGHT_LUMINANCE_THRESHOLD) {
       return { result: 'light', confidence: 'medium' };
     }
   }
@@ -348,7 +478,7 @@ export function detectFromDom(doc: Document = document): DetectionOutcome {
     }
   }
 
-  return detectFromContentLuminance(doc);
+  return detectFromRegionalLuminance(doc);
 }
 
 export function isDetectCacheValid(timestamp: number, ttlMs: number): boolean {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   analyzeBackdropSamples,
+  analyzeRegionalLuminances,
   computeLuminance,
   detectFromAuthoredSignals,
   detectFromSignals,
@@ -289,6 +290,63 @@ describe('detectPageTheme', () => {
   it('prefers authored signal over backdrop', () => {
     const lightSamples = Array.from({ length: 20 }, () => ({ r: 255, g: 255, b: 255 }));
     expect(detectPageTheme({ dataTheme: 'dark' }, lightSamples).result).toBe('dark');
+  });
+});
+
+describe('analyzeRegionalLuminances — mixed marketing pages', () => {
+  it('detects mixed when light header/hero and dark footer coexist', () => {
+    expect(analyzeRegionalLuminances([0.95, 0.85, 0.08])).toEqual({
+      result: 'mixed',
+      confidence: 'medium',
+    });
+  });
+
+  it('uniform dark regions → high-confidence native skip', () => {
+    expect(analyzeRegionalLuminances([0.1, 0.12, 0.08])).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
+  });
+
+  it('uniform light regions → light (Soft active)', () => {
+    expect(analyzeRegionalLuminances([0.92, 0.88, 0.95])).toEqual({
+      result: 'light',
+      confidence: 'medium',
+    });
+  });
+
+  it('single dark region alone is not high-confidence skip', () => {
+    expect(analyzeRegionalLuminances([0.08])).toEqual({
+      result: 'unknown',
+      confidence: 'low',
+    });
+  });
+
+  it('mixed page on Auto → Soft active, not native skip', () => {
+    const outcome = analyzeRegionalLuminances([0.95, 0.8, 0.1]);
+    const result = resolveEffectiveSettings({
+      origin: 'https://www.ovhcloud.com',
+      hostname: 'www.ovhcloud.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(result.active).toBe(true);
+    expect(result.mode).toBe('soft');
+    expect(result.nativeDark).toBe(false);
+  });
+
+  it('uniform dark on Auto → native skip', () => {
+    const outcome = analyzeRegionalLuminances([0.1, 0.08, 0.12]);
+    const result = resolveEffectiveSettings({
+      origin: 'https://github.com',
+      hostname: 'github.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(result.active).toBe(false);
+    expect(result.nativeDark).toBe(true);
   });
 });
 

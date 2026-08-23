@@ -10,7 +10,7 @@ export const presetIdSchema = z.enum([
   'custom',
 ]);
 
-export const detectResultSchema = z.enum(['dark', 'light', 'unknown']);
+export const detectResultSchema = z.enum(['dark', 'light', 'mixed', 'unknown']);
 
 export const detectConfidenceSchema = z.enum(['high', 'medium', 'low']);
 

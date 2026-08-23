@@ -103,6 +103,17 @@ describe('resolveEffectiveSettings — Auto mode', () => {
     expect(result.active).toBe(true);
     expect(result.mode).toBe('soft');
   });
+
+  it('applies Soft for mixed light+dark pages (never native skip)', () => {
+    const result = resolveEffectiveSettings({
+      ...baseCtx,
+      detectOutcome: makeDetection('mixed', 'medium'),
+    });
+
+    expect(result.active).toBe(true);
+    expect(result.mode).toBe('soft');
+    expect(result.nativeDark).toBe(false);
+  });
 });
 
 describe('isNativeDarkSkip', () => {
