@@ -92,6 +92,22 @@ White flash happens when the browser paints the page before dark styles apply. T
 
 On Firefox, `html` and `body` backgrounds are set explicitly (Firefox does not propagate root filter backgrounds the same way as Chrome).
 
+Soft mode applies `filter: invert()` on `html` with inline `!important` reinforcement, automatic **body fallback** when `html` filter is blocked, shadow-root host filtering, and clears `backdrop-filter` on sticky headers (common on marketing sites like OVHcloud).
+
+## Chrome Web Store regression check
+
+`chromewebstore.google.com` is a normal HTTPS page — Truely Dark injects at `document_start` like any other site. After loading the unpacked extension:
+
+1. Open `https://chromewebstore.google.com/`
+2. Set mode to **Soft** (or leave **Auto** on a light store theme)
+3. Confirm the store UI visibly darkens (invert filter on the page)
+
+If the popup shows **“Soft enabled — filter could not apply”**, reload the tab — the content script retries injection after DOM settle.
+
+## Restricted browser pages
+
+Only non-scriptable URLs are excluded: `chrome://`, `edge://`, `about:`, `chrome-extension://`, etc. The popup shows **“Browser blocks dark mode on this page”** for those tabs. HTTPS pages (including the Chrome Web Store) are never treated as restricted.
+
 ## Google Docs & Sheets
 
 Google Docs and Sheets render their editing surface on **`<canvas>`** elements. Truely Dark applies Soft mode to the surrounding chrome with `preserveMedia: false` so the canvas inverts with the page.

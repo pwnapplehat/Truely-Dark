@@ -4,6 +4,7 @@ import {
   computePreInvertBackground,
   generateDarkCss,
   PRELOAD_CSS,
+  verifySoftFilterApplied,
 } from '../src/lib/engine';
 import { resolveEffectiveSettings } from '../src/lib/resolver';
 
@@ -51,6 +52,33 @@ describe('generateDarkCss — invert-safe backgrounds', () => {
     });
 
     expect(css).not.toMatch(/iframe\s*\{[^}]*filter:\s*invert/);
+  });
+
+  it('includes body fallback CSS and backdrop-filter reset', () => {
+    const css = generateDarkCss({
+      ...baseSettings,
+      active: true,
+      mode: 'soft',
+    });
+
+    expect(css).toContain('-webkit-filter');
+    expect(css).toContain('backdrop-filter: none');
+    expect(generateDarkCss({ ...baseSettings, active: true, mode: 'soft' }, 'body')).toContain(
+      'html[data-truely-dark-active] body',
+    );
+  });
+});
+
+// @vitest-environment happy-dom
+describe('verifySoftFilterApplied', () => {
+  it('detects invert on html after inline filter', () => {
+    document.documentElement.style.setProperty(
+      'filter',
+      'invert(1) hue-rotate(180deg) brightness(0.98) contrast(0.92)',
+      'important',
+    );
+    expect(verifySoftFilterApplied(document, 'html')).toBe(true);
+    document.documentElement.style.removeProperty('filter');
   });
 });
 

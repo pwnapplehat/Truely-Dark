@@ -15,10 +15,14 @@ import {
   getSiteMode,
   resolveEffectiveSettings,
 } from './resolver';
+import { isConfigurableWebPage } from './restricted-hosts';
 import { getSettings, setSettings, updateSettings } from './storage';
 import { broadcastSettingsChanged, onMessage } from './messaging';
 import { getSystemDarkPreference } from './schedule';
 import { settingsSchema } from './schema';
+
+/** Per-tab Soft filter verification from content scripts. */
+const tabSoftApplied = new Map<number, boolean>();
 
 async function purgeStaleDetectCache(): Promise<void> {
   const settings = await getSettings();
@@ -28,7 +32,27 @@ async function purgeStaleDetectCache(): Promise<void> {
   }
 }
 
-async function buildTabInfo(url: string, settings: TruelyDarkSettings): Promise<TabInfo> {
+async function buildTabInfo(
+  url: string,
+  settings: TruelyDarkSettings,
+  tabId?: number,
+): Promise<TabInfo> {
+  const pageRestricted = !isConfigurableWebPage(url);
+
+  if (pageRestricted) {
+    return {
+      origin: '',
+      hostname: '',
+      url,
+      effectiveMode: 'off',
+      active: false,
+      globalEnabled: settings.enabled,
+      nativeDark: false,
+      pageRestricted: true,
+      softApplied: false,
+    };
+  }
+
   const origin = getOriginFromUrl(url);
   const hostname = getHostnameFromUrl(url);
   const systemDark = await getSystemDarkPreference();
@@ -39,6 +63,9 @@ async function buildTabInfo(url: string, settings: TruelyDarkSettings): Promise<
     systemDark,
   });
 
+  const reportedApplied = tabId !== undefined ? tabSoftApplied.get(tabId) : undefined;
+  const softApplied = effective.active ? reportedApplied ?? true : false;
+
   return {
     origin,
     hostname,
@@ -47,6 +74,8 @@ async function buildTabInfo(url: string, settings: TruelyDarkSettings): Promise<
     active: effective.active,
     globalEnabled: settings.enabled,
     nativeDark: effective.nativeDark,
+    pageRestricted: false,
+    softApplied,
   };
 }
 
@@ -165,15 +194,25 @@ export function registerBackgroundHandlers(): void {
       case 'GET_TAB_INFO':
         let tabUrl =
           (message.payload as { url?: string })?.url ?? sender.tab?.url ?? '';
+        let tabId = sender.tab?.id;
         if (!tabUrl) {
           const [activeTab] = await browser.tabs.query({
             active: true,
             currentWindow: true,
           });
           tabUrl = activeTab?.url ?? '';
+          tabId = activeTab?.id;
         }
         const tabSettings = await getSettings();
-        return await buildTabInfo(tabUrl, tabSettings);
+        return await buildTabInfo(tabUrl, tabSettings, tabId);
+
+      case 'INJECTION_STATUS':
+        const injectionTabId = sender.tab?.id;
+        const { applied } = message.payload as { applied: boolean };
+        if (injectionTabId !== undefined) {
+          tabSoftApplied.set(injectionTabId, applied);
+        }
+        return { success: true };
 
       case 'GET_EFFECTIVE_SETTINGS':
         const effUrl =
@@ -225,5 +264,9 @@ export function registerBackgroundHandlers(): void {
         await broadcastSettingsChanged();
       }
     }
+  });
+
+  browser.tabs.onRemoved.addListener((tabId: number) => {
+    tabSoftApplied.delete(tabId);
   });
 }

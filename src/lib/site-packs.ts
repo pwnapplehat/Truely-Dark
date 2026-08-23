@@ -18,6 +18,25 @@ const GOOGLE_DOCS_CSS = `
   }
 `;
 
+const OVH_CLOUD_CSS = `
+  html[data-truely-dark-active] header,
+  html[data-truely-dark-active] nav,
+  html[data-truely-dark-active] .header,
+  html[data-truely-dark-active] .navbar,
+  html[data-truely-dark-active] .hero,
+  html[data-truely-dark-active] .hero-section,
+  html[data-truely-dark-active] section {
+    background-color: transparent !important;
+    isolation: auto !important;
+  }
+`;
+
+const CHROME_WEB_STORE_CSS = `
+  html[data-truely-dark-active] body {
+    min-height: 100vh;
+  }
+`;
+
 const GOOGLE_SHEETS_CSS = `
   /* Sheets chrome transparency */
   #docs-chrome,
@@ -92,6 +111,13 @@ export const SITE_PACKS: SitePack[] = [
     origins: ['ovhcloud.com', 'www.ovhcloud.com'],
     mode: 'soft',
     skipDetect: true,
+    customCss: OVH_CLOUD_CSS,
+  },
+  {
+    origins: ['chromewebstore.google.com', 'chrome.google.com'],
+    mode: 'auto',
+    skipDetect: false,
+    customCss: CHROME_WEB_STORE_CSS,
   },
   {
     origins: ['notion.so', 'www.notion.so'],

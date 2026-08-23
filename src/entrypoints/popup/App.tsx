@@ -7,13 +7,32 @@ import type { SiteMode, TabInfo, TruelyDarkSettings } from '../../types';
 import './popup.css';
 
 function siteStatusLabel(tabInfo: TabInfo): string {
+  if (tabInfo.pageRestricted) {
+    return 'Browser blocks dark mode on this page';
+  }
   if (tabInfo.nativeDark) {
     return 'Natively dark — Truely Dark skipped';
+  }
+  if (tabInfo.active && !tabInfo.softApplied) {
+    return 'Soft enabled — filter could not apply on this page';
   }
   if (tabInfo.active) {
     return 'Extension dark mode active (Soft)';
   }
   return 'Dark mode off on this site';
+}
+
+function statusDotClass(tabInfo: TabInfo): string {
+  if (tabInfo.pageRestricted || tabInfo.nativeDark) {
+    return 'popup-status-dot--native';
+  }
+  if (tabInfo.active && tabInfo.softApplied) {
+    return 'popup-status-dot--active';
+  }
+  if (tabInfo.active && !tabInfo.softApplied) {
+    return 'popup-status-dot--inactive';
+  }
+  return 'popup-status-dot--inactive';
 }
 
 export function PopupApp() {
@@ -81,7 +100,7 @@ export function PopupApp() {
     );
   }
 
-  const isRestrictedPage = !tabInfo?.hostname;
+  const isRestrictedPage = tabInfo?.pageRestricted || !tabInfo?.hostname;
 
   return (
     <div className="popup">
@@ -103,21 +122,15 @@ export function PopupApp() {
 
         {isRestrictedPage ? (
           <div className="popup-empty">
-            Open a regular webpage to configure per-site settings.
+            {tabInfo?.pageRestricted
+              ? 'Browser blocks dark mode on this page (chrome://, about:, etc.).'
+              : 'Open a regular webpage to configure per-site settings.'}
           </div>
         ) : (
           <>
             <div className="popup-site">{tabInfo.hostname}</div>
             <div className="popup-status">
-              <span
-                className={`popup-status-dot ${
-                  tabInfo.nativeDark
-                    ? 'popup-status-dot--native'
-                    : tabInfo.active
-                      ? 'popup-status-dot--active'
-                      : 'popup-status-dot--inactive'
-                }`}
-              />
+              <span className={`popup-status-dot ${statusDotClass(tabInfo)}`} />
               {siteStatusLabel(tabInfo)}
             </div>
             <ModeSelector value={tabInfo.effectiveMode} onChange={setSiteMode} />

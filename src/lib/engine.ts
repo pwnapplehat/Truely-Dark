@@ -1,9 +1,42 @@
 import type { EffectiveSiteSettings } from '../types';
 import { parseColor } from './detect';
 
-const ROOT_ATTR = 'data-truely-dark-active';
+export const ROOT_ATTR = 'data-truely-dark-active';
+export const FILTER_TARGET_ATTR = 'data-truely-dark-filter-target';
 const STYLE_ID = 'truely-dark-styles';
 const PRELOAD_STYLE_ID = 'truely-dark-preload';
+const SHADOW_STYLE_ID = 'truely-dark-shadow-styles';
+const ADOPTED_SHEETS = new WeakMap<Document, CSSStyleSheet>();
+
+function setAdoptedStylesheet(doc: Document, css: string): void {
+  if (!('adoptedStyleSheets' in doc)) return;
+
+  let sheet = ADOPTED_SHEETS.get(doc);
+  if (!sheet) {
+    sheet = new CSSStyleSheet();
+    ADOPTED_SHEETS.set(doc, sheet);
+  }
+  sheet.replaceSync(css);
+
+  const docWithSheets = doc as Document & { adoptedStyleSheets: CSSStyleSheet[] };
+  const without = docWithSheets.adoptedStyleSheets.filter((s) => s !== sheet);
+  docWithSheets.adoptedStyleSheets = [...without, sheet];
+}
+
+function clearAdoptedStylesheet(doc: Document): void {
+  const sheet = ADOPTED_SHEETS.get(doc);
+  if (!sheet || !('adoptedStyleSheets' in doc)) return;
+  const docWithSheets = doc as Document & { adoptedStyleSheets: CSSStyleSheet[] };
+  docWithSheets.adoptedStyleSheets = docWithSheets.adoptedStyleSheets.filter((s) => s !== sheet);
+  ADOPTED_SHEETS.delete(doc);
+}
+
+export type FilterTarget = 'html' | 'body';
+
+export interface ApplyDarkModeResult {
+  filterTarget: FilterTarget;
+  applied: boolean;
+}
 
 /** FOUC preload only — dark appearance before Soft filter engages. */
 export const PRELOAD_CSS = `
@@ -46,11 +79,27 @@ export function buildFilterString(
   return `invert(1) hue-rotate(180deg) brightness(${b}) contrast(${c}) sepia(${s})`;
 }
 
+const CHROME_BACKDROP_RESET = `
+  html[${ROOT_ATTR}] header,
+  html[${ROOT_ATTR}] nav,
+  html[${ROOT_ATTR}] [role="banner"],
+  html[${ROOT_ATTR}] .header,
+  html[${ROOT_ATTR}] .navbar,
+  html[${ROOT_ATTR}] .hero,
+  html[${ROOT_ATTR}] .hero-section {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+`;
+
 /**
  * Generate the main dark mode CSS.
  * Note: iframes are NOT counter-inverted — child frames run their own content script via all_frames.
  */
-export function generateDarkCss(settings: EffectiveSiteSettings): string {
+export function generateDarkCss(
+  settings: EffectiveSiteSettings,
+  filterTarget: FilterTarget = 'html',
+): string {
   const filter = buildFilterString(
     settings.brightness,
     settings.contrast,
@@ -69,11 +118,29 @@ export function generateDarkCss(settings: EffectiveSiteSettings): string {
       background-color: ${preInvertBg} !important;
       color-scheme: dark !important;
     }
-
-    html[${ROOT_ATTR}] {
-      filter: ${filter} !important;
-    }
   `;
+
+  if (filterTarget === 'html') {
+    css += `
+      html[${ROOT_ATTR}] {
+        filter: ${filter} !important;
+        -webkit-filter: ${filter} !important;
+      }
+    `;
+  } else {
+    css += `
+      html[${ROOT_ATTR}] {
+        filter: none !important;
+        -webkit-filter: none !important;
+      }
+      html[${ROOT_ATTR}] body {
+        filter: ${filter} !important;
+        -webkit-filter: ${filter} !important;
+      }
+    `;
+  }
+
+  css += CHROME_BACKDROP_RESET;
 
   css += `
     @-moz-document url-prefix() {
@@ -95,10 +162,12 @@ export function generateDarkCss(settings: EffectiveSiteSettings): string {
     css += `
       html[${ROOT_ATTR}] ${mediaSelectors} {
         filter: ${filter} !important;
+        -webkit-filter: ${filter} !important;
       }
       html[${ROOT_ATTR}] video:fullscreen,
       html[${ROOT_ATTR}] video::-webkit-media-controls-enclosure {
         filter: none !important;
+        -webkit-filter: none !important;
       }
     `;
   }
@@ -112,6 +181,7 @@ export function generateDarkCss(settings: EffectiveSiteSettings): string {
       css += `
         html[${ROOT_ATTR}] ${selector} {
           filter: ${filter} !important;
+          -webkit-filter: ${filter} !important;
         }
       `;
     }
@@ -120,12 +190,188 @@ export function generateDarkCss(settings: EffectiveSiteSettings): string {
   return css;
 }
 
+function appendStyleElement(doc: Document, styleEl: HTMLStyleElement): void {
+  const target = doc.head ?? doc.documentElement;
+  if (!styleEl.parentElement) {
+    target.appendChild(styleEl);
+  }
+}
+
+function setStyleElementContent(doc: Document, styleEl: HTMLStyleElement, css: string): void {
+  try {
+    styleEl.textContent = css;
+    return;
+  } catch {
+    // Trusted Types or strict CSP — fall back to constructable stylesheet
+  }
+
+  try {
+    if ('adoptedStyleSheets' in doc) {
+      setAdoptedStylesheet(doc, css);
+    }
+  } catch {
+    // Last resort: inline rules one-by-one
+    const sheet = styleEl.sheet;
+    if (sheet) {
+      while (sheet.cssRules.length > 0) {
+        sheet.deleteRule(0);
+      }
+      const rules = css
+        .split('}')
+        .map((chunk) => chunk.trim())
+        .filter((chunk) => chunk.includes('{'));
+      for (const rule of rules) {
+        try {
+          sheet.insertRule(`${rule}}`, sheet.cssRules.length);
+        } catch {
+          // Skip invalid fragments
+        }
+      }
+    }
+  }
+}
+
+function clearInlineFilter(el: HTMLElement): void {
+  el.style.removeProperty('filter');
+  el.style.removeProperty('-webkit-filter');
+}
+
+function applyInlineFilter(el: HTMLElement, filter: string): void {
+  el.style.setProperty('filter', filter, 'important');
+  el.style.setProperty('-webkit-filter', filter, 'important');
+}
+
+function applyInlineBackground(el: HTMLElement, color: string): void {
+  el.style.setProperty('background-color', color, 'important');
+}
+
+function clearInlineBackground(el: HTMLElement): void {
+  el.style.removeProperty('background-color');
+}
+
+/**
+ * True when computed filter on the target element includes invert().
+ */
+export function verifySoftFilterApplied(
+  doc: Document,
+  filterTarget: FilterTarget = 'html',
+): boolean {
+  const view = doc.defaultView;
+  if (!view) return false;
+
+  const el = filterTarget === 'body' ? doc.body : doc.documentElement;
+  if (!el) return false;
+
+  const computed = view.getComputedStyle(el).filter;
+  return computed.includes('invert');
+}
+
+function collectOpenShadowHosts(doc: Document): Element[] {
+  const hosts: Element[] = [];
+  if (!doc.body) return hosts;
+
+  const walk = (el: Element): void => {
+    if (el.shadowRoot) {
+      hosts.push(el);
+      for (const child of el.shadowRoot.children) {
+        walk(child as Element);
+      }
+    }
+    for (const child of el.children) {
+      walk(child as Element);
+    }
+  };
+
+  walk(doc.body);
+  return hosts;
+}
+
+function applyShadowDomFilters(
+  doc: Document,
+  settings: EffectiveSiteSettings,
+  filter: string,
+): void {
+  const hosts = collectOpenShadowHosts(doc);
+  const preserveMedia = settings.preserveMedia;
+
+  for (const host of hosts) {
+    const root = host.shadowRoot;
+    if (!root) continue;
+
+    const hostEl = host as HTMLElement;
+    applyInlineFilter(hostEl, filter);
+
+    let shadowStyle = root.getElementById(SHADOW_STYLE_ID) as HTMLStyleElement | null;
+    if (!shadowStyle) {
+      shadowStyle = doc.createElement('style');
+      shadowStyle.id = SHADOW_STYLE_ID;
+      root.appendChild(shadowStyle);
+    }
+
+    let css = `:host { filter: ${filter} !important; -webkit-filter: ${filter} !important; }`;
+    if (preserveMedia) {
+      css += `
+        img, video, canvas, picture, svg {
+          filter: ${filter} !important;
+          -webkit-filter: ${filter} !important;
+        }
+      `;
+    }
+    shadowStyle.textContent = css;
+  }
+}
+
+function clearShadowDomFilters(doc: Document): void {
+  const hosts = collectOpenShadowHosts(doc);
+  for (const host of hosts) {
+    const root = host.shadowRoot;
+    if (!root) continue;
+    clearInlineFilter(host as HTMLElement);
+    root.getElementById(SHADOW_STYLE_ID)?.remove();
+  }
+
+  clearAdoptedStylesheet(doc);
+}
+
+function applyFilterTarget(
+  doc: Document,
+  settings: EffectiveSiteSettings,
+  filterTarget: FilterTarget,
+  filter: string,
+  preInvertBg: string,
+): void {
+  const html = doc.documentElement;
+  html.setAttribute(FILTER_TARGET_ATTR, filterTarget);
+
+  clearInlineFilter(html);
+  if (doc.body) clearInlineFilter(doc.body);
+
+  applyInlineBackground(html, preInvertBg);
+  if (doc.body) applyInlineBackground(doc.body, preInvertBg);
+
+  if (filterTarget === 'html') {
+    applyInlineFilter(html, filter);
+  } else if (doc.body) {
+    applyInlineFilter(doc.body, filter);
+  }
+
+  let styleEl = doc.getElementById(STYLE_ID) as HTMLStyleElement | null;
+  if (!styleEl) {
+    styleEl = doc.createElement('style');
+    styleEl.id = STYLE_ID;
+  }
+  setStyleElementContent(doc, styleEl, generateDarkCss(settings, filterTarget));
+  appendStyleElement(doc, styleEl);
+
+  applyShadowDomFilters(doc, settings, filter);
+}
+
 export function injectPreloadCss(doc: Document = document): void {
   if (doc.getElementById(PRELOAD_STYLE_ID)) return;
   const style = doc.createElement('style');
   style.id = PRELOAD_STYLE_ID;
   style.textContent = PRELOAD_CSS;
-  const target = doc.head || doc.documentElement;
+  const target = doc.head ?? doc.documentElement;
   target.insertBefore(style, target.firstChild);
 }
 
@@ -149,47 +395,58 @@ function restorePreloadDark(doc: Document): void {
   }
 }
 
+/**
+ * Apply Soft/On dark mode with html-first filter and body fallback when needed.
+ */
 export function applyDarkMode(
   settings: EffectiveSiteSettings,
   doc: Document = document,
-): void {
+): ApplyDarkModeResult {
   const html = doc.documentElement;
 
   if (!settings.active) {
     removeDarkMode(doc);
-    return;
+    return { filterTarget: 'html', applied: false };
   }
 
   const preInvertBg = computePreInvertBackground(settings.backgroundColor);
+  const filter = buildFilterString(
+    settings.brightness,
+    settings.contrast,
+    settings.sepia,
+  );
 
   html.setAttribute(ROOT_ATTR, settings.mode);
-
-  // Swap FOUC preload from dark #121212 to invert-safe light root before filter paints
   swapPreloadToInvertSafe(doc, preInvertBg);
 
-  html.style.backgroundColor = preInvertBg;
-  if (doc.body) {
-    doc.body.style.backgroundColor = preInvertBg;
+  applyFilterTarget(doc, settings, 'html', filter, preInvertBg);
+
+  let filterTarget: FilterTarget = 'html';
+  let applied = verifySoftFilterApplied(doc, 'html');
+
+  if (!applied && doc.body) {
+    applyFilterTarget(doc, settings, 'body', filter, preInvertBg);
+    filterTarget = 'body';
+    applied = verifySoftFilterApplied(doc, 'body');
   }
 
-  let styleEl = doc.getElementById(STYLE_ID) as HTMLStyleElement | null;
-  if (!styleEl) {
-    styleEl = doc.createElement('style');
-    styleEl.id = STYLE_ID;
-    doc.head?.appendChild(styleEl);
-  }
-  styleEl.textContent = generateDarkCss(settings);
+  return { filterTarget, applied };
 }
 
 export function removeDarkMode(doc: Document = document): void {
   const html = doc.documentElement;
   html.removeAttribute(ROOT_ATTR);
-  html.style.backgroundColor = '';
+  html.removeAttribute(FILTER_TARGET_ATTR);
+  clearInlineBackground(html);
+  clearInlineFilter(html);
+
   if (doc.body) {
-    doc.body.style.backgroundColor = '';
+    clearInlineBackground(doc.body);
+    clearInlineFilter(doc.body);
   }
 
   restorePreloadDark(doc);
+  clearShadowDomFilters(doc);
 
   const styleEl = doc.getElementById(STYLE_ID);
   if (styleEl) styleEl.remove();

@@ -1,9 +1,15 @@
 import { detectFromDom } from '../lib/detect';
-import { applyDarkMode, injectPreloadCss, removeDarkMode } from '../lib/engine';
+import {
+  applyDarkMode,
+  injectPreloadCss,
+  isDarkModeActive,
+  removeDarkMode,
+  verifySoftFilterApplied,
+} from '../lib/engine';
 import { sendMessage } from '../lib/messaging';
 import { resolveEffectiveSettings } from '../lib/resolver';
 import { getHostnameFromUrl, getOriginFromUrl } from '../lib/site-packs';
-import type { DetectionOutcome, TruelyDarkMessage } from '../types';
+import type { DetectionOutcome, EffectiveSiteSettings, TruelyDarkMessage } from '../types';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -15,11 +21,24 @@ export default defineContentScript({
     injectPreloadCss();
 
     let detectObserver: MutationObserver | null = null;
+    let styleGuardObserver: MutationObserver | null = null;
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let batterySaver = false;
+    let lastEffectiveSettings: EffectiveSiteSettings | null = null;
 
     const origin = getOriginFromUrl(window.location.href);
     const hostname = getHostnameFromUrl(window.location.href);
+
+    async function reportInjectionStatus(applied: boolean): Promise<void> {
+      try {
+        await sendMessage({
+          type: 'INJECTION_STATUS',
+          payload: { applied },
+        });
+      } catch {
+        // Background may not be ready yet
+      }
+    }
 
     async function runDetection(useCacheOnly: boolean): Promise<DetectionOutcome> {
       if (useCacheOnly) {
@@ -50,6 +69,59 @@ export default defineContentScript({
       }
     }
 
+    function applyWithVerification(settings: EffectiveSiteSettings): boolean {
+      const result = applyDarkMode(settings);
+      if (result.applied) return true;
+
+      if (document.body) {
+        const retry = applyDarkMode(settings);
+        if (retry.applied) return true;
+      }
+
+      return verifySoftFilterApplied(document, result.filterTarget);
+    }
+
+    function scheduleSoftRetries(settings: EffectiveSiteSettings): void {
+      requestAnimationFrame(() => {
+        if (!lastEffectiveSettings?.active) return;
+        const applied = applyWithVerification(settings);
+        void reportInjectionStatus(applied);
+      });
+
+      window.setTimeout(() => {
+        if (!lastEffectiveSettings?.active) return;
+        const applied = applyWithVerification(settings);
+        void reportInjectionStatus(applied);
+      }, 500);
+
+      window.setTimeout(() => {
+        if (!lastEffectiveSettings?.active) return;
+        const applied = applyWithVerification(settings);
+        void reportInjectionStatus(applied);
+      }, 2000);
+    }
+
+    function setupStyleGuard(settings: EffectiveSiteSettings): void {
+      if (styleGuardObserver) styleGuardObserver.disconnect();
+
+      styleGuardObserver = new MutationObserver(() => {
+        if (!lastEffectiveSettings?.active) return;
+        const styleMissing = !document.getElementById('truely-dark-styles');
+        const attrMissing = !isDarkModeActive();
+        if (styleMissing || attrMissing) {
+          const applied = applyWithVerification(settings);
+          void reportInjectionStatus(applied);
+        }
+      });
+
+      const head = document.head ?? document.documentElement;
+      styleGuardObserver.observe(head, { childList: true, subtree: true });
+      styleGuardObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: [ 'data-truely-dark-active', 'data-truely-dark-filter-target', 'style' ],
+      });
+    }
+
     async function refresh(): Promise<void> {
       try {
         const fullSettings = await sendMessage<import('../types').TruelyDarkSettings>({
@@ -61,9 +133,10 @@ export default defineContentScript({
         const siteMode =
           fullSettings.siteOverrides[origin]?.mode ?? fullSettings.defaultMode;
 
-        // Zero-cost path for excluded origins
         if (!fullSettings.enabled || siteMode === 'off') {
+          lastEffectiveSettings = null;
           removeDarkMode();
+          void reportInjectionStatus(false);
           return;
         }
 
@@ -81,15 +154,22 @@ export default defineContentScript({
           detectOutcome,
         });
 
+        lastEffectiveSettings = effective;
+
         if (effective.skipProcessing && !effective.active) {
           removeDarkMode();
+          void reportInjectionStatus(false);
           return;
         }
 
         if (effective.active) {
-          applyDarkMode(effective);
+          const applied = applyWithVerification(effective);
+          void reportInjectionStatus(applied);
+          setupStyleGuard(effective);
+          scheduleSoftRetries(effective);
         } else {
           removeDarkMode();
+          void reportInjectionStatus(false);
         }
       } catch {
         // Extension context invalidated or background unavailable
@@ -176,6 +256,7 @@ export default defineContentScript({
 
     window.addEventListener('beforeunload', () => {
       if (detectObserver) detectObserver.disconnect();
+      if (styleGuardObserver) styleGuardObserver.disconnect();
       browser.runtime.onMessage.removeListener(onMessage);
     });
   },

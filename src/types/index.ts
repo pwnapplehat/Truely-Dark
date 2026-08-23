@@ -85,7 +85,8 @@ export type MessageType =
   | 'IMPORT_SETTINGS'
   | 'GET_TAB_INFO'
   | 'SETTINGS_CHANGED'
-  | 'DETECT_RESULT';
+  | 'DETECT_RESULT'
+  | 'INJECTION_STATUS';
 
 export interface TruelyDarkMessage {
   type: MessageType;
@@ -100,6 +101,10 @@ export interface TabInfo {
   active: boolean;
   globalEnabled: boolean;
   nativeDark: boolean;
+  /** chrome://, about:, etc. — content scripts cannot run. */
+  pageRestricted: boolean;
+  /** Whether invert filter is visibly applied (from content script verification). */
+  softApplied: boolean;
 }
 
 export const STORAGE_KEY = 'truely_dark_settings_v2';
