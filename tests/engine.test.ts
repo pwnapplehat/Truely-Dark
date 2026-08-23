@@ -1,9 +1,14 @@
+// @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../src/lib/defaults';
 import {
+  applyDarkMode,
   computePreInvertBackground,
   generateDarkCss,
+  isDarkModeActive,
+  isSoftFilterActive,
   PRELOAD_CSS,
+  removeDarkMode,
   verifySoftFilterApplied,
 } from '../src/lib/engine';
 import { resolveEffectiveSettings } from '../src/lib/resolver';
@@ -69,9 +74,32 @@ describe('generateDarkCss — invert-safe backgrounds', () => {
   });
 });
 
-// @vitest-environment happy-dom
-describe('verifySoftFilterApplied', () => {
-  it('detects invert on html after inline filter', () => {
+describe('applyDarkMode integration', () => {
+  const effective = resolveEffectiveSettings({
+    origin: 'https://example.com',
+    hostname: 'example.com',
+    settings: DEFAULT_SETTINGS,
+    detectOutcome: { result: 'light', confidence: 'medium' },
+  });
+
+  it('activates invert filter on example.com-like page', () => {
+    document.documentElement.innerHTML = '<head></head><body style="background:#fff">Hi</body>';
+    const result = applyDarkMode({ ...effective, active: true, mode: 'soft' });
+    expect(isDarkModeActive()).toBe(true);
+    expect(result.applied || isSoftFilterActive()).toBe(true);
+    removeDarkMode();
+    expect(isDarkModeActive()).toBe(false);
+  });
+
+  it('removes all Truely Dark markers on removeDarkMode', () => {
+    document.documentElement.innerHTML = '<head></head><body>Hi</body>';
+    applyDarkMode({ ...effective, active: true, mode: 'soft' });
+    removeDarkMode();
+    expect(document.documentElement.hasAttribute('data-truely-dark-active')).toBe(false);
+    expect(document.getElementById('truely-dark-styles')).toBeNull();
+  });
+
+  it('verifySoftFilterApplied detects inline invert', () => {
     document.documentElement.style.setProperty(
       'filter',
       'invert(1) hue-rotate(180deg) brightness(0.98) contrast(0.92)',

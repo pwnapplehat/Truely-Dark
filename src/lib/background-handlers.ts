@@ -22,7 +22,11 @@ import { getSystemDarkPreference } from './schedule';
 import { settingsSchema } from './schema';
 
 /** Per-tab Soft filter verification from content scripts. */
-const tabSoftApplied = new Map<number, boolean>();
+const tabSoftApplied = new Map<number, boolean | undefined>();
+
+function markTabNavigation(tabId: number): void {
+  tabSoftApplied.set(tabId, undefined);
+}
 
 async function purgeStaleDetectCache(): Promise<void> {
   const settings = await getSettings();
@@ -45,11 +49,13 @@ async function buildTabInfo(
       hostname: '',
       url,
       effectiveMode: 'off',
+      resolvedMode: 'off',
       active: false,
       globalEnabled: settings.enabled,
       nativeDark: false,
       pageRestricted: true,
       softApplied: false,
+      injectionPending: false,
     };
   }
 
@@ -64,18 +70,21 @@ async function buildTabInfo(
   });
 
   const reportedApplied = tabId !== undefined ? tabSoftApplied.get(tabId) : undefined;
-  const softApplied = effective.active ? reportedApplied ?? true : false;
+  const injectionPending = effective.active && reportedApplied === undefined;
+  const softApplied = effective.active && reportedApplied === true;
 
   return {
     origin,
     hostname,
     url,
     effectiveMode: getSiteMode(settings, origin),
+    resolvedMode: effective.mode,
     active: effective.active,
     globalEnabled: settings.enabled,
     nativeDark: effective.nativeDark,
     pageRestricted: false,
     softApplied,
+    injectionPending,
   };
 }
 
@@ -115,12 +124,16 @@ async function handleDetectResult(
   origin: string,
   result: DetectResult,
   confidence: DetectConfidence,
-): Promise<void> {
+): Promise<boolean> {
   const settings = await getSettings();
+  const previous = settings.detectCache[origin];
+  if (previous?.result === result && previous?.confidence === confidence) {
+    return false;
+  }
+
   const detectCache = { ...settings.detectCache };
   detectCache[origin] = { result, confidence, timestamp: Date.now() };
 
-  // Prune stale entries
   for (const [key, entry] of Object.entries(detectCache)) {
     if (Date.now() - entry.timestamp > DETECT_CACHE_TTL_MS) {
       delete detectCache[key];
@@ -128,6 +141,7 @@ async function handleDetectResult(
   }
 
   await updateSettings({ detectCache });
+  return true;
 }
 
 async function handleImportSettings(data: unknown): Promise<TruelyDarkSettings> {
@@ -234,8 +248,10 @@ export function registerBackgroundHandlers(): void {
           result: DetectResult;
           confidence: DetectConfidence;
         };
-        await handleDetectResult(detectOrigin, result, confidence ?? 'medium');
-        await broadcastSettingsChanged();
+        const changed = await handleDetectResult(detectOrigin, result, confidence ?? 'medium');
+        if (changed) {
+          await broadcastSettingsChanged();
+        }
         return { success: true };
 
       default:
@@ -268,5 +284,11 @@ export function registerBackgroundHandlers(): void {
 
   browser.tabs.onRemoved.addListener((tabId: number) => {
     tabSoftApplied.delete(tabId);
+  });
+
+  browser.tabs.onUpdated.addListener((tabId: number, changeInfo: { status?: string }) => {
+    if (changeInfo.status === 'loading') {
+      markTabNavigation(tabId);
+    }
   });
 }

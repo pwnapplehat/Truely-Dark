@@ -97,7 +97,10 @@ export interface TabInfo {
   origin: string;
   hostname: string;
   url: string;
+  /** User-configured mode (override or default). */
   effectiveMode: SiteMode;
+  /** Mode actually applied by the extension (soft / on / auto / off). */
+  resolvedMode: SiteMode;
   active: boolean;
   globalEnabled: boolean;
   nativeDark: boolean;
@@ -105,6 +108,8 @@ export interface TabInfo {
   pageRestricted: boolean;
   /** Whether invert filter is visibly applied (from content script verification). */
   softApplied: boolean;
+  /** Content script has not yet reported injection status this navigation. */
+  injectionPending: boolean;
 }
 
 export const STORAGE_KEY = 'truely_dark_settings_v2';

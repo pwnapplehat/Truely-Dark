@@ -3,13 +3,16 @@ import {
   applyDarkMode,
   injectPreloadCss,
   isDarkModeActive,
+  isSoftFilterActive,
+  refreshShadowDomMediaFilters,
   removeDarkMode,
-  verifySoftFilterApplied,
 } from '../lib/engine';
 import { sendMessage } from '../lib/messaging';
 import { resolveEffectiveSettings } from '../lib/resolver';
-import { getHostnameFromUrl, getOriginFromUrl } from '../lib/site-packs';
+import { getHostnameFromUrl, getOriginFromUrl, isExcludedOrigin } from '../lib/site-packs';
 import type { DetectionOutcome, EffectiveSiteSettings, TruelyDarkMessage } from '../types';
+
+const THEME_ATTRS = ['data-theme', 'data-color-mode', 'data-mode', 'data-dark-theme'];
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -25,6 +28,7 @@ export default defineContentScript({
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let batterySaver = false;
     let lastEffectiveSettings: EffectiveSiteSettings | null = null;
+    let lastDetectOutcome: DetectionOutcome | undefined;
 
     const origin = getOriginFromUrl(window.location.href);
     const hostname = getHostnameFromUrl(window.location.href);
@@ -40,9 +44,9 @@ export default defineContentScript({
       }
     }
 
-    async function runDetection(useCacheOnly: boolean): Promise<DetectionOutcome> {
+    async function runDetection(useCacheOnly: boolean): Promise<DetectionOutcome | undefined> {
       if (useCacheOnly) {
-        return { result: 'unknown', confidence: 'low' };
+        return undefined;
       }
 
       if (document.readyState === 'loading') {
@@ -55,6 +59,13 @@ export default defineContentScript({
 
     async function reportDetection(outcome: DetectionOutcome): Promise<void> {
       if (!origin || outcome.result === 'unknown') return;
+      if (
+        lastDetectOutcome?.result === outcome.result &&
+        lastDetectOutcome?.confidence === outcome.confidence
+      ) {
+        return;
+      }
+      lastDetectOutcome = outcome;
       try {
         await sendMessage({
           type: 'DETECT_RESULT',
@@ -70,35 +81,28 @@ export default defineContentScript({
     }
 
     function applyWithVerification(settings: EffectiveSiteSettings): boolean {
-      const result = applyDarkMode(settings);
-      if (result.applied) return true;
+      applyDarkMode(settings);
+      if (isSoftFilterActive()) return true;
 
-      if (document.body) {
-        const retry = applyDarkMode(settings);
-        if (retry.applied) return true;
-      }
+      applyDarkMode(settings);
+      refreshShadowDomMediaFilters(settings);
 
-      return verifySoftFilterApplied(document, result.filterTarget);
+      return isSoftFilterActive();
     }
 
     function scheduleSoftRetries(settings: EffectiveSiteSettings): void {
-      requestAnimationFrame(() => {
+      const retry = (): void => {
         if (!lastEffectiveSettings?.active) return;
         const applied = applyWithVerification(settings);
+        refreshShadowDomMediaFilters(settings);
         void reportInjectionStatus(applied);
-      });
+      };
 
-      window.setTimeout(() => {
-        if (!lastEffectiveSettings?.active) return;
-        const applied = applyWithVerification(settings);
-        void reportInjectionStatus(applied);
-      }, 500);
-
-      window.setTimeout(() => {
-        if (!lastEffectiveSettings?.active) return;
-        const applied = applyWithVerification(settings);
-        void reportInjectionStatus(applied);
-      }, 2000);
+      requestAnimationFrame(retry);
+      window.setTimeout(retry, 300);
+      window.setTimeout(retry, 500);
+      window.setTimeout(retry, 2000);
+      window.setTimeout(retry, 5000);
     }
 
     function setupStyleGuard(settings: EffectiveSiteSettings): void {
@@ -118,7 +122,7 @@ export default defineContentScript({
       styleGuardObserver.observe(head, { childList: true, subtree: true });
       styleGuardObserver.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: [ 'data-truely-dark-active', 'data-truely-dark-filter-target', 'style' ],
+        attributeFilter: ['data-truely-dark-active', 'data-truely-dark-filter-target', 'style'],
       });
     }
 
@@ -133,7 +137,7 @@ export default defineContentScript({
         const siteMode =
           fullSettings.siteOverrides[origin]?.mode ?? fullSettings.defaultMode;
 
-        if (!fullSettings.enabled || siteMode === 'off') {
+        if (!fullSettings.enabled || siteMode === 'off' || isExcludedOrigin(hostname, siteMode)) {
           lastEffectiveSettings = null;
           removeDarkMode();
           void reportInjectionStatus(false);
@@ -143,7 +147,7 @@ export default defineContentScript({
         const useCacheOnly = batterySaver;
         const detectOutcome = await runDetection(useCacheOnly);
 
-        if (!useCacheOnly) {
+        if (detectOutcome) {
           await reportDetection(detectOutcome);
         }
 
@@ -177,7 +181,10 @@ export default defineContentScript({
     }
 
     function debouncedRefresh(): void {
-      if (batterySaver) return;
+      if (batterySaver) {
+        refresh();
+        return;
+      }
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => refresh(), 300);
     }
@@ -190,11 +197,8 @@ export default defineContentScript({
         const relevant = mutations.some(
           (m) =>
             m.type === 'attributes' &&
-            (m.attributeName === 'data-theme' ||
-              m.attributeName === 'data-color-mode' ||
-              m.attributeName === 'data-mode' ||
-              m.attributeName === 'class' ||
-              m.attributeName === 'style'),
+            m.attributeName !== null &&
+            THEME_ATTRS.includes(m.attributeName),
         );
         if (relevant) debouncedRefresh();
       });
@@ -203,14 +207,14 @@ export default defineContentScript({
       if (target) {
         detectObserver.observe(target, {
           attributes: true,
-          attributeFilter: ['data-theme', 'data-color-mode', 'data-mode', 'class', 'style'],
+          attributeFilter: THEME_ATTRS,
         });
       }
 
       if (document.body) {
         detectObserver.observe(document.body, {
           attributes: true,
-          attributeFilter: ['data-theme', 'data-color-mode', 'data-mode', 'class', 'style'],
+          attributeFilter: THEME_ATTRS,
         });
       } else {
         document.addEventListener(
@@ -219,7 +223,7 @@ export default defineContentScript({
             if (document.body && detectObserver) {
               detectObserver.observe(document.body, {
                 attributes: true,
-                attributeFilter: ['data-theme', 'data-color-mode', 'data-mode', 'class', 'style'],
+                attributeFilter: THEME_ATTRS,
               });
             }
           },
@@ -230,11 +234,7 @@ export default defineContentScript({
 
     function onMessage(message: TruelyDarkMessage): void {
       if (message.type === 'SETTINGS_CHANGED') {
-        if (batterySaver) {
-          refresh();
-        } else {
-          debouncedRefresh();
-        }
+        debouncedRefresh();
       }
     }
 
@@ -250,8 +250,11 @@ export default defineContentScript({
       setupMutationObserver();
     }
 
-    window.addEventListener('pageshow', () => {
-      if (!batterySaver) debouncedRefresh();
+    window.addEventListener('pageshow', () => debouncedRefresh());
+    window.addEventListener('popstate', () => debouncedRefresh());
+    window.addEventListener('hashchange', () => debouncedRefresh());
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') debouncedRefresh();
     });
 
     window.addEventListener('beforeunload', () => {

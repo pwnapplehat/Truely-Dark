@@ -114,6 +114,29 @@ describe('resolveEffectiveSettings — Auto mode', () => {
     expect(result.mode).toBe('soft');
     expect(result.nativeDark).toBe(false);
   });
+
+  it('uses detect cache when battery saver omits live detectOutcome', () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      batterySaver: true,
+      detectCache: {
+        'https://github.com': {
+          result: 'dark' as const,
+          confidence: 'high' as const,
+          timestamp: Date.now(),
+        },
+      },
+    };
+
+    const result = resolveEffectiveSettings({
+      origin: 'https://github.com',
+      hostname: 'github.com',
+      settings,
+    });
+
+    expect(result.nativeDark).toBe(true);
+    expect(result.active).toBe(false);
+  });
 });
 
 describe('isNativeDarkSkip', () => {

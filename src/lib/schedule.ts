@@ -55,15 +55,31 @@ export function shouldScheduleEnable(
 }
 
 /**
- * Async version for background script — reads system preference from tabs.
+ * Async version for background script — reads system preference from an active tab.
  */
 export async function getSystemDarkPreference(): Promise<boolean> {
   try {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && window.matchMedia) {
       return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
   } catch {
     // Service worker has no window
   }
+
+  try {
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs[0];
+    if (tab?.id && tab.url && /^https?:/i.test(tab.url)) {
+      const results = await browser.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => window.matchMedia('(prefers-color-scheme: dark)').matches,
+      });
+      const value = results[0]?.result;
+      if (typeof value === 'boolean') return value;
+    }
+  } catch {
+    // Tab may not allow scripting
+  }
+
   return false;
 }

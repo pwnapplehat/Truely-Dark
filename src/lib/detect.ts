@@ -42,6 +42,18 @@ const REGION_GROUPS: ReadonlyArray<{ id: string; selectors: readonly string[] }>
     ],
   },
   {
+    id: 'sidebar',
+    selectors: [
+      'aside',
+      '[role="complementary"]',
+      '.sidebar',
+      '#sidebar',
+      '.side-nav',
+      '.sidenav',
+      '#mw-navigation',
+    ],
+  },
+  {
     id: 'footer',
     selectors: [
       'footer',

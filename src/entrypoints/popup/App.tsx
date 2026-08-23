@@ -13,8 +13,14 @@ function siteStatusLabel(tabInfo: TabInfo): string {
   if (tabInfo.nativeDark) {
     return 'Natively dark — Truely Dark skipped';
   }
+  if (tabInfo.injectionPending) {
+    return 'Applying dark mode…';
+  }
   if (tabInfo.active && !tabInfo.softApplied) {
     return 'Soft enabled — filter could not apply on this page';
+  }
+  if (tabInfo.active && tabInfo.resolvedMode === 'on') {
+    return 'Extension dark mode active (On)';
   }
   if (tabInfo.active) {
     return 'Extension dark mode active (Soft)';
@@ -25,6 +31,9 @@ function siteStatusLabel(tabInfo: TabInfo): string {
 function statusDotClass(tabInfo: TabInfo): string {
   if (tabInfo.pageRestricted || tabInfo.nativeDark) {
     return 'popup-status-dot--native';
+  }
+  if (tabInfo.injectionPending) {
+    return 'popup-status-dot--inactive';
   }
   if (tabInfo.active && tabInfo.softApplied) {
     return 'popup-status-dot--active';
@@ -41,25 +50,42 @@ export function PopupApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  const loadTabInfo = useCallback(async () => {
+    const tab = await sendMessage<TabInfo>({ type: 'GET_TAB_INFO' });
+    setTabInfo(tab);
+    return tab;
+  }, []);
+
   const load = useCallback(async () => {
     try {
-      const [s, tab] = await Promise.all([
-        sendMessage<TruelyDarkSettings>({ type: 'GET_SETTINGS' }),
-        sendMessage<TabInfo>({ type: 'GET_TAB_INFO' }),
-      ]);
+      const s = await sendMessage<TruelyDarkSettings>({ type: 'GET_SETTINGS' });
       setSettings(s);
-      setTabInfo(tab);
+      await loadTabInfo();
       setError(false);
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadTabInfo]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!tabInfo?.injectionPending) return undefined;
+
+    const interval = window.setInterval(() => {
+      loadTabInfo().then((tab) => {
+        if (!tab.injectionPending) {
+          window.clearInterval(interval);
+        }
+      });
+    }, 400);
+
+    return () => window.clearInterval(interval);
+  }, [tabInfo?.injectionPending, loadTabInfo]);
 
   const update = useCallback(async (partial: Partial<TruelyDarkSettings>) => {
     const updated = await sendMessage<TruelyDarkSettings>({
@@ -67,9 +93,8 @@ export function PopupApp() {
       payload: partial,
     });
     setSettings(updated);
-    const tab = await sendMessage<TabInfo>({ type: 'GET_TAB_INFO' });
-    setTabInfo(tab);
-  }, []);
+    await loadTabInfo();
+  }, [loadTabInfo]);
 
   const setSiteMode = useCallback(
     async (mode: SiteMode) => {
@@ -79,10 +104,9 @@ export function PopupApp() {
         payload: { origin: tabInfo.origin, mode },
       });
       setSettings(updated);
-      const tab = await sendMessage<TabInfo>({ type: 'GET_TAB_INFO' });
-      setTabInfo(tab);
+      await loadTabInfo();
     },
-    [tabInfo?.origin],
+    [tabInfo?.origin, loadTabInfo],
   );
 
   if (loading) {

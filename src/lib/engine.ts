@@ -86,9 +86,24 @@ const CHROME_BACKDROP_RESET = `
   html[${ROOT_ATTR}] .header,
   html[${ROOT_ATTR}] .navbar,
   html[${ROOT_ATTR}] .hero,
-  html[${ROOT_ATTR}] .hero-section {
+  html[${ROOT_ATTR}] .hero-section,
+  html[${ROOT_ATTR}] .sticky,
+  html[${ROOT_ATTR}] .fixed,
+  html[${ROOT_ATTR}] [class*="sticky"],
+  html[${ROOT_ATTR}] [class*="fixed-header"],
+  html[${ROOT_ATTR}] [style*="position: fixed"],
+  html[${ROOT_ATTR}] [style*="position:sticky"] {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+  }
+`;
+
+const FIXED_LAYER_RESET = `
+  html[${ROOT_ATTR}] body > header,
+  html[${ROOT_ATTR}] body > nav,
+  html[${ROOT_ATTR}] #header,
+  html[${ROOT_ATTR}] .top-bar {
+    background-color: transparent !important;
   }
 `;
 
@@ -141,6 +156,7 @@ export function generateDarkCss(
   }
 
   css += CHROME_BACKDROP_RESET;
+  css += FIXED_LAYER_RESET;
 
   css += `
     @-moz-document url-prefix() {
@@ -291,15 +307,13 @@ function applyShadowDomFilters(
   settings: EffectiveSiteSettings,
   filter: string,
 ): void {
+  if (!settings.preserveMedia) return;
+
   const hosts = collectOpenShadowHosts(doc);
-  const preserveMedia = settings.preserveMedia;
 
   for (const host of hosts) {
     const root = host.shadowRoot;
     if (!root) continue;
-
-    const hostEl = host as HTMLElement;
-    applyInlineFilter(hostEl, filter);
 
     let shadowStyle = root.getElementById(SHADOW_STYLE_ID) as HTMLStyleElement | null;
     if (!shadowStyle) {
@@ -308,16 +322,12 @@ function applyShadowDomFilters(
       root.appendChild(shadowStyle);
     }
 
-    let css = `:host { filter: ${filter} !important; -webkit-filter: ${filter} !important; }`;
-    if (preserveMedia) {
-      css += `
-        img, video, canvas, picture, svg {
-          filter: ${filter} !important;
-          -webkit-filter: ${filter} !important;
-        }
-      `;
-    }
-    shadowStyle.textContent = css;
+    shadowStyle.textContent = `
+      img, video, canvas, picture, svg, [data-truely-dark-preserve] {
+        filter: ${filter} !important;
+        -webkit-filter: ${filter} !important;
+      }
+    `;
   }
 }
 
@@ -326,11 +336,20 @@ function clearShadowDomFilters(doc: Document): void {
   for (const host of hosts) {
     const root = host.shadowRoot;
     if (!root) continue;
-    clearInlineFilter(host as HTMLElement);
     root.getElementById(SHADOW_STYLE_ID)?.remove();
   }
 
   clearAdoptedStylesheet(doc);
+}
+
+/** Re-scan open shadow roots after SPA DOM updates (media counter-invert only). */
+export function refreshShadowDomMediaFilters(
+  settings: EffectiveSiteSettings,
+  doc: Document = document,
+): void {
+  if (!settings.active || !settings.preserveMedia) return;
+  const filter = buildFilterString(settings.brightness, settings.contrast, settings.sepia);
+  applyShadowDomFilters(doc, settings, filter);
 }
 
 function applyFilterTarget(
@@ -454,4 +473,11 @@ export function removeDarkMode(doc: Document = document): void {
 
 export function isDarkModeActive(doc: Document = document): boolean {
   return doc.documentElement.hasAttribute(ROOT_ATTR);
+}
+
+export function isSoftFilterActive(doc: Document = document): boolean {
+  if (!isDarkModeActive(doc)) return false;
+  const target =
+    doc.documentElement.getAttribute(FILTER_TARGET_ATTR) === 'body' ? 'body' : 'html';
+  return verifySoftFilterApplied(doc, target as FilterTarget);
 }
