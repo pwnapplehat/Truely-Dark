@@ -17,6 +17,7 @@ import {
   isExcludedOrigin,
   REDIRECTION_BANNER_KILL_CSS,
   resolveInvertSupplementCss,
+  hostUsesInvertSupplement,
 } from './site-packs';
 import { getSettings } from './storage';
 
@@ -313,10 +314,17 @@ export async function removeSoftCssForTab(tabId: number): Promise<void> {
 
 export async function maybeProactiveInsertCss(tabId: number, url: string): Promise<void> {
   const hostname = getHostnameFromUrl(url);
-  if (!hostname || !hostUsesInjectCssFallback(hostname)) return;
+  if (!hostname) return;
 
   const effective = await resolveEffectiveForUrl(url);
   if (!effective?.active) return;
 
-  await insertSoftCssForTab(tabId, url, 'html');
+  if (hostUsesInjectCssFallback(hostname)) {
+    await insertSoftCssForTab(tabId, url, 'html');
+    return;
+  }
+
+  if (hostUsesInvertSupplement(hostname)) {
+    await insertInvertSupplementForTab(tabId, url);
+  }
 }

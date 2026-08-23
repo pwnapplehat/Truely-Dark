@@ -9,7 +9,7 @@ import type {
 import { DETECT_CACHE_TTL_MS } from '../types';
 import { applyPreset, migrateSettings } from './defaults';
 import { purgePoisonedDetectCache } from './detect';
-import { getHostnameFromUrl, getOriginFromUrl, hostPrefersForceStylesheet } from './site-packs';
+import { getHostnameFromUrl, getOriginFromUrl, hostPrefersForceStylesheet, hostUsesInvertSupplement } from './site-packs';
 import {
   cycleSiteMode,
   getSiteMode,
@@ -28,6 +28,7 @@ import {
 import { gestureActivateSoftForTab } from './gesture-activate';
 import {
   insertSoftCssForTab,
+  insertInvertSupplementForTab,
   maybeProactiveInsertCss,
   removeSoftCssForTab,
 } from './insert-css-fallback';
@@ -292,6 +293,8 @@ export function registerBackgroundHandlers(): void {
 
           if (hostPrefersForceStylesheet(injectionHostname) && injectionUrl) {
             void escalatePreferForceMainWorldForTab(injectionTabId, injectionUrl);
+          } else if (hostUsesInvertSupplement(injectionHostname) && injectionUrl) {
+            void insertInvertSupplementForTab(injectionTabId, injectionUrl);
           }
 
           if (

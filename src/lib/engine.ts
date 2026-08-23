@@ -132,6 +132,10 @@ export function generateForceStylesheetCss(settings: EffectiveSiteSettings): str
       filter: none !important;
       -webkit-filter: none !important;
     }
+  `;
+
+  if (!preferForce) {
+    css += `
     html[${ROOT_ATTR}] main,
     html[${ROOT_ATTR}] [role="main"],
     html[${ROOT_ATTR}] #root,
@@ -161,7 +165,15 @@ export function generateForceStylesheetCss(settings: EffectiveSiteSettings): str
     html[${ROOT_ATTR}] li {
       color: ${text} !important;
     }
-  `;
+    `;
+  } else {
+    css += `
+    html[${ROOT_ATTR}] a,
+    html[${ROOT_ATTR}] a:visited {
+      color: ${link} !important;
+    }
+    `;
+  }
 
   if (preferForce) {
     css += MARKETING_FORCE_SHELL_CSS;

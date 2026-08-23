@@ -24,13 +24,16 @@ describe('findSitePack', () => {
     expect(css).toContain('data-truely-dark-force');
     expect(css).not.toContain('#ffffff');
     expect(css).not.toMatch(/\*:not\(img\)/);
-    expect(css).toContain('ovhcloud-mainmenu');
+    expect(css).toContain('ods-header-universe');
+    expect(css).toContain('ods-header-topbar__content');
     expect(css).toContain('redirection-banners');
   });
 
-  it('apple.com has invert surface supplement for promo tiles', () => {
+  it('apple.com uses preferForce Soft with promo tile surfaces', () => {
     const pack = findSitePack('www.apple.com');
-    expect(pack?.invertOnlyCustomCss).toContain('promo');
+    expect(pack?.preferForceStylesheet).toBe(true);
+    expect(pack?.customCss).toContain('promo');
+    expect(pack?.customCss).toContain('filter: none');
   });
 
   it('wikipedia.org has invert surface supplement for navbox/footer', () => {
