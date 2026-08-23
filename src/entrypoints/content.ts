@@ -3,12 +3,13 @@ import {
   applyDarkMode,
   buildFilterString,
   computePreInvertBackground,
+  effectivePrefersForceSoft,
   generateForceStylesheetCss,
   injectPreloadCss,
   isDarkModeActive,
   isSoftFilterActive,
-  refreshShadowDomMediaFilters,
   removeDarkMode,
+  stripInvertSoftArtifacts,
 } from '../lib/engine';
 import {
   pierceOpenShadowRoots,
@@ -138,31 +139,37 @@ export default defineContentScript({
     }
 
     async function applyWithVerification(settings: EffectiveSiteSettings): Promise<boolean> {
-      const preferForce = settings.sitePack?.preferForceStylesheet === true;
+      const preferForce =
+        effectivePrefersForceSoft(settings, hostname) ||
+        settings.sitePack?.preferForceStylesheet === true;
 
-      applyDarkMode(settings);
+      if (preferForce) {
+        stripInvertSoftArtifacts(document);
+      }
+
+      applyDarkMode(settings, document, hostname);
       let contentStrict = isSoftFilterActive();
 
-      if (!contentStrict && hostUsesInjectCssFallback(hostname)) {
+      if (!contentStrict && hostUsesInjectCssFallback(hostname) && !preferForce) {
         await requestInsertCssFallback('html');
-        applyDarkMode(settings);
+        applyDarkMode(settings, document, hostname);
         contentStrict = isSoftFilterActive();
-        if (!contentStrict && !preferForce) {
+        if (!contentStrict) {
           await requestInsertCssFallback('body');
-          applyDarkMode(settings);
+          applyDarkMode(settings, document, hostname);
           contentStrict = isSoftFilterActive();
         }
       }
 
       if (!contentStrict && !preferForce) {
-        applyDarkMode(settings);
-        refreshShadowDomMediaFilters(settings);
+        applyDarkMode(settings, document, hostname);
         contentStrict = isSoftFilterActive();
         pierceOpenShadowRoots(document, generateShadowInvertPrepCss(), SHADOW_FILTER_STYLE_ID);
       }
 
       if (preferForce && !contentStrict) {
-        applyDarkMode(settings);
+        stripInvertSoftArtifacts(document);
+        applyDarkMode(settings, document, hostname);
         pierceOpenShadowRoots(
           document,
           generateShadowForceCss(settings),
@@ -206,9 +213,6 @@ export default defineContentScript({
       const retry = async (): Promise<void> => {
         if (!lastEffectiveSettings?.active) return;
         await applyWithVerification(settings);
-        if (!settings.sitePack?.preferForceStylesheet) {
-          refreshShadowDomMediaFilters(settings);
-        }
       };
 
       requestAnimationFrame(() => void retry());

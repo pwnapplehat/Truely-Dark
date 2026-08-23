@@ -2,7 +2,7 @@ import type { EffectiveSiteSettings } from '../types';
 import { parseColor, rgbByteLuminance } from './color';
 import { isExtensionInjectedBackground } from './detect';
 import { computedFilterHasStrictInvert } from './filter-verify';
-import { MARKETING_FORCE_SHELL_CSS, resolveForceBackgroundColor } from './site-packs';
+import { MARKETING_FORCE_SHELL_CSS, hostPrefersForceStylesheet, resolveForceBackgroundColor } from './site-packs';
 import {
   pierceOpenShadowRoots,
   generateShadowForceCss,
@@ -95,6 +95,23 @@ export function buildFilterString(
  * Direct dark stylesheet when invert filter cannot paint (CWS / layered hosts).
  * Original Truely Dark implementation — not vendored Dark Reader logic.
  */
+export function effectivePrefersForceSoft(
+  settings: EffectiveSiteSettings,
+  hostname?: string,
+): boolean {
+  if (settings.sitePack?.preferForceStylesheet === true) return true;
+  if (hostname && hostPrefersForceStylesheet(hostname)) return true;
+  return false;
+}
+
+/** Remove invert Soft artifacts — required before force path on marketing hosts. */
+export function stripInvertSoftArtifacts(doc: Document = document): void {
+  const html = doc.documentElement;
+  clearInlineFilter(html);
+  if (doc.body) clearInlineFilter(doc.body);
+  removePiercedShadowStyles(doc, [SHADOW_FILTER_STYLE_ID]);
+}
+
 export function generateForceStylesheetCss(settings: EffectiveSiteSettings): string {
   const bg = resolveForceBackgroundColor(settings);
   const text = '#e8e8e8';
@@ -159,6 +176,8 @@ export function applyForceStylesheetMode(
   settings: EffectiveSiteSettings,
   doc: Document = document,
 ): void {
+  stripInvertSoftArtifacts(doc);
+
   const html = doc.documentElement;
   const forceBg = resolveForceBackgroundColor(settings);
 
@@ -224,6 +243,10 @@ export function generateDarkCss(
   settings: EffectiveSiteSettings,
   filterTarget: FilterTarget = 'html',
 ): string {
+  if (effectivePrefersForceSoft(settings)) {
+    return generateForceStylesheetCss(settings);
+  }
+
   const filter = buildFilterString(
     settings.brightness,
     settings.contrast,
@@ -548,6 +571,7 @@ export function refreshShadowDomMediaFilters(
   settings: EffectiveSiteSettings,
   doc: Document = document,
 ): void {
+  if (effectivePrefersForceSoft(settings)) return;
   if (!settings.active || !settings.preserveMedia) return;
   const filter = buildFilterString(settings.brightness, settings.contrast, settings.sepia);
   applyShadowDomFilters(doc, settings, filter);
@@ -560,6 +584,11 @@ function applyFilterTarget(
   filter: string,
   preInvertBg: string,
 ): void {
+  if (effectivePrefersForceSoft(settings)) {
+    applyForceStylesheetMode(settings, doc);
+    return;
+  }
+
   const html = doc.documentElement;
   html.setAttribute(FILTER_TARGET_ATTR, filterTarget);
 
@@ -622,6 +651,7 @@ function restorePreloadDark(doc: Document): void {
 export function applyDarkMode(
   settings: EffectiveSiteSettings,
   doc: Document = document,
+  hostname?: string,
 ): ApplyDarkModeResult {
   const html = doc.documentElement;
 
@@ -630,7 +660,8 @@ export function applyDarkMode(
     return { filterTarget: 'html', applied: false };
   }
 
-  if (settings.sitePack?.preferForceStylesheet) {
+  if (effectivePrefersForceSoft(settings, hostname)) {
+    stripInvertSoftArtifacts(doc);
     html.setAttribute(ROOT_ATTR, settings.mode);
     restorePreloadDark(doc);
     applyForceStylesheetMode(settings, doc);

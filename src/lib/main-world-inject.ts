@@ -9,7 +9,7 @@ import {
   generateShadowInvertPrepCss,
 } from './shadow-force';
 import { resolveEffectiveForUrl } from './insert-css-fallback';
-import { resolveForceBackgroundColor } from './site-packs';
+import { resolveForceBackgroundColor, hostPrefersForceStylesheet, getHostnameFromUrl } from './site-packs';
 
 const SCRIPT_TARGET = { allFrames: true } as const;
 
@@ -76,6 +76,11 @@ export async function executeMainWorldSoftFilter(
   url: string,
   filterTarget: 'html' | 'body' = 'html',
 ): Promise<boolean> {
+  const hostname = getHostnameFromUrl(url);
+  if (hostPrefersForceStylesheet(hostname)) {
+    return executeMainWorldForceStylesheet(tabId, url);
+  }
+
   const effective = await resolveEffectiveForUrl(url);
   if (!effective?.active) return false;
 

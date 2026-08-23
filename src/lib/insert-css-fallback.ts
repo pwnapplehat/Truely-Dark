@@ -72,6 +72,7 @@ export async function insertSoftCssForTab(
 ): Promise<boolean> {
   const hostname = getHostnameFromUrl(url);
   if (hostPrefersForceStylesheet(hostname)) {
+    await removeInsertedCss(tabId);
     return insertForceStylesheetForTab(tabId, url);
   }
 
@@ -130,6 +131,8 @@ async function removeInsertedForceCss(tabId: number): Promise<void> {
 }
 
 export async function insertForceStylesheetForTab(tabId: number, url: string): Promise<boolean> {
+  await removeInsertedCss(tabId);
+
   const effective = await resolveEffectiveForUrl(url);
   if (!effective?.active) {
     await removeInsertedForceCss(tabId);

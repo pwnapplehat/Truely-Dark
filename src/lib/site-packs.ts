@@ -190,17 +190,32 @@ const OVH_FORCE_CSS = `
   html[data-truely-dark-active][data-truely-dark-force] [class*="Logo"] img {
     background-color: transparent !important;
   }
+  html[data-truely-dark-active][data-truely-dark-force] .redirection-banners,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="redirection-banner"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="redirection-banners"] {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+  }
 `;
 
 /** Invert Soft supplement — light promo tiles / cards that resist html invert. */
 const APPLE_INVERT_SURFACE_CSS = `
   html[data-truely-dark-active] [class*="unit"],
   html[data-truely-dark-active] [class*="Unit"],
+  html[data-truely-dark-active] [class*="tile"],
+  html[data-truely-dark-active] [class*="Tile"],
   html[data-truely-dark-active] [class*="promo"],
   html[data-truely-dark-active] [class*="Promo"],
   html[data-truely-dark-active] section[class*="module"],
   html[data-truely-dark-active] [class*="homepage-section"],
-  html[data-truely-dark-active] li[class*="product"] {
+  html[data-truely-dark-active] [class*="rf-cc"],
+  html[data-truely-dark-active] li[class*="product"],
+  html[data-truely-dark-active] [data-analytics-region*="promo"],
+  html[data-truely-dark-active] [class*="section-content"] {
     background-color: #1a1a1a !important;
     background-image: none !important;
     filter: none !important;
@@ -208,7 +223,9 @@ const APPLE_INVERT_SURFACE_CSS = `
     color: #e8eaed !important;
   }
   html[data-truely-dark-active] [class*="unit"] *,
-  html[data-truely-dark-active] [class*="promo"] * {
+  html[data-truely-dark-active] [class*="tile"] *,
+  html[data-truely-dark-active] [class*="promo"] *,
+  html[data-truely-dark-active] [class*="rf-cc"] * {
     color: #e8eaed !important;
   }
 `;
@@ -233,11 +250,31 @@ const WIKIPEDIA_INVERT_SURFACE_CSS = `
   html[data-truely-dark-active] .mw-footer,
   html[data-truely-dark-active] .footer-info,
   html[data-truely-dark-active] #footer-info,
-  html[data-truely-dark-active] .mw-portlet-footer {
+  html[data-truely-dark-active] .mw-portlet-footer,
+  html[data-truely-dark-active] #footer li,
+  html[data-truely-dark-active] #footer ul,
+  html[data-truely-dark-active] .mw-footer li,
+  html[data-truely-dark-active] .mw-footer ul,
+  html[data-truely-dark-active] #footer-info li,
+  html[data-truely-dark-active] #footer-info ul,
+  html[data-truely-dark-active] .footer-info li,
+  html[data-truely-dark-active] .footer-info ul,
+  html[data-truely-dark-active] #lastmod,
+  html[data-truely-dark-active] .lastmod,
+  html[data-truely-dark-active] #footer-info-text,
+  html[data-truely-dark-active] .footer-info-text,
+  html[data-truely-dark-active] .license,
+  html[data-truely-dark-active] [id*="footer"] {
     background-color: ${FORCE_MARKETING_BG} !important;
     background-image: none !important;
     filter: none !important;
     -webkit-filter: none !important;
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active] #footer *,
+  html[data-truely-dark-active] .mw-footer *,
+  html[data-truely-dark-active] #footer-info *,
+  html[data-truely-dark-active] .footer-info * {
     color: #e8eaed !important;
   }
   html[data-truely-dark-active] .mw-footer img,

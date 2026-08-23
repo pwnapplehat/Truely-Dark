@@ -13,7 +13,7 @@ import {
 } from './main-world-inject';
 import { registerGalleryContentScripts } from './register-content-scripts';
 import { setTabSoftApplied, settleTabSoftApplied } from './tab-injection-state';
-import { getHostnameFromUrl, hostRequiresVisualVerify } from './site-packs';
+import { getHostnameFromUrl, hostPrefersForceStylesheet, hostRequiresVisualVerify } from './site-packs';
 import { verifyVisualDarkness } from './soft-escalation';
 
 export interface GestureActivateOptions {
@@ -47,8 +47,12 @@ export async function gestureActivateSoftForTab(
     }
   }
 
-  const softInserted = await insertSoftCssForTab(tabId, url, 'html');
-  const softMain = await executeMainWorldSoftFilter(tabId, url, 'html');
+  const softInserted = hostPrefersForceStylesheet(getHostnameFromUrl(url))
+    ? false
+    : await insertSoftCssForTab(tabId, url, 'html');
+  const softMain = hostPrefersForceStylesheet(getHostnameFromUrl(url))
+    ? false
+    : await executeMainWorldSoftFilter(tabId, url, 'html');
   const forceInserted = await insertForceStylesheetForTab(tabId, url);
   const forceMain = await executeMainWorldForceStylesheet(tabId, url);
   const nuclearInserted = await insertNuclearForceCssForTab(tabId, url);

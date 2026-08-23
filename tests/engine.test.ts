@@ -5,6 +5,7 @@ import {
   applyDarkMode,
   applyForceStylesheetMode,
   computePreInvertBackground,
+  effectivePrefersForceSoft,
   generateDarkCss,
   generateForceStylesheetCss,
   isDarkModeActive,
@@ -119,16 +120,59 @@ describe('generateDarkCss — invert-safe backgrounds', () => {
     expect(combined).toContain('#0d1117');
   });
 
-  it('invert generateDarkCss never includes OVH force customCss', () => {
+  it('generateDarkCss for OVH pack never emits invert filter', () => {
     const ovhPack = findSitePack('www.ovhcloud.com');
+    const ovhEffective = resolveEffectiveSettings({
+      origin: 'https://www.ovhcloud.com',
+      hostname: 'www.ovhcloud.com',
+      settings: { ...DEFAULT_SETTINGS, defaultMode: 'soft' },
+      detectOutcome: { result: 'light', confidence: 'medium' },
+    });
     const css = generateDarkCss({
-      ...baseSettings,
+      ...ovhEffective,
       active: true,
       mode: 'soft',
       sitePack: ovhPack,
     });
-    expect(css).not.toContain('[class*="homepage-hero"]');
+    expect(css).not.toMatch(/\binvert\s*\(\s*1/);
+    expect(css).toContain('data-truely-dark-force');
+  });
+
+  it('applyDarkMode on OVH sets force attr and never html invert', () => {
+    document.documentElement.innerHTML = '<head></head><body>Hi</body>';
+    const ovhEffective = resolveEffectiveSettings({
+      origin: 'https://www.ovhcloud.com',
+      hostname: 'www.ovhcloud.com',
+      settings: { ...DEFAULT_SETTINGS, defaultMode: 'soft' },
+      detectOutcome: { result: 'light', confidence: 'medium' },
+    });
+    applyDarkMode({ ...ovhEffective, active: true, mode: 'soft' }, document, 'www.ovhcloud.com');
+    expect(document.documentElement.getAttribute('data-truely-dark-force')).toBe('true');
+    expect(document.documentElement.style.filter).not.toMatch(/invert/);
+    const styleEl = document.getElementById('truely-dark-styles');
+    expect(styleEl?.textContent ?? '').not.toMatch(/\binvert\s*\(\s*1/);
+    removeDarkMode();
+  });
+
+  it('generateDarkCss with example.com uses invert path', () => {
+    const css = generateDarkCss({
+      ...baseSettings,
+      active: true,
+      mode: 'soft',
+    });
     expect(css).toContain('invert(1)');
+    expect(css).not.toContain('data-truely-dark-force');
+  });
+});
+
+describe('effectivePrefersForceSoft', () => {
+  it('returns true for OVH hostname even without sitePack on settings object', () => {
+    expect(effectivePrefersForceSoft({ backgroundColor: '#121212' } as never, 'www.ovhcloud.com')).toBe(
+      true,
+    );
+    expect(effectivePrefersForceSoft({ backgroundColor: '#121212' } as never, 'example.com')).toBe(
+      false,
+    );
   });
 });
 
