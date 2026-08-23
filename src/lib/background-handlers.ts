@@ -28,6 +28,10 @@ import {
 } from './insert-css-fallback';
 import { isChromeGalleryHost } from './gallery-access';
 import {
+  clearGalleryGestureAttempted,
+  isGalleryGestureAttempted,
+} from './gallery-gesture-state';
+import {
   clearTabSoftApplied,
   getTabSoftApplied,
   isInjectionResolveInFlight,
@@ -67,6 +71,8 @@ async function buildTabInfo(
       injectionPending: false,
       galleryHost: false,
       needsGalleryGesture: false,
+      enableOnRestrictedPages: settings.enableOnRestrictedPages,
+      galleryGestureAttempted: false,
     };
   }
 
@@ -84,8 +90,16 @@ async function buildTabInfo(
   const injectionPending = effective.active && reportedApplied === undefined;
   const softApplied = effective.active && reportedApplied === true;
   const galleryHost = isChromeGalleryHost(hostname);
+  const galleryGestureAttempted =
+    tabId !== undefined ? isGalleryGestureAttempted(tabId) : false;
+  const enableOnRestrictedPages = settings.enableOnRestrictedPages;
   const needsGalleryGesture =
-    galleryHost && effective.active && !softApplied && !injectionPending;
+    galleryHost &&
+    effective.active &&
+    !softApplied &&
+    !injectionPending &&
+    !galleryGestureAttempted &&
+    enableOnRestrictedPages;
 
   return {
     origin,
@@ -101,6 +115,8 @@ async function buildTabInfo(
     injectionPending,
     galleryHost,
     needsGalleryGesture,
+    enableOnRestrictedPages,
+    galleryGestureAttempted,
   };
 }
 
@@ -264,6 +280,7 @@ export function registerBackgroundHandlers(): void {
         return { success: true };
 
       case 'GESTURE_ACTIVATE_SOFT':
+        const gestureSettings = await getSettings();
         const [gestureTab] = await browser.tabs.query({
           active: true,
           currentWindow: true,
@@ -277,6 +294,7 @@ export function registerBackgroundHandlers(): void {
             gestureTab.id,
             gestureTab.windowId,
             gestureTab.url,
+            { enableOnRestrictedPages: gestureSettings.enableOnRestrictedPages },
           );
           return { success: true, applied };
         }
@@ -358,6 +376,7 @@ export function registerBackgroundHandlers(): void {
 
   browser.tabs.onRemoved.addListener((tabId: number) => {
     clearTabSoftApplied(tabId);
+    clearGalleryGestureAttempted(tabId);
     void removeSoftCssForTab(tabId);
   });
 
@@ -365,6 +384,7 @@ export function registerBackgroundHandlers(): void {
     async (tabId: number, changeInfo: { status?: string; url?: string }, tab: Browser.tabs.Tab) => {
       if (changeInfo.url) {
         markTabNavigation(tabId);
+        clearGalleryGestureAttempted(tabId);
       }
       if (changeInfo.status === 'loading' && tab.url) {
         await maybeProactiveInsertCss(tabId, tab.url);

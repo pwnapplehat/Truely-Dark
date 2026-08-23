@@ -132,6 +132,21 @@ export function OptionsApp() {
           checked={settings.batterySaver}
           onChange={(batterySaver) => update({ batterySaver })}
         />
+        <Toggle
+          label="Enable on restricted pages"
+          description="Allow injection on Chrome Web Store (sideloaded builds)"
+          checked={settings.enableOnRestrictedPages}
+          onChange={(enableOnRestrictedPages) => update({ enableOnRestrictedPages })}
+        />
+        {settings.enableOnRestrictedPages && (
+          <p className="hint-text">
+            Sideloaded extensions may still need Chromium flag{' '}
+            <a href="chrome://flags/#extensions-on-chrome-urls" rel="noopener noreferrer">
+              Extensions on Chrome URLs
+            </a>
+            . Then click the Truely Dark icon on the Web Store tab.
+          </p>
+        )}
       </Section>
 
       <Section title="Presets">

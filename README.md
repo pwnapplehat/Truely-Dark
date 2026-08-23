@@ -106,13 +106,14 @@ Detection ignores Truely Dark preload (`#121212`, `color-scheme: dark`), unused 
 
 `chromewebstore.google.com` is a normal HTTPS page — Truely Dark darkens it like other dark extensions.
 
-**Sideloaded / unpacked builds:** Chromium may block automatic content scripts on the Web Store (“No access needed” in `chrome://extensions`). Truely Dark uses **user-gesture injection** when you click the extension icon:
+**Sideloaded / unpacked builds:** Chromium may block automatic content scripts on the Web Store (“No access needed” in `chrome://extensions`). Enable **Options → Enable on restricted pages**, then click the Truely Dark toolbar icon on the store tab:
 
 1. Load unpacked from `.output/chrome-mv3`
-2. Open `https://chromewebstore.google.com/`
-3. Set **Soft** or **Auto**
-4. **Click the Truely Dark toolbar icon** — popup open triggers `activeTab` + `scripting` injection (MAIN world + shadow pierce)
-5. Page should visibly darken; popup shows green active or honest “could not apply”
+2. Open **Options** → enable **Enable on restricted pages**
+3. Optional: set Chromium flag `chrome://flags/#extensions-on-chrome-urls` to **Enabled** (required for some sideloaded builds)
+4. Open `https://chromewebstore.google.com/` and set **Soft** or **Auto**
+5. **Click the Truely Dark toolbar icon** — popup open triggers `activeTab` + `scripting` injection (MAIN world + shadow pierce)
+6. Page should visibly darken; popup shows green active or honest “could not apply” (with flag hint if Chromium still blocks)
 
 Store-published builds with normal install may auto-inject without the extra click.
 

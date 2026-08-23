@@ -44,6 +44,7 @@ export const settingsSchema = z.object({
   sepia: z.number().min(0).max(100),
   preserveMedia: z.boolean(),
   batterySaver: z.boolean(),
+  enableOnRestrictedPages: z.boolean(),
   preset: presetIdSchema,
   schedule: scheduleSettingsSchema,
   siteOverrides: z.record(z.string(), siteOverrideSchema),

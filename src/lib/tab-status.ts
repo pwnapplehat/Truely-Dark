@@ -13,12 +13,28 @@ export function siteStatusLabel(tabInfo: TabInfo): string {
   }
   if (tabInfo.injectionPending) {
     if (tabInfo.galleryHost) {
-      return 'Applying dark mode… (Chrome Web Store may need icon click)';
+      return 'Applying dark mode…';
     }
     return 'Applying dark mode…';
   }
+  if (
+    tabInfo.active &&
+    tabInfo.galleryHost &&
+    !tabInfo.softApplied &&
+    !tabInfo.enableOnRestrictedPages
+  ) {
+    return 'Enable “Restricted pages” in Options to darken Chrome Web Store';
+  }
   if (tabInfo.active && !tabInfo.softApplied && tabInfo.needsGalleryGesture) {
     return 'Click Truely Dark icon on this tab to darken Chrome Web Store';
+  }
+  if (
+    tabInfo.active &&
+    !tabInfo.softApplied &&
+    tabInfo.galleryHost &&
+    tabInfo.galleryGestureAttempted
+  ) {
+    return 'Soft enabled — could not apply (try chrome://flags/#extensions-on-chrome-urls)';
   }
   if (tabInfo.active && !tabInfo.softApplied) {
     return 'Soft enabled — filter could not apply on this page';

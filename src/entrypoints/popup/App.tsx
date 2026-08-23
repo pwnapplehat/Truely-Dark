@@ -27,9 +27,7 @@ export function PopupApp() {
       setSettings(s);
       let tab = await loadTabInfo();
 
-      const shouldGesture = tab.galleryHost || tab.needsGalleryGesture;
-
-      if (shouldGesture) {
+      if (tab.galleryHost && s.enableOnRestrictedPages) {
         await sendMessage({ type: 'GESTURE_ACTIVATE_SOFT' });
         tab = await loadTabInfo();
       }
@@ -79,13 +77,13 @@ export function PopupApp() {
       });
       setSettings(updated);
       let tab = await loadTabInfo();
-      if (tab.galleryHost && mode !== 'off') {
+      if (tab.galleryHost && settings?.enableOnRestrictedPages && mode !== 'off') {
         await sendMessage({ type: 'GESTURE_ACTIVATE_SOFT' });
         tab = await loadTabInfo();
       }
       setTabInfo(tab);
     },
-    [tabInfo?.origin, loadTabInfo],
+    [tabInfo?.origin, loadTabInfo, settings?.enableOnRestrictedPages],
   );
 
   if (loading) {

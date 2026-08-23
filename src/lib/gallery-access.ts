@@ -1,11 +1,10 @@
 import { getHostnameFromUrl } from './site-packs';
 
-export const CHROME_GALLERY_ORIGINS = [
-  'https://chromewebstore.google.com/*',
-  'https://chrome.google.com/*',
-] as const;
-
 const GALLERY_HOSTNAMES = ['chromewebstore.google.com', 'chrome.google.com'] as const;
+
+/** Chromium flag required for many sideloaded builds on gallery URLs. */
+export const CHROME_EXTENSIONS_ON_CHROME_URLS_FLAG =
+  'chrome://flags/#extensions-on-chrome-urls';
 
 /**
  * Chrome Web Store / chrome.google.com gallery pages.
@@ -21,24 +20,4 @@ export function isChromeGalleryHost(hostname: string): boolean {
 export function isChromeGalleryUrl(url: string): boolean {
   const hostname = getHostnameFromUrl(url);
   return hostname ? isChromeGalleryHost(hostname) : false;
-}
-
-/**
- * Request explicit gallery origins when optional permission is not yet granted.
- * Opening the popup counts as a user gesture for permissions.request + scripting.
- */
-export async function ensureGalleryPermissions(url: string): Promise<boolean> {
-  if (!isChromeGalleryUrl(url)) return true;
-
-  try {
-    const hasAll = await browser.permissions.contains({
-      origins: [...CHROME_GALLERY_ORIGINS],
-    });
-    if (hasAll) return true;
-
-    return await browser.permissions.request({ origins: [...CHROME_GALLERY_ORIGINS] });
-  } catch {
-    // activeTab may still allow scripting on the active tab
-    return true;
-  }
 }

@@ -6,6 +6,7 @@ import {
   VISUAL_MAX_LUMINANCE_THRESHOLD,
   VISUAL_SAMPLE_FRACTIONS,
   VISUAL_TOP_BAND_LUMINANCE_THRESHOLD,
+  VISUAL_USABLE_TOP_BAND_THRESHOLD,
 } from '../src/lib/visual-verify';
 
 describe('visual-verify strict top-band gate', () => {
@@ -62,5 +63,27 @@ describe('visual-verify strict top-band gate', () => {
     const analysis = analyzeVisualSamples(data, width, height, [[0.5, 0.5]]);
     expect(analysis.max).toBeGreaterThan(VISUAL_MAX_LUMINANCE_THRESHOLD);
     expect(isVisuallyDarkAnalysis(analysis)).toBe(false);
+  });
+
+  it('passes usable-dark when average is low and top band gutters are tolerable', () => {
+    const width = 100;
+    const height = 100;
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        const inTopBand = y < 25;
+        const sideGutter = x < 8 || x > 91;
+        const v = inTopBand && sideGutter ? 170 : 15;
+        data[i] = v;
+        data[i + 1] = v;
+        data[i + 2] = v;
+        data[i + 3] = 255;
+      }
+    }
+    const analysis = analyzeVisualSamples(data, width, height, VISUAL_SAMPLE_FRACTIONS);
+    expect(analysis.average).toBeLessThan(0.4);
+    expect(analysis.topBandMax).toBeLessThan(VISUAL_USABLE_TOP_BAND_THRESHOLD);
+    expect(isVisuallyDarkAnalysis(analysis)).toBe(true);
   });
 });

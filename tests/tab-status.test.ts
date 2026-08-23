@@ -16,6 +16,8 @@ const baseTab = (partial: Partial<TabInfo>): TabInfo => ({
   injectionPending: false,
   galleryHost: false,
   needsGalleryGesture: false,
+  enableOnRestrictedPages: false,
+  galleryGestureAttempted: false,
   ...partial,
 });
 
@@ -66,10 +68,38 @@ describe('siteStatusLabel', () => {
           hostname: 'chromewebstore.google.com',
           galleryHost: true,
           needsGalleryGesture: true,
+          enableOnRestrictedPages: true,
           softApplied: false,
         }),
       ),
     ).toContain('Click Truely Dark icon');
+  });
+
+  it('shows restricted-pages hint when gallery toggle is off', () => {
+    expect(
+      siteStatusLabel(
+        baseTab({
+          hostname: 'chromewebstore.google.com',
+          galleryHost: true,
+          enableOnRestrictedPages: false,
+          softApplied: false,
+        }),
+      ),
+    ).toContain('Restricted pages');
+  });
+
+  it('shows flag hint after gallery gesture attempted', () => {
+    expect(
+      siteStatusLabel(
+        baseTab({
+          hostname: 'chromewebstore.google.com',
+          galleryHost: true,
+          galleryGestureAttempted: true,
+          enableOnRestrictedPages: true,
+          softApplied: false,
+        }),
+      ),
+    ).toContain('extensions-on-chrome-urls');
   });
 });
 

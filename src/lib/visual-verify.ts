@@ -4,6 +4,9 @@ import { rgbByteLuminance } from './color';
 export const VISUAL_DARK_LUMINANCE_THRESHOLD = 0.45;
 export const VISUAL_MAX_LUMINANCE_THRESHOLD = 0.55;
 export const VISUAL_TOP_BAND_LUMINANCE_THRESHOLD = 0.6;
+/** Relaxed gate for usable-dark pages (e.g. OVH thin light side gutters). */
+export const VISUAL_USABLE_DARK_AVERAGE_THRESHOLD = 0.4;
+export const VISUAL_USABLE_TOP_BAND_THRESHOLD = 0.72;
 export const VISUAL_TOP_BAND_FRACTION = 0.25;
 
 /** Top band + mid + bottom — header/hero weighted heavily. */
@@ -99,13 +102,19 @@ export function isVisuallyDarkLuminance(luminance: number): boolean {
 }
 
 /**
- * Strict visual gate: average dark, no bright hotspot, top band (header/hero) not light.
+ * Strict visual gate with usable-dark fallback for thin light gutters (OVH side bands).
  */
 export function isVisuallyDarkAnalysis(analysis: VisualSampleAnalysis): boolean {
-  return (
+  const strict =
     analysis.average < VISUAL_DARK_LUMINANCE_THRESHOLD &&
     analysis.max < VISUAL_MAX_LUMINANCE_THRESHOLD &&
-    analysis.topBandMax < VISUAL_TOP_BAND_LUMINANCE_THRESHOLD
+    analysis.topBandMax < VISUAL_TOP_BAND_LUMINANCE_THRESHOLD;
+
+  if (strict) return true;
+
+  return (
+    analysis.average < VISUAL_USABLE_DARK_AVERAGE_THRESHOLD &&
+    analysis.topBandMax < VISUAL_USABLE_TOP_BAND_THRESHOLD
   );
 }
 

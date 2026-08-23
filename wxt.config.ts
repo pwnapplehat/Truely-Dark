@@ -18,10 +18,6 @@ export default defineConfig({
       'https://chromewebstore.google.com/*',
       'https://chrome.google.com/*',
     ],
-    optional_permissions: [
-      'https://chromewebstore.google.com/*',
-      'https://chrome.google.com/*',
-    ],
     commands: {
       'toggle-global': {
         suggested_key: {

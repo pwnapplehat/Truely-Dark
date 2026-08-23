@@ -41,6 +41,8 @@ export interface TruelyDarkSettings {
   sepia: number;
   preserveMedia: boolean;
   batterySaver: boolean;
+  /** Try user-gesture injection on Chrome Web Store / chrome.google.com gallery pages. */
+  enableOnRestrictedPages: boolean;
   preset: PresetId;
   schedule: ScheduleSettings;
   siteOverrides: Record<string, SiteOverride>;
@@ -126,6 +128,10 @@ export interface TabInfo {
   galleryHost: boolean;
   /** Sideloaded gallery: show click-to-darken hint when auto-inject failed. */
   needsGalleryGesture: boolean;
+  /** User enabled gallery injection in Options. */
+  enableOnRestrictedPages: boolean;
+  /** Icon-click gesture already attempted this navigation. */
+  galleryGestureAttempted: boolean;
 }
 
 export const STORAGE_KEY = 'truely_dark_settings_v2';
