@@ -46,14 +46,15 @@ describe('resolveEffectiveSettings — Auto mode', () => {
     expect(result.nativeDark).toBe(false);
   });
 
-  it('applies Soft when detection is unknown', () => {
+  it('defers Soft on Auto when detection is inconclusive unknown', () => {
     const result = resolveEffectiveSettings({
       ...baseCtx,
       detectOutcome: makeDetection('unknown', 'low'),
     });
 
-    expect(result.active).toBe(true);
-    expect(result.mode).toBe('soft');
+    expect(result.active).toBe(false);
+    expect(result.nativeDark).toBe(false);
+    expect(result.mode).toBe('auto');
   });
 
   it('respects per-site off mode with zero processing', () => {

@@ -25,13 +25,13 @@ const SITES: SiteCase[] = [
   {
     hostname: 'en.wikipedia.org',
     origin: 'https://en.wikipedia.org',
-    detect: makeDetection('unknown', 'low'),
+    detect: makeDetection('light', 'medium'),
     expectActive: true,
   },
   {
     hostname: 'news.ycombinator.com',
     origin: 'https://news.ycombinator.com',
-    detect: makeDetection('unknown', 'low'),
+    detect: makeDetection('light', 'medium'),
     expectActive: true,
   },
   {
@@ -142,13 +142,13 @@ const SITES: SiteCase[] = [
   {
     hostname: 'www.notion.so',
     origin: 'https://www.notion.so',
-    detect: makeDetection('unknown', 'low'),
+    detect: makeDetection('light', 'medium'),
     expectActive: true,
   },
   {
     hostname: 'linear.app',
     origin: 'https://linear.app',
-    detect: makeDetection('unknown', 'low'),
+    detect: makeDetection('light', 'medium'),
     expectActive: true,
   },
 ];

@@ -1,17 +1,19 @@
+// @vitest-environment happy-dom
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
-  AUTO_SETTLE_COOLDOWN_MS,
   bumpAutoGeneration,
   getAutoSessionLock,
   getLockedAutoDetectOutcome,
   isAutoDecisionLocked,
+  lockAutoApplyHysteresis,
   lockAutoDecision,
-  msSinceAutoLock,
+  queryLiveAutoDetection,
   resetAutoSession,
   resolveAutoDetectOutcome,
   shouldRedetectOnThemeMutation,
   shouldRunPaintFreeAutoDetect,
 } from '../src/lib/auto-state';
+import { detectFromDomPaintFree } from '../src/lib/detect';
 import { makeDetection } from '../src/lib/resolver';
 
 describe('auto-state — hysteresis and settle lock', () => {
@@ -24,6 +26,11 @@ describe('auto-state — hysteresis and settle lock', () => {
     expect(lockAutoDecision(outcome)).toBe('apply-soft');
     expect(isAutoDecisionLocked()).toBe(true);
     expect(getAutoSessionLock()?.decision).toBe('apply-soft');
+  });
+
+  it('does not lock apply-soft on inconclusive unknown detect', () => {
+    expect(lockAutoDecision(makeDetection('unknown', 'low'))).toBeNull();
+    expect(isAutoDecisionLocked()).toBe(false);
   });
 
   it('locks skip-native on high-confidence dark', () => {
@@ -50,8 +57,11 @@ describe('auto-state — hysteresis and settle lock', () => {
     const locked = makeDetection('light', 'medium');
     lockAutoDecision(locked);
 
-    const poisonedNative = makeDetection('dark', 'high');
-    const resolved = resolveAutoDetectOutcome('auto', true, poisonedNative);
+    const resolved = resolveAutoDetectOutcome(
+      'auto',
+      true,
+      makeDetection('unknown', 'low'),
+    );
 
     expect(resolved).toEqual(locked);
   });
@@ -77,9 +87,28 @@ describe('auto-state — hysteresis and settle lock', () => {
     expect(isAutoDecisionLocked()).toBe(false);
   });
 
-  it('shouldRedetectOnThemeMutation respects shorter cooldown', () => {
-    lockAutoDecision(makeDetection('light', 'medium'));
-    expect(shouldRedetectOnThemeMutation('auto')).toBe(false);
-    expect(msSinceAutoLock()).toBeLessThan(AUTO_SETTLE_COOLDOWN_MS);
+  it('resolveAutoDetectOutcome preserves skip-native lock over extension paint', () => {
+    lockAutoDecision(makeDetection('dark', 'high'));
+
+    const resolved = resolveAutoDetectOutcome(
+      'auto',
+      true,
+      makeDetection('unknown', 'low'),
+    );
+
+    expect(resolved).toEqual(makeDetection('dark', 'high'));
+  });
+
+  it('queryLiveAutoDetection returns locked skip-native for popup status', () => {
+    lockAutoDecision(makeDetection('dark', 'high'));
+    const outcome = queryLiveAutoDetection(document, detectFromDomPaintFree);
+    expect(outcome).toEqual(makeDetection('dark', 'high'));
+  });
+
+  it('lockAutoApplyHysteresis prevents oscillation after Soft applies', () => {
+    lockAutoApplyHysteresis(makeDetection('light', 'medium'));
+    expect(
+      resolveAutoDetectOutcome('auto', true, makeDetection('unknown', 'low')),
+    ).toEqual(makeDetection('light', 'medium'));
   });
 });

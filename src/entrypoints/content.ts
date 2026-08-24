@@ -1,7 +1,9 @@
-import { detectFromDom } from '../lib/detect';
+import { detectFromDom, detectFromDomPaintFree } from '../lib/detect';
 import {
   bumpAutoGeneration,
+  lockAutoApplyHysteresis,
   lockAutoDecision,
+  queryLiveAutoDetection,
   resetAutoSession,
   resolveAutoDetectOutcome,
   shouldRedetectOnThemeMutation,
@@ -127,7 +129,7 @@ export default defineContentScript({
           document.addEventListener('DOMContentLoaded', () => resolve(), { once: true });
         });
       }
-      return detectFromDom();
+      return detectFromDomPaintFree();
     }
 
     async function reportDetection(outcome: DetectionOutcome): Promise<void> {
@@ -423,11 +425,25 @@ export default defineContentScript({
           removeDarkMode();
           void requestRemoveInsertCss();
           void reportInjectionStatus(false);
+
+          if (
+            siteMode === 'auto' &&
+            detectOutcome?.result === 'unknown' &&
+            detectOutcome.confidence === 'low'
+          ) {
+            window.setTimeout(() => debouncedRefresh(true), 300);
+            window.setTimeout(() => debouncedRefresh(true), 800);
+          }
           return;
         }
 
         if (effective.active) {
           await applyWithVerification(effective);
+          if (siteMode === 'auto' && effective.mode === 'soft') {
+            lockAutoApplyHysteresis(
+              detectOutcome ?? { result: 'light', confidence: 'medium' },
+            );
+          }
           setupStyleGuard(effective);
           scheduleSoftRetries(effective);
         } else {
@@ -507,7 +523,7 @@ export default defineContentScript({
       sendResponse: (response?: unknown) => void,
     ): boolean | void {
       if (message.type === 'GET_LIVE_DETECT') {
-        sendResponse(detectFromDom());
+        sendResponse(queryLiveAutoDetection(document, detectFromDomPaintFree));
         return true;
       }
       if (message.type === 'SETTINGS_CHANGED') {

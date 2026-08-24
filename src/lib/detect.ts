@@ -557,6 +557,25 @@ export function detectFromDom(doc: Document = document): DetectionOutcome {
   return detectFromRegionalLuminance(doc);
 }
 
+/**
+ * Paint-free DOM detection — temporarily removes FOUC preload so #121212
+ * does not mask native dark root surfaces (x.ai, etc.) on first Auto pass.
+ */
+export function detectFromDomPaintFree(doc: Document = document): DetectionOutcome {
+  const preload = doc.getElementById(EXTENSION_MARKERS.preloadStyleId);
+  const preloadParent = preload?.parentElement ?? null;
+  const preloadNext = preload?.nextSibling ?? null;
+  if (preload) preload.remove();
+
+  try {
+    return detectFromDom(doc);
+  } finally {
+    if (preload && preloadParent) {
+      preloadParent.insertBefore(preload, preloadNext);
+    }
+  }
+}
+
 export function isDetectCacheValid(timestamp: number, ttlMs: number): boolean {
   return Date.now() - timestamp < ttlMs;
 }

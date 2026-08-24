@@ -152,7 +152,12 @@ export function resolveEffectiveSettings(ctx: ResolveContext): EffectiveSiteSett
     };
   }
 
-  // Medium-confidence or unknown → apply Soft (never skip on luminance-only dark)
+  // Inconclusive Auto detect — defer Soft until paint-free detect settles (x.ai SPA).
+  if (detection.result === 'unknown' && detection.confidence === 'low') {
+    return inactiveSettings({ ...base, mode: 'auto' });
+  }
+
+  // Medium-confidence or mixed/light → apply Soft (never skip on luminance-only dark)
   const resolvedMode: SiteMode = settings.batterySaver ? 'soft' : 'soft';
   return activeSettings({ ...base, mode: resolvedMode });
 }

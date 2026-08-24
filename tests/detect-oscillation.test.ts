@@ -2,11 +2,12 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
   detectFromDom,
+  detectFromDomPaintFree,
   isExtensionPaintActive,
   EXTENSION_MARKERS,
 } from '../src/lib/detect';
 import { DEFAULT_SETTINGS } from '../src/lib/defaults';
-import { resolveEffectiveSettings } from '../src/lib/resolver';
+import { resolveEffectiveSettings, makeDetection } from '../src/lib/resolver';
 
 describe('detect — extension paint must not trigger native-dark skip', () => {
   beforeEach(() => {
@@ -53,8 +54,17 @@ describe('detect — extension paint must not trigger native-dark skip', () => {
       detectOutcome: detectFromDom(document),
     });
 
-    expect(resolved.active).toBe(true);
+    expect(resolved.active).toBe(false);
     expect(resolved.nativeDark).toBe(false);
+
+    const settled = resolveEffectiveSettings({
+      origin: 'https://mail.google.com',
+      hostname: 'mail.google.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: makeDetection('light', 'medium'),
+    });
+    expect(settled.active).toBe(true);
+    expect(settled.nativeDark).toBe(false);
   });
 
   it('detectFromDom still native-skips Gmail when site-authored dark is present', () => {
@@ -85,6 +95,28 @@ describe('detect — extension paint must not trigger native-dark skip', () => {
       hostname: 'x.ai',
       settings: DEFAULT_SETTINGS,
       detectOutcome: detectFromDom(document),
+    });
+
+    expect(resolved.active).toBe(false);
+    expect(resolved.nativeDark).toBe(true);
+  });
+
+  it('x.ai native dark detected through FOUC preload via paint-free detect', () => {
+    document.documentElement.innerHTML =
+      '<head></head><body><div id="__next" style="background-color:#0a0a0a;min-height:100vh"></div></body>';
+    const preload = document.createElement('style');
+    preload.id = 'truely-dark-preload';
+    preload.textContent = 'html,body{background-color:#121212!important;color-scheme:dark}';
+    document.head.appendChild(preload);
+
+    expect(detectFromDom(document)).toEqual({ result: 'dark', confidence: 'high' });
+    expect(detectFromDomPaintFree(document)).toEqual({ result: 'dark', confidence: 'high' });
+
+    const resolved = resolveEffectiveSettings({
+      origin: 'https://x.ai',
+      hostname: 'x.ai',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: detectFromDomPaintFree(document),
     });
 
     expect(resolved.active).toBe(false);

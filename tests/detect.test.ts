@@ -142,7 +142,7 @@ describe('detectFromSignals — preload poison resistance', () => {
 });
 
 describe('Auto mode — poisoned preload signals', () => {
-  it('Wikipedia-like light site → Soft active, not native skip', () => {
+  it('Wikipedia-like poisoned preload → deferred until decisive detect', () => {
     const poisoned = detectFromSignals({
       colorScheme: 'dark',
       htmlBackground: '#121212',
@@ -156,12 +156,25 @@ describe('Auto mode — poisoned preload signals', () => {
       detectOutcome: poisoned,
     });
 
+    expect(result.active).toBe(false);
+    expect(result.mode).toBe('auto');
+    expect(result.nativeDark).toBe(false);
+  });
+
+  it('Wikipedia-like light site after paint-free detect → Soft active', () => {
+    const result = resolveEffectiveSettings({
+      origin: 'https://en.wikipedia.org',
+      hostname: 'en.wikipedia.org',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: makeDetection('light', 'medium'),
+    });
+
     expect(result.active).toBe(true);
     expect(result.mode).toBe('soft');
     expect(result.nativeDark).toBe(false);
   });
 
-  it('Hacker News-like light site → Soft active', () => {
+  it('Hacker News-like poisoned preload → deferred until decisive detect', () => {
     const poisoned = detectFromSignals({
       colorScheme: 'dark',
       htmlBackground: 'rgb(18, 18, 18)',
@@ -174,7 +187,7 @@ describe('Auto mode — poisoned preload signals', () => {
       detectOutcome: poisoned,
     });
 
-    expect(result.active).toBe(true);
+    expect(result.active).toBe(false);
     expect(result.nativeDark).toBe(false);
   });
 

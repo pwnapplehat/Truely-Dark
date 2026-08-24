@@ -37,7 +37,15 @@ export function getAutoSessionLock(): AutoSessionLock | null {
   return lock;
 }
 
-export function lockAutoDecision(outcome: DetectionOutcome): AutoDecision {
+export function isDecisiveAutoDetectOutcome(outcome: DetectionOutcome): boolean {
+  if (isNativeDarkSkip(outcome)) return true;
+  if (outcome.result === 'unknown') return false;
+  return true;
+}
+
+export function lockAutoDecision(outcome: DetectionOutcome): AutoDecision | null {
+  if (!isDecisiveAutoDetectOutcome(outcome)) return null;
+
   const decision: AutoDecision = isNativeDarkSkip(outcome) ? 'skip-native' : 'apply-soft';
   lock = {
     decision,
@@ -46,6 +54,19 @@ export function lockAutoDecision(outcome: DetectionOutcome): AutoDecision {
     generation,
   };
   return decision;
+}
+
+/**
+ * After Soft successfully applies on Auto, lock apply-soft to prevent invert oscillation.
+ * Only used post-injection — never on inconclusive unknown detect.
+ */
+export function lockAutoApplyHysteresis(outcome: DetectionOutcome = { result: 'light', confidence: 'medium' }): void {
+  lock = {
+    decision: 'apply-soft',
+    detectOutcome: outcome,
+    lockedAt: Date.now(),
+    generation,
+  };
 }
 
 export function getLockedAutoDetectOutcome(): DetectionOutcome | undefined {
@@ -96,11 +117,17 @@ export function resolveAutoDetectOutcome(
 ): DetectionOutcome | undefined {
   if (siteMode !== 'auto') return freshOutcome;
 
-  if (extensionActive && isAutoDecisionLocked()) {
-    const locked = getLockedAutoDetectOutcome();
-    if (locked && lock?.decision === 'apply-soft') {
-      return locked;
-    }
+  if (isAutoDecisionLocked() && lock?.decision === 'skip-native') {
+    return getLockedAutoDetectOutcome();
+  }
+
+  if (freshOutcome && isNativeDarkSkip(freshOutcome)) {
+    lockAutoDecision(freshOutcome);
+    return freshOutcome;
+  }
+
+  if (extensionActive && isAutoDecisionLocked() && lock?.decision === 'apply-soft') {
+    return getLockedAutoDetectOutcome();
   }
 
   if (isAutoDecisionLocked() && !freshOutcome) {
@@ -118,4 +145,18 @@ export function resolveAutoDetectOutcome(
   }
 
   return freshOutcome ?? getLockedAutoDetectOutcome();
+}
+
+/**
+ * Popup / background live detect — prefer settled Auto lock over poisoned live DOM.
+ */
+export function queryLiveAutoDetection(
+  doc: Document,
+  detectPaintFree: (document: Document) => DetectionOutcome,
+): DetectionOutcome {
+  if (isAutoDecisionLocked()) {
+    const locked = getLockedAutoDetectOutcome();
+    if (locked) return locked;
+  }
+  return detectPaintFree(doc);
 }
