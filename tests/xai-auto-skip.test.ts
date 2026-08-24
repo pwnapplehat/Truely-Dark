@@ -17,6 +17,27 @@ import type { TabInfo } from '../src/types';
 import { hostPrefersForceStylesheet, hostRequiresVisualVerify } from '../src/lib/site-packs';
 
 describe('x.ai Auto native skip integration', () => {
+  it('paint-free detect on x.ai html.light + dark #__next yields dark/high native skip', () => {
+    document.documentElement.innerHTML =
+      '<head></head><body><div id="__next" style="background-color:#0a0a0a;min-height:100vh"></div></body>';
+    document.documentElement.classList.add('light');
+    document.documentElement.style.setProperty('color-scheme', 'light', 'important');
+
+    const outcome = detectFromDomPaintFree(document);
+    expect(isNativeDarkSkip(outcome)).toBe(true);
+
+    const effective = resolveEffectiveSettings({
+      origin: 'https://x.ai',
+      hostname: 'x.ai',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(effective.active).toBe(false);
+    expect(effective.nativeDark).toBe(true);
+    expect(effective.mode).toBe('auto');
+  });
+
   it('paint-free detect on x.ai-like DOM yields dark/high native skip', () => {
     document.documentElement.innerHTML =
       '<head></head><body><div id="__next" style="background-color:#0a0a0a;min-height:100vh"></div></body>';

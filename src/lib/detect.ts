@@ -340,8 +340,8 @@ function collectAuthoredSignals(doc: Document): AuthoredSignalInput {
 
   const hasDarkClass = html.classList.contains('dark');
   const hasLightClass = html.classList.contains('light');
-  const dataThemeFromClass =
-    hasDarkClass && !hasLightClass ? 'dark' : hasLightClass && !hasDarkClass ? 'light' : undefined;
+  // html.dark is a reliable authored signal; html.light is not (x.ai keeps class=light on black UI).
+  const dataThemeFromClass = hasDarkClass && !hasLightClass ? 'dark' : undefined;
 
   return {
     dataTheme:
@@ -374,12 +374,50 @@ function detectComputedColorSchemeDark(doc: Document): DetectionOutcome | null {
   return null;
 }
 
+const SPA_ROOT_SELECTORS = ['#__next', '#root'] as const;
+
+function collectSpaRootElements(doc: Document): Element[] {
+  const roots: Element[] = [];
+  for (const selector of SPA_ROOT_SELECTORS) {
+    const el = doc.querySelector(selector);
+    if (el) roots.push(el);
+  }
+  return roots;
+}
+
+function classifyUniformDarkSurfaces(samples: number[]): DetectionOutcome | null {
+  if (samples.length === 0) return null;
+
+  const darkSamples = samples.filter((lum) => lum < DARK_LUMINANCE_THRESHOLD);
+  const lightSamples = samples.filter((lum) => lum > LIGHT_LUMINANCE_THRESHOLD);
+
+  if (lightSamples.length > 0) return null;
+  if (darkSamples.length === 0) return null;
+
+  const avg = samples.reduce((sum, lum) => sum + lum, 0) / samples.length;
+  if (avg < DARK_LUMINANCE_THRESHOLD) {
+    return { result: 'dark', confidence: 'high' };
+  }
+
+  return null;
+}
+
 /**
  * Uniform dark html/body before extension paint — native dark SPAs (x.ai, etc.).
+ * Painted #__next / #root surfaces beat misleading html.light / color-scheme:light tokens.
  */
 export function detectNativeDarkRootSurfaces(doc: Document = document): DetectionOutcome | null {
   if (isExtensionPaintActive(doc) && !hasAuthoredNativeDarkSignal(doc)) {
     return null;
+  }
+
+  const spaRoots = collectSpaRootElements(doc);
+  if (spaRoots.length > 0) {
+    const spaSamples = spaRoots
+      .map((el) => getElementBackgroundLuminance(el, doc))
+      .filter((lum): lum is number => lum !== null);
+    const spaDark = classifyUniformDarkSurfaces(spaSamples);
+    if (spaDark) return spaDark;
   }
 
   const candidates: Element[] = [doc.documentElement];
@@ -396,22 +434,7 @@ export function detectNativeDarkRootSurfaces(doc: Document = document): Detectio
     if (lum !== null) samples.push(lum);
   }
 
-  if (samples.length === 0) return null;
-
-  const darkSamples = samples.filter((lum) => lum < DARK_LUMINANCE_THRESHOLD);
-  const lightSamples = samples.filter((lum) => lum > LIGHT_LUMINANCE_THRESHOLD);
-
-  if (lightSamples.length > 0) return null;
-  if (darkSamples.length === samples.length) {
-    return { result: 'dark', confidence: 'high' };
-  }
-
-  const avg = samples.reduce((sum, lum) => sum + lum, 0) / samples.length;
-  if (avg < DARK_LUMINANCE_THRESHOLD && darkSamples.length > 0) {
-    return { result: 'dark', confidence: 'high' };
-  }
-
-  return null;
+  return classifyUniformDarkSurfaces(samples);
 }
 
 function getElementBackgroundLuminance(el: Element, doc: Document): number | null {
@@ -530,18 +553,19 @@ function detectFromRegionalLuminance(doc: Document): DetectionOutcome {
  * Never uses CSS class-name heuristics (theme-dark etc.) or theme-color alone for skip.
  */
 export function detectFromDom(doc: Document = document): DetectionOutcome {
-  const authoredOutcome = detectFromAuthoredSignals(collectAuthoredSignals(doc));
-  if (authoredOutcome.result !== 'unknown') return authoredOutcome;
-
   if (isExtensionPaintActive(doc) && !hasAuthoredNativeDarkSignal(doc)) {
     return { result: 'unknown', confidence: 'low' };
   }
 
+  // Painted app surfaces beat misleading html.light / color-scheme:light (x.ai pricing).
+  const paintedDark = detectNativeDarkRootSurfaces(doc);
+  if (paintedDark) return paintedDark;
+
+  const authoredOutcome = detectFromAuthoredSignals(collectAuthoredSignals(doc));
+  if (authoredOutcome.result !== 'unknown') return authoredOutcome;
+
   const colorSchemeDark = detectComputedColorSchemeDark(doc);
   if (colorSchemeDark) return colorSchemeDark;
-
-  const rootDark = detectNativeDarkRootSurfaces(doc);
-  if (rootDark) return rootDark;
 
   // theme-color is a weak hint only — never high-confidence native-dark skip
   const themeColorContent = doc

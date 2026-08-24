@@ -12,6 +12,7 @@ import {
   resetAutoSession,
   resolveAutoDetectOutcome,
   shouldDeferAutoSoftApply,
+  shouldLockAutoApplyHysteresis,
   shouldRedetectOnThemeMutation,
   shouldRunPaintFreeAutoDetect,
 } from '../src/lib/auto-state';
@@ -71,6 +72,33 @@ describe('auto-state — hysteresis and settle lock', () => {
     const outcome = makeDetection('dark', 'high');
     expect(lockAutoDecision(outcome)).toBe('skip-native');
     expect(getAutoSessionLock()?.decision).toBe('skip-native');
+  });
+
+  it('shouldLockAutoApplyHysteresis waits for SPA settle on preferForce hosts', () => {
+    expect(
+      shouldLockAutoApplyHysteresis(
+        'x.ai',
+        makeDetection('light', 'medium'),
+        0,
+        () => true,
+      ),
+    ).toBe(false);
+    expect(
+      shouldLockAutoApplyHysteresis(
+        'x.ai',
+        makeDetection('light', 'medium'),
+        3,
+        () => true,
+      ),
+    ).toBe(true);
+    expect(
+      shouldLockAutoApplyHysteresis(
+        'x.ai',
+        makeDetection('dark', 'high'),
+        3,
+        () => true,
+      ),
+    ).toBe(false);
   });
 
   it('does not run paint-free detect while extension active and apply-soft locked', () => {

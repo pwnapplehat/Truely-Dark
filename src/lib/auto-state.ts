@@ -81,6 +81,24 @@ export function shouldDeferAutoSoftApply(
 }
 
 /**
+ * Auto may lock apply-soft hysteresis only after SPA settle on preferForce hosts,
+ * or immediately on non-preferForce hosts with a decisive non-native outcome.
+ */
+export function shouldLockAutoApplyHysteresis(
+  hostname: string,
+  outcome: DetectionOutcome | undefined,
+  settlePass: number,
+  hostPrefersForce: (host: string) => boolean,
+): boolean {
+  if (!outcome || isNativeDarkSkip(outcome)) return false;
+  if (outcome.result === 'unknown') return false;
+  if (hostPrefersForce(hostname)) {
+    return settlePass >= AUTO_SPA_SETTLE_DELAYS_MS.length;
+  }
+  return true;
+}
+
+/**
  * After Soft successfully applies on Auto, lock apply-soft to prevent invert oscillation.
  * Only used post-injection — never on inconclusive unknown detect.
  */

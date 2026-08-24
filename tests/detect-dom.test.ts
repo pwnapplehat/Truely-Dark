@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, beforeEach } from 'vitest';
-import { detectFromDom, detectNativeDarkRootSurfaces } from '../src/lib/detect';
+import { detectFromDom, detectFromDomPaintFree, detectNativeDarkRootSurfaces } from '../src/lib/detect';
 import { DEFAULT_SETTINGS } from '../src/lib/defaults';
 import { resolveEffectiveSettings } from '../src/lib/resolver';
 
@@ -258,5 +258,24 @@ describe('detectFromDom — x.ai native dark Auto skip', () => {
     document.body.style.setProperty('background-color', '#0a0a0a', 'important');
 
     expect(detectFromDom(document)).toEqual({ result: 'dark', confidence: 'high' });
+  });
+
+  it('detectFromDom native-skips x.ai html.light + dark #__next (misleading color-scheme)', () => {
+    document.documentElement.innerHTML =
+      '<head></head><body><div id="__next" style="background-color:#0a0a0a;min-height:100vh"></div></body>';
+    document.documentElement.classList.add('light');
+    document.documentElement.style.setProperty('color-scheme', 'light', 'important');
+
+    expect(detectFromDom(document)).toEqual({ result: 'dark', confidence: 'high' });
+    expect(detectFromDomPaintFree(document)).toEqual({ result: 'dark', confidence: 'high' });
+
+    const resolved = resolveEffectiveSettings({
+      origin: 'https://x.ai',
+      hostname: 'x.ai',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: detectFromDomPaintFree(document),
+    });
+    expect(resolved.active).toBe(false);
+    expect(resolved.nativeDark).toBe(true);
   });
 });

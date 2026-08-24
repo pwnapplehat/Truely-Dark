@@ -8,6 +8,7 @@ import {
   resetAutoSession,
   resolveAutoDetectOutcome,
   shouldDeferAutoSoftApply,
+  shouldLockAutoApplyHysteresis,
   shouldRedetectOnThemeMutation,
   shouldRunPaintFreeAutoDetect,
 } from '../lib/auto-state';
@@ -478,7 +479,16 @@ export default defineContentScript({
 
         if (effective.active) {
           await applyWithVerification(effective);
-          if (siteMode === 'auto' && effective.mode === 'soft') {
+          if (
+            siteMode === 'auto' &&
+            effective.mode === 'soft' &&
+            shouldLockAutoApplyHysteresis(
+              hostname,
+              detectOutcome,
+              autoSettlePass,
+              hostPrefersForceStylesheet,
+            )
+          ) {
             lockAutoApplyHysteresis(
               detectOutcome ?? { result: 'light', confidence: 'medium' },
             );
