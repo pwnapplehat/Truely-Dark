@@ -478,7 +478,10 @@ export function verifyForceApplication(doc: Document = document): boolean {
     if (computedFilterHasStrictInvert(bodyFilter)) return false;
   }
 
-  return isForceApplicationBackgroundDark(view, doc);
+  if (isForceApplicationBackgroundDark(view, doc)) return true;
+
+  // Force-marketing hosts paint on child surfaces (OVH Drupal); attrs mean force path engaged.
+  return html.hasAttribute(ROOT_ATTR);
 }
 
 /**

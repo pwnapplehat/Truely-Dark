@@ -47,6 +47,21 @@ export function cancelTabResolveInFlight(tabId: number): void {
 }
 
 /**
+ * preferForce hosts must never stay injectionPending — background settles even
+ * when content INJECTION_STATUS is delayed or lost.
+ */
+export async function ensurePreferForceTabSettled(
+  tabId: number,
+  windowId: number,
+  url: string,
+): Promise<boolean> {
+  if (isTabSoftAppliedSettled(tabId)) {
+    return getTabSoftApplied(tabId) ?? false;
+  }
+  return settleTabSoftApplied(tabId, windowId, url, false, true);
+}
+
+/**
  * Resolve softApplied with deduplication and a hard timeout — never leaves pending forever.
  * When `force` is false, an already-settled tab skips re-resolution (retry spam safe).
  */

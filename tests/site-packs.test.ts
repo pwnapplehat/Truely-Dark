@@ -78,6 +78,15 @@ describe('findSitePack', () => {
     expect(pack?.customCss).toContain('backdrop-filter: none');
   });
 
+  it('x.ai force pack paints cookie consent controls with readable contrast', () => {
+    const pack = findSitePack('x.ai');
+    expect(pack?.customCss).toContain('body div[class*="fixed"]');
+    expect(pack?.customCss).toContain('button.rounded-full');
+    expect(pack?.customCss).toContain('-webkit-text-fill-color');
+    expect(pack?.customCss).toContain('button svg path');
+    expect(pack?.customCss).toContain(':not(button):not(button *)');
+  });
+
   it('matches x.ai with force-first Soft and marketing visual verify', () => {
     const pack = findSitePack('x.ai');
     expect(pack?.preferForceStylesheet).toBe(true);

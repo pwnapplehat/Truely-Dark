@@ -319,6 +319,11 @@ export async function maybeProactiveInsertCss(tabId: number, url: string): Promi
   const effective = await resolveEffectiveForUrl(url);
   if (!effective?.active) return;
 
+  if (hostPrefersForceStylesheet(hostname)) {
+    await insertForceStylesheetForTab(tabId, url);
+    return;
+  }
+
   if (hostUsesInjectCssFallback(hostname)) {
     await insertSoftCssForTab(tabId, url, 'html');
     return;

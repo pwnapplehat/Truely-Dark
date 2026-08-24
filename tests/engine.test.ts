@@ -254,6 +254,16 @@ describe('force-first marketing Soft', () => {
     removeDarkMode();
   });
 
+  it('verifyForceApplication accepts force attrs when child surfaces are not yet painted', () => {
+    document.documentElement.innerHTML = '<head></head><body></body>';
+    document.documentElement.setAttribute('data-truely-dark-active', 'soft');
+    document.documentElement.setAttribute('data-truely-dark-force', 'true');
+    document.documentElement.style.setProperty('background-color', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
+    expect(verifyForceApplication()).toBe(true);
+    removeDarkMode();
+  });
+
   it('applyForceStylesheetMode sets YouTube native dark hint attrs', () => {
     document.documentElement.innerHTML = '<head></head><body><ytd-masthead></ytd-masthead></body>';
     const youtubeEffective = resolveEffectiveSettings({

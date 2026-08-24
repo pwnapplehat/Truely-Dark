@@ -932,63 +932,98 @@ const XAI_FORCE_CSS = `
     color: #e8eaed !important;
     border-color: #3c4043 !important;
   }
-  html[data-truely-dark-active] [class*="cookie"] *,
-  html[data-truely-dark-active] [class*="Cookie"] *,
-  html[data-truely-dark-active] [class*="consent"] *,
-  html[data-truely-dark-active] [class*="Consent"] *,
-  html[data-truely-dark-active] [class*="privacy"] *,
-  html[data-truely-dark-active] [class*="Privacy"] *,
-  html[data-truely-dark-active] #onetrust-banner-sdk *,
-  html[data-truely-dark-active] [class*="cookie-banner"] *,
-  html[data-truely-dark-active] [class*="CookieBanner"] * {
+  html[data-truely-dark-active] [class*="cookie"] *:not(button):not(button *),
+  html[data-truely-dark-active] [class*="Cookie"] *:not(button):not(button *),
+  html[data-truely-dark-active] [class*="consent"] *:not(button):not(button *),
+  html[data-truely-dark-active] [class*="Consent"] *:not(button):not(button *),
+  html[data-truely-dark-active] [class*="privacy"] *:not(button):not(button *),
+  html[data-truely-dark-active] [class*="Privacy"] *:not(button):not(button *),
+  html[data-truely-dark-active] #onetrust-banner-sdk *:not(button):not(button *),
+  html[data-truely-dark-active] [class*="cookie-banner"] *:not(button):not(button *),
+  html[data-truely-dark-active] [class*="CookieBanner"] *:not(button):not(button *) {
     color: #e8eaed !important;
   }
-  html[data-truely-dark-active] [class*="cookie"] button,
-  html[data-truely-dark-active] [class*="consent"] button,
-  html[data-truely-dark-active] [class*="privacy"] button,
-  html[data-truely-dark-active] [class*="cookie-banner"] button,
-  html[data-truely-dark-active] [class*="CookieBanner"] button,
-  html[data-truely-dark-active] div[class*="fixed"][class*="bottom"] button,
-  html[data-truely-dark-active] div[class*="fixed"][class*="right"] button {
-    background-color: #2a2a2a !important;
-    color: #e8eaed !important;
-    border: 1px solid #5f6368 !important;
-    -webkit-text-fill-color: #e8eaed !important;
-  }
-  html[data-truely-dark-active] [class*="cookie"] button[class*="primary"],
-  html[data-truely-dark-active] [class*="consent"] button[class*="primary"],
-  html[data-truely-dark-active] div[class*="fixed"] button[class*="primary"],
-  html[data-truely-dark-active] div[class*="fixed"][class*="bottom"] button:last-of-type {
-    background-color: #f1f3f4 !important;
-    color: #0a0a0a !important;
-    border-color: #f1f3f4 !important;
-  }
-  html[data-truely-dark-active] [class*="cookie"] button[class*="close"],
-  html[data-truely-dark-active] [class*="consent"] button[class*="close"],
-  html[data-truely-dark-active] div[class*="fixed"] button[aria-label*="Close"],
-  html[data-truely-dark-active] div[class*="fixed"] button[aria-label*="close"],
-  html[data-truely-dark-active] div[class*="fixed"] [class*="close"] {
-    background-color: #2a2a2a !important;
-    color: #e8eaed !important;
-    border: 1px solid #5f6368 !important;
-  }
-  html[data-truely-dark-active] div[class*="fixed"][class*="bottom"],
-  html[data-truely-dark-active] div[class*="fixed"][class*="right"],
-  html[data-truely-dark-active] [class*="bg-white"],
-  html[data-truely-dark-active] [class*="bg-neutral-"],
-  html[data-truely-dark-active] [class*="bg-gray-"],
-  html[data-truely-dark-active] [class*="bg-zinc-"] {
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"][class*="bottom"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"][class*="right"],
+  html[data-truely-dark-active][data-truely-dark-force] body > div[class*="fixed"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"][class*="z-"] {
     background-color: #141414 !important;
     background-image: none !important;
     color: #e8eaed !important;
     border-color: #3c4043 !important;
   }
-  html[data-truely-dark-active] div[class*="fixed"][class*="bottom"] *,
-  html[data-truely-dark-active] div[class*="fixed"][class*="right"] *,
-  html[data-truely-dark-active] [class*="bg-white"] *,
-  html[data-truely-dark-active] [class*="text-gray-"],
-  html[data-truely-dark-active] [class*="text-neutral-"] {
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] p,
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] span:not(button span),
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] a {
     color: #e8eaed !important;
+    -webkit-text-fill-color: #e8eaed !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] > button,
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button[class*="absolute"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button[aria-label*="lose"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button[aria-label*="Close"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button[aria-label*="close"] {
+    background-color: #2a2a2a !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+    -webkit-text-fill-color: #e8eaed !important;
+    border: 1px solid #5f6368 !important;
+    opacity: 1 !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    mix-blend-mode: normal !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button svg,
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button svg *,
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button svg path,
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button svg line,
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button svg polyline {
+    fill: #e8eaed !important;
+    stroke: #e8eaed !important;
+    color: #e8eaed !important;
+    opacity: 1 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] div[class*="flex"] > button,
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] div[class*="gap"] > button,
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button[type="button"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button.rounded-full {
+    background-color: #2a2a2a !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+    -webkit-text-fill-color: #e8eaed !important;
+    border: 1px solid #5f6368 !important;
+    opacity: 1 !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] div[class*="flex"] > button:last-of-type,
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] div[class*="gap"] > button:last-of-type,
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button.rounded-full:last-of-type {
+    background-color: #f1f3f4 !important;
+    color: #0a0a0a !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+    border-color: #f1f3f4 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button[class*="bg-white"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button[class*="bg-neutral"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button[class*="bg-gray"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button[class*="text-white"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button[class*="text-neutral"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button[class*="text-gray"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button[class*="text-black"] {
+    background-color: #2a2a2a !important;
+    color: #e8eaed !important;
+    -webkit-text-fill-color: #e8eaed !important;
+    border: 1px solid #5f6368 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] div[class*="flex"] > button:last-of-type[class*="bg-"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] div[class*="flex"] > button:last-of-type[class*="text-"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button.rounded-full[class*="bg-white"],
+  html[data-truely-dark-active][data-truely-dark-force] body div[class*="fixed"] button.rounded-full[class*="text-white"] {
+    background-color: #f1f3f4 !important;
+    color: #0a0a0a !important;
+    -webkit-text-fill-color: #0a0a0a !important;
+    border-color: #f1f3f4 !important;
   }
 `;
 

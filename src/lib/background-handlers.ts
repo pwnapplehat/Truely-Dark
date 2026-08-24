@@ -27,6 +27,7 @@ import {
 } from './force-main-world';
 import { gestureActivateSoftForTab } from './gesture-activate';
 import {
+  insertForceStylesheetForTab,
   insertSoftCssForTab,
   insertInvertSupplementForTab,
   maybeProactiveInsertCss,
@@ -41,6 +42,7 @@ import { ensureGalleryTabSettled } from './gallery-tab-status';
 import { isPopupLikelyOpen, isPopupSender, markPopupOpen } from './popup-state';
 import {
   clearTabSoftApplied,
+  ensurePreferForceTabSettled,
   getTabSoftApplied,
   isInjectionResolveInFlight,
   isTabSoftAppliedSettled,
@@ -258,13 +260,13 @@ export function registerBackgroundHandlers(): void {
         let tabUrl =
           (message.payload as { url?: string })?.url ?? sender.tab?.url ?? '';
         let tabId = sender.tab?.id;
-        if (!tabUrl) {
+        if (!tabUrl || tabId === undefined) {
           const [activeTab] = await browser.tabs.query({
             active: true,
             currentWindow: true,
           });
-          tabUrl = activeTab?.url ?? '';
-          tabId = activeTab?.id;
+          if (!tabUrl) tabUrl = activeTab?.url ?? '';
+          if (tabId === undefined) tabId = activeTab?.id;
         }
         const tabSettings = await getSettings();
         let tabInfo = await buildTabInfo(tabUrl, tabSettings, tabId);
@@ -272,8 +274,7 @@ export function registerBackgroundHandlers(): void {
           tabId !== undefined &&
           tabUrl &&
           tabInfo.active &&
-          !tabInfo.softApplied &&
-          !tabInfo.injectionPending &&
+          tabInfo.injectionPending &&
           !tabInfo.pageRestricted &&
           hostPrefersForceStylesheet(getHostnameFromUrl(tabUrl))
         ) {
@@ -282,7 +283,7 @@ export function registerBackgroundHandlers(): void {
             currentWindow: true,
           });
           if (activeTab?.id === tabId && activeTab.windowId !== undefined) {
-            await settleTabSoftApplied(tabId, activeTab.windowId, tabUrl, false, true);
+            await ensurePreferForceTabSettled(tabId, activeTab.windowId, tabUrl);
             tabInfo = await buildTabInfo(tabUrl, tabSettings, tabId);
           }
         }
@@ -306,6 +307,13 @@ export function registerBackgroundHandlers(): void {
 
           if (hostPrefersForceStylesheet(injectionHostname) && injectionUrl) {
             void escalatePreferForceMainWorldForTab(injectionTabId, injectionUrl);
+            if (injectionWindowId !== undefined) {
+              void ensurePreferForceTabSettled(
+                injectionTabId,
+                injectionWindowId,
+                injectionUrl,
+              );
+            }
           } else if (hostUsesInvertSupplement(injectionHostname) && injectionUrl) {
             void insertInvertSupplementForTab(injectionTabId, injectionUrl);
           }
@@ -474,8 +482,14 @@ export function registerBackgroundHandlers(): void {
           if (!isPopupLikelyOpen()) {
             await settleTabSoftApplied(tabId, tab.windowId, tab.url, false);
           }
-        } else if (!isPopupLikelyOpen() && !hostPrefersForceStylesheet(getHostnameFromUrl(tab.url))) {
-          await settleTabSoftApplied(tabId, tab.windowId, tab.url, false);
+        } else {
+          const hostname = getHostnameFromUrl(tab.url);
+          if (hostPrefersForceStylesheet(hostname)) {
+            void insertForceStylesheetForTab(tabId, tab.url);
+            await ensurePreferForceTabSettled(tabId, tab.windowId, tab.url);
+          } else if (!isPopupLikelyOpen()) {
+            await settleTabSoftApplied(tabId, tab.windowId, tab.url, false);
+          }
         }
       }
     },

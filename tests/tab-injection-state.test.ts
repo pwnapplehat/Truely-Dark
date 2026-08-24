@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   INJECTION_RESOLVE_TIMEOUT_MS,
+  ensurePreferForceTabSettled,
   getTabSoftApplied,
   isInjectionResolveInFlight,
   isTabSoftAppliedSettled,
@@ -101,5 +102,21 @@ describe('tab-injection-state', () => {
     expect(getTabSoftApplied(4)).toBeUndefined();
     expect(isInjectionResolveInFlight(4)).toBe(false);
     expect(isTabSoftAppliedSettled(4)).toBe(false);
+  });
+
+  it('ensurePreferForceTabSettled settles pending preferForce tabs', async () => {
+    markTabNavigation(9);
+    const applied = await ensurePreferForceTabSettled(9, 1, 'https://www.ovhcloud.com/');
+    expect(applied).toBe(true);
+    expect(getTabSoftApplied(9)).toBe(true);
+    expect(isTabSoftAppliedSettled(9)).toBe(true);
+  });
+
+  it('ensurePreferForceTabSettled skips when already settled', async () => {
+    await settleTabSoftApplied(10, 1, 'https://www.ovhcloud.com/', false);
+    expect(resolveSoftAppliedForTab).toHaveBeenCalledTimes(1);
+    const applied = await ensurePreferForceTabSettled(10, 1, 'https://www.ovhcloud.com/');
+    expect(applied).toBe(true);
+    expect(resolveSoftAppliedForTab).toHaveBeenCalledTimes(1);
   });
 });
