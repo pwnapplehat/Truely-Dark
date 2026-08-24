@@ -1,0 +1,124 @@
+.popup {
+  width: 320px;
+  min-height: 200px;
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--td-border);
+}
+
+.popup-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.popup-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.popup-subtitle {
+  font-size: 11px;
+  color: var(--td-text-muted);
+}
+
+.popup-body {
+  padding: 12px 16px;
+}
+
+.popup-site {
+  font-size: 12px;
+  color: var(--td-text-muted);
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popup-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  margin-bottom: 12px;
+}
+
+.popup-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--td-text-muted);
+}
+
+.popup-status-dot--active {
+  background: var(--td-success);
+}
+
+.popup-status-dot--inactive {
+  background: var(--td-danger);
+}
+
+.popup-status-dot--native {
+  background: var(--td-accent);
+}
+
+.popup-empty {
+  margin: 12px 0;
+  padding: 12px;
+  font-size: 12px;
+  color: var(--td-text-muted);
+  background: var(--td-surface);
+  border-radius: var(--td-radius);
+  border: 1px solid var(--td-border);
+  text-align: center;
+}
+
+.popup-retry {
+  margin-top: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  background: var(--td-surface);
+  border: 1px solid var(--td-border);
+  border-radius: var(--td-radius);
+}
+
+.popup-retry:hover {
+  border-color: var(--td-accent);
+}
+
+.popup-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--td-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.popup-link {
+  font-size: 12px;
+  color: var(--td-accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.popup-link:hover {
+  color: var(--td-accent-hover);
+}
+
+.popup-loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--td-text-muted);
+}
+
+.popup-version {
+  font-size: 11px;
+  color: var(--td-text-muted);
+}

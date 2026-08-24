@@ -1,0 +1,412 @@
+import { describe, expect, it } from 'vitest';
+import {
+  analyzeBackdropSamples,
+  analyzeRegionalLuminances,
+  computeLuminance,
+  detectFromAuthoredSignals,
+  detectFromDom,
+  detectFromSignals,
+  detectPageTheme,
+  isDetectCacheValid,
+  isExtensionForceSoftBackground,
+  isExtensionForceSoftInlinePaint,
+  isExtensionInjectedBackground,
+  isHighConfidenceDark,
+  parseColor,
+  purgePoisonedDetectCache,
+  resolveExplicitThemeMode,
+  resolveMetaColorScheme,
+} from '../src/lib/detect';
+import { DEFAULT_SETTINGS } from '../src/lib/defaults';
+import { makeDetection, resolveEffectiveSettings } from '../src/lib/resolver';
+
+describe('computeLuminance', () => {
+  it('returns 0 for black', () => {
+    expect(computeLuminance(0, 0, 0)).toBe(0);
+  });
+
+  it('returns 1 for white', () => {
+    expect(computeLuminance(1, 1, 1)).toBe(1);
+  });
+
+  it('returns mid value for gray', () => {
+    const lum = computeLuminance(0.5, 0.5, 0.5);
+    expect(lum).toBeGreaterThan(0.2);
+    expect(lum).toBeLessThan(0.3);
+  });
+});
+
+describe('parseColor', () => {
+  it('parses hex colors', () => {
+    expect(parseColor('#121212')).toEqual({ r: 18, g: 18, b: 18 });
+    expect(parseColor('#fff')).toEqual({ r: 255, g: 255, b: 255 });
+  });
+
+  it('parses rgb colors', () => {
+    expect(parseColor('rgb(18, 18, 18)')).toEqual({ r: 18, g: 18, b: 18 });
+    expect(parseColor('rgba(0, 0, 0, 0.5)')).toEqual({ r: 0, g: 0, b: 0 });
+  });
+
+  it('returns null for transparent', () => {
+    expect(parseColor('transparent')).toBeNull();
+    expect(parseColor('rgba(0, 0, 0, 0)')).toBeNull();
+  });
+});
+
+describe('isExtensionInjectedBackground', () => {
+  it('detects preload #121212 as extension-injected', () => {
+    expect(isExtensionInjectedBackground('#121212')).toBe(true);
+    expect(isExtensionInjectedBackground('rgb(18, 18, 18)')).toBe(true);
+  });
+
+  it('does not flag force Soft #0d1117 globally (GitHub-native uses same color)', () => {
+    expect(isExtensionInjectedBackground('#0d1117')).toBe(false);
+    expect(isExtensionInjectedBackground('rgb(13, 17, 23)')).toBe(false);
+  });
+
+  it('does not flag white Wikipedia backgrounds', () => {
+    expect(isExtensionInjectedBackground('#ffffff')).toBe(false);
+    expect(isExtensionInjectedBackground('rgb(255, 255, 255)')).toBe(false);
+  });
+
+  it('does not flag x.ai native #0a0a0a surfaces', () => {
+    expect(isExtensionInjectedBackground('#0a0a0a')).toBe(false);
+    expect(isExtensionInjectedBackground('rgb(10, 10, 10)')).toBe(false);
+  });
+});
+
+describe('isExtensionForceSoftBackground', () => {
+  it('matches Truely Dark force Soft marketing palette', () => {
+    expect(isExtensionForceSoftBackground('#0d1117')).toBe(true);
+    expect(isExtensionForceSoftBackground('rgb(13, 17, 23)')).toBe(true);
+  });
+});
+
+describe('detectFromAuthoredSignals', () => {
+  it('detects dark from data-theme with high confidence', () => {
+    expect(detectFromAuthoredSignals({ dataTheme: 'dark' })).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
+  });
+
+  it('detects GitHub-style data-color-mode=dark', () => {
+    expect(detectFromAuthoredSignals({ dataColorMode: 'dark' })).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
+  });
+
+  it('detects light from data-theme', () => {
+    expect(detectFromAuthoredSignals({ dataTheme: 'light' })).toEqual({
+      result: 'light',
+      confidence: 'high',
+    });
+  });
+
+  it('detects GitHub-style data-color-mode=light with high confidence', () => {
+    expect(detectFromAuthoredSignals({ dataColorMode: 'light' })).toEqual({
+      result: 'light',
+      confidence: 'high',
+    });
+  });
+
+  it('resolves data-color-mode=auto via prefers-color-scheme', () => {
+    expect(resolveExplicitThemeMode('auto', false)).toEqual({
+      result: 'light',
+      confidence: 'high',
+    });
+    expect(resolveExplicitThemeMode('auto', true)).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
+  });
+
+  it('resolves dual meta color-scheme via prefers-color-scheme', () => {
+    expect(resolveMetaColorScheme('light dark', false)).toEqual({
+      result: 'light',
+      confidence: 'high',
+    });
+    expect(resolveMetaColorScheme('light dark', true)).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
+  });
+});
+
+describe('detectFromSignals — preload poison resistance', () => {
+  it('ignores computed color-scheme dark from preload', () => {
+    const outcome = detectFromSignals({ colorScheme: 'dark' });
+    expect(outcome.result).toBe('unknown');
+    expect(outcome.confidence).toBe('low');
+  });
+
+  it('ignores preload #121212 html/body backgrounds (Wikipedia/HN false positive)', () => {
+    const outcome = detectFromSignals({
+      colorScheme: 'dark',
+      htmlBackground: '#121212',
+      bodyBackground: 'rgb(18, 18, 18)',
+    });
+    expect(outcome.result).toBe('unknown');
+    expect(outcome.confidence).toBe('low');
+  });
+
+  it('detects light from non-poisoned white background', () => {
+    expect(detectFromSignals({ htmlBackground: '#ffffff' }).result).toBe('light');
+  });
+
+  it('returns unknown when no signals', () => {
+    expect(detectFromSignals({})).toEqual({ result: 'unknown', confidence: 'low' });
+  });
+});
+
+describe('Auto mode — poisoned preload signals', () => {
+  it('Wikipedia-like poisoned preload → deferred until decisive detect', () => {
+    const poisoned = detectFromSignals({
+      colorScheme: 'dark',
+      htmlBackground: '#121212',
+      bodyBackground: '#121212',
+    });
+
+    const result = resolveEffectiveSettings({
+      origin: 'https://en.wikipedia.org',
+      hostname: 'en.wikipedia.org',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: poisoned,
+    });
+
+    expect(result.active).toBe(false);
+    expect(result.mode).toBe('auto');
+    expect(result.nativeDark).toBe(false);
+  });
+
+  it('Wikipedia-like light site after paint-free detect → Soft active', () => {
+    const result = resolveEffectiveSettings({
+      origin: 'https://en.wikipedia.org',
+      hostname: 'en.wikipedia.org',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: makeDetection('light', 'medium'),
+    });
+
+    expect(result.active).toBe(true);
+    expect(result.mode).toBe('soft');
+    expect(result.nativeDark).toBe(false);
+  });
+
+  it('Hacker News-like poisoned preload → deferred until decisive detect', () => {
+    const poisoned = detectFromSignals({
+      colorScheme: 'dark',
+      htmlBackground: 'rgb(18, 18, 18)',
+    });
+
+    const result = resolveEffectiveSettings({
+      origin: 'https://news.ycombinator.com',
+      hostname: 'news.ycombinator.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: poisoned,
+    });
+
+    expect(result.active).toBe(false);
+    expect(result.nativeDark).toBe(false);
+  });
+
+  it('GitHub data-color-mode=dark → native skip', () => {
+    const outcome = detectFromAuthoredSignals({ dataColorMode: 'dark' });
+    const result = resolveEffectiveSettings({
+      origin: 'https://github.com',
+      hostname: 'github.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(result.active).toBe(false);
+    expect(result.nativeDark).toBe(true);
+  });
+
+  it('GitHub data-color-mode=light → Soft active (not native skip)', () => {
+    const outcome = detectFromAuthoredSignals({ dataColorMode: 'light' });
+    const result = resolveEffectiveSettings({
+      origin: 'https://github.com',
+      hostname: 'github.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(result.active).toBe(true);
+    expect(result.mode).toBe('soft');
+    expect(result.nativeDark).toBe(false);
+  });
+
+  it('GitHub data-color-mode=auto + system light → Soft active', () => {
+    const outcome = detectFromAuthoredSignals({ dataColorMode: 'auto', prefersDark: false });
+    const result = resolveEffectiveSettings({
+      origin: 'https://github.com',
+      hostname: 'github.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(result.active).toBe(true);
+    expect(result.nativeDark).toBe(false);
+  });
+
+  it('Reddit-like light page with white background → Soft active (ignores theme-dark class)', () => {
+    const outcome = detectFromSignals({ htmlBackground: '#ffffff' });
+    const result = resolveEffectiveSettings({
+      origin: 'https://www.reddit.com',
+      hostname: 'www.reddit.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(result.active).toBe(true);
+    expect(result.mode).toBe('soft');
+    expect(result.nativeDark).toBe(false);
+  });
+});
+
+describe('purgePoisonedDetectCache', () => {
+  it('removes medium-confidence dark entries', () => {
+    const cache = {
+      'https://en.wikipedia.org': {
+        result: 'dark' as const,
+        confidence: 'medium' as const,
+        timestamp: Date.now(),
+      },
+      'https://github.com': {
+        result: 'dark' as const,
+        confidence: 'high' as const,
+        timestamp: Date.now(),
+      },
+    };
+
+    const cleaned = purgePoisonedDetectCache(cache);
+    expect(cleaned['https://en.wikipedia.org']).toBeUndefined();
+    expect(cleaned['https://github.com']).toBeDefined();
+  });
+});
+
+describe('isHighConfidenceDark', () => {
+  it('returns true only for dark + high confidence', () => {
+    expect(isHighConfidenceDark({ result: 'dark', confidence: 'high' })).toBe(true);
+    expect(isHighConfidenceDark({ result: 'dark', confidence: 'medium' })).toBe(false);
+    expect(isHighConfidenceDark({ result: 'light', confidence: 'high' })).toBe(false);
+  });
+});
+
+describe('analyzeBackdropSamples', () => {
+  it('returns high luminance for white samples', () => {
+    const samples = Array.from({ length: 10 }, () => ({ r: 255, g: 255, b: 255 }));
+    const { luminance } = analyzeBackdropSamples(samples);
+    expect(luminance).toBeGreaterThan(0.9);
+  });
+
+  it('returns low luminance for dark samples', () => {
+    const samples = Array.from({ length: 10 }, () => ({ r: 18, g: 18, b: 18 }));
+    const { luminance } = analyzeBackdropSamples(samples);
+    expect(luminance).toBeLessThan(0.1);
+  });
+
+  it('handles empty samples', () => {
+    const { luminance, variance } = analyzeBackdropSamples([]);
+    expect(luminance).toBe(1);
+    expect(variance).toBe(0);
+  });
+});
+
+describe('detectPageTheme', () => {
+  it('does not treat dark backdrop alone as native-dark skip signal', () => {
+    const darkSamples = Array.from({ length: 20 }, () => ({ r: 20, g: 20, b: 30 }));
+    expect(detectPageTheme({}, darkSamples).result).toBe('unknown');
+  });
+
+  it('prefers authored signal over backdrop', () => {
+    const lightSamples = Array.from({ length: 20 }, () => ({ r: 255, g: 255, b: 255 }));
+    expect(detectPageTheme({ dataTheme: 'dark' }, lightSamples).result).toBe('dark');
+  });
+});
+
+describe('analyzeRegionalLuminances — mixed marketing pages', () => {
+  it('detects mixed when light header/hero and dark footer coexist', () => {
+    expect(analyzeRegionalLuminances([0.95, 0.85, 0.08])).toEqual({
+      result: 'mixed',
+      confidence: 'medium',
+    });
+  });
+
+  it('native-dark SPA with one light control on dark shell → high-confidence skip', () => {
+    expect(analyzeRegionalLuminances([0.05, 0.08, 0.06, 0.95])).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
+  });
+
+  it('uniform dark regions → high-confidence native skip', () => {
+    expect(analyzeRegionalLuminances([0.1, 0.12, 0.08])).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
+  });
+
+  it('uniform light regions → light (Soft active)', () => {
+    expect(analyzeRegionalLuminances([0.92, 0.88, 0.95])).toEqual({
+      result: 'light',
+      confidence: 'medium',
+    });
+  });
+
+  it('single dark region alone is not high-confidence skip', () => {
+    expect(analyzeRegionalLuminances([0.08])).toEqual({
+      result: 'unknown',
+      confidence: 'low',
+    });
+  });
+
+  it('mixed page on Auto → Soft active, not native skip', () => {
+    const outcome = analyzeRegionalLuminances([0.95, 0.8, 0.1]);
+    const result = resolveEffectiveSettings({
+      origin: 'https://www.ovhcloud.com',
+      hostname: 'www.ovhcloud.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(result.active).toBe(true);
+    expect(result.mode).toBe('soft');
+    expect(result.nativeDark).toBe(false);
+  });
+
+  it('uniform dark on Auto → native skip', () => {
+    const outcome = analyzeRegionalLuminances([0.1, 0.08, 0.12]);
+    const result = resolveEffectiveSettings({
+      origin: 'https://github.com',
+      hostname: 'github.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+
+    expect(result.active).toBe(false);
+    expect(result.nativeDark).toBe(true);
+  });
+
+  it('x.ai Auto with dark/high detectOutcome stays inactive', () => {
+    const result = resolveEffectiveSettings({
+      origin: 'https://x.ai',
+      hostname: 'x.ai',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: makeDetection('dark', 'high'),
+    });
+    expect(result.active).toBe(false);
+    expect(result.nativeDark).toBe(true);
+  });
+});
+
+describe('isDetectCacheValid', () => {
+  it('returns true for recent timestamps', () => {
+    expect(isDetectCacheValid(Date.now() - 1000, 60000)).toBe(true);
+  });
+
+  it('returns false for expired timestamps', () => {
+    expect(isDetectCacheValid(Date.now() - 120000, 60000)).toBe(false);
+  });
+});

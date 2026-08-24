@@ -1,0 +1,61 @@
+import { GALLERY_INJECTION_BLOCKED_LABEL } from './gallery-access';
+import type { TabInfo } from '../types';
+
+/**
+ * Human-readable popup status for the active tab.
+ */
+export function siteStatusLabel(tabInfo: TabInfo): string {
+  if (tabInfo.pageRestricted) {
+    return 'Browser blocks dark mode on this page';
+  }
+  if (tabInfo.nativeDark || tabInfo.autoNativeSkip) {
+    return 'Natively dark — Truely Dark skipped';
+  }
+  if (tabInfo.injectionPending) {
+    return 'Applying dark mode…';
+  }
+  if (tabInfo.galleryInjectionBlocked) {
+    return GALLERY_INJECTION_BLOCKED_LABEL;
+  }
+  if (tabInfo.active && !tabInfo.softApplied) {
+    return 'Soft enabled — filter could not apply on this page';
+  }
+  if (tabInfo.active && tabInfo.softApplied) {
+    if (tabInfo.effectiveMode === 'auto') {
+      return 'Extension dark mode active (Auto)';
+    }
+    if (tabInfo.resolvedMode === 'on' || tabInfo.effectiveMode === 'on') {
+      return 'Extension dark mode active (On)';
+    }
+    return 'Extension dark mode active (Soft)';
+  }
+  return 'Dark mode off on this site';
+}
+
+export function statusDotClass(tabInfo: TabInfo): string {
+  if (tabInfo.pageRestricted || tabInfo.nativeDark || tabInfo.autoNativeSkip) {
+    return 'popup-status-dot--native';
+  }
+  if (tabInfo.injectionPending) {
+    return 'popup-status-dot--inactive';
+  }
+  if (tabInfo.active && tabInfo.softApplied) {
+    return 'popup-status-dot--active';
+  }
+  if (tabInfo.active && !tabInfo.softApplied) {
+    return 'popup-status-dot--inactive';
+  }
+  return 'popup-status-dot--inactive';
+}
+
+/**
+ * True when popup may claim Soft/On is visibly active.
+ */
+export function isTruthfulActiveStatus(tabInfo: TabInfo): boolean {
+  if (!tabInfo.active || tabInfo.pageRestricted || tabInfo.nativeDark || tabInfo.autoNativeSkip) {
+    return false;
+  }
+  if (tabInfo.injectionPending) return false;
+  if (tabInfo.galleryInjectionBlocked) return false;
+  return tabInfo.softApplied;
+}

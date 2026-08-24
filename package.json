@@ -1,0 +1,35 @@
+{
+  "name": "truely-dark",
+  "version": "1.0.0",
+  "description": "Production-grade flash-free dark mode for Chrome and Firefox",
+  "type": "module",
+  "private": true,
+  "author": "Chauhan Sahil <https://github.com/pwnapplehat>",
+  "license": "MIT",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "build:firefox": "wxt build --browser firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip --browser firefox",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "wxt prepare && tsc --noEmit"
+  },
+  "dependencies": {
+    "culori": "^4.0.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/culori": "^4.0.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@wxt-dev/module-react": "^1.2.2",
+    "happy-dom": "^20.11.6",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.7",
+    "wxt": "^0.21.4"
+  }
+}
