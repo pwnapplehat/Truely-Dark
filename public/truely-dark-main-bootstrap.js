@@ -13,7 +13,7 @@
   var INVERT_PRE_BG = '#ededed';
 
   /** Duplicated from site-packs — bootstrap cannot import TS. */
-  var PREFER_FORCE_SUFFIXES = ['ovhcloud.com', 'x.ai', 'medium.com'];
+  var PREFER_FORCE_SUFFIXES = ['ovhcloud.com', 'x.ai', 'medium.com', 'youtube.com'];
 
   var preferForceWatchdogTimer = null;
 

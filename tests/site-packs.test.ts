@@ -85,7 +85,10 @@ describe('findSitePack', () => {
   it('YouTube uses force-first Soft without invert on thumbnails', () => {
     const pack = findSitePack('www.youtube.com');
     expect(pack?.preferForceStylesheet).toBe(true);
+    expect(hostPrefersForceStylesheet('www.youtube.com')).toBe(true);
     expect(pack?.customCss).toContain('ytd-app');
+    expect(pack?.customCss).toContain('#background');
+    expect(pack?.customCss).toContain('--yt-spec-base-background');
     expect(pack?.customCss).toContain('ytd-searchbox');
     expect(pack?.customCss).toContain('filter: none');
   });

@@ -232,6 +232,15 @@ describe('force-first marketing Soft', () => {
     expect(verifyForceApplication()).toBe(false);
     removeDarkMode();
   });
+
+  it('verifyForceApplication accepts dark body when html background is transparent', () => {
+    document.documentElement.innerHTML = '<head></head><body></body>';
+    document.documentElement.setAttribute('data-truely-dark-force', 'true');
+    document.documentElement.style.setProperty('background-color', 'transparent', 'important');
+    document.body.style.setProperty('background-color', '#0d1117', 'important');
+    expect(verifyForceApplication()).toBe(true);
+    document.documentElement.removeAttribute('data-truely-dark-force');
+  });
 });
 
 describe('applyDarkMode integration', () => {

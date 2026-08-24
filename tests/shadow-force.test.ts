@@ -19,6 +19,18 @@ describe('shadow-force css', () => {
     expect(css).toContain('img, svg, video');
   });
 
+  it('adds YouTube search shadow rules for youtube hosts', () => {
+    const youtubeEffective = resolveEffectiveSettings({
+      origin: 'https://www.youtube.com',
+      hostname: 'www.youtube.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: { result: 'light', confidence: 'medium' },
+    });
+    const css = generateShadowForceCss(youtubeEffective, 'www.youtube.com');
+    expect(css).toContain('ytSearchboxComponentInputBox');
+    expect(css).toContain('#121212');
+  });
+
   it('generates invert-prep css for shadow roots', () => {
     const css = generateShadowInvertPrepCss();
     expect(css).toContain('#ffffff');

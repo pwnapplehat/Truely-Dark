@@ -6,7 +6,12 @@ export const INVERT_COUNTER_FILTER =
   'invert(1) hue-rotate(180deg) brightness(0.98) contrast(0.92)';
 
 /** Host suffixes that must never receive invert Soft (MAIN bootstrap duplicates this list). */
-export const PREFER_FORCE_HOST_SUFFIXES = ['ovhcloud.com', 'x.ai', 'medium.com'] as const;
+export const PREFER_FORCE_HOST_SUFFIXES = [
+  'ovhcloud.com',
+  'x.ai',
+  'medium.com',
+  'youtube.com',
+] as const;
 
 /** Hide OVH fixed white overlay whenever Truely Dark is active — even if invert leaks once. */
 export const REDIRECTION_BANNER_KILL_CSS = `
@@ -579,6 +584,14 @@ const GOOGLE_SEARCH_CSS = `
 const YOUTUBE_FORCE_CSS = `
   html[data-truely-dark-active] {
     --truely-dark-bg: #0f0f0f;
+    --yt-spec-base-background: #0f0f0f !important;
+    --yt-spec-raised-background: #212121 !important;
+    --yt-spec-menu-background: #212121 !important;
+    --yt-spec-text-primary: #f1f1f1 !important;
+    --yt-spec-text-secondary: #aaaaaa !important;
+    --yt-spec-general-background-a: #0f0f0f !important;
+    --yt-spec-general-background-b: #0f0f0f !important;
+    --yt-spec-brand-background-solid: #0f0f0f !important;
     color-scheme: dark !important;
   }
   html[data-truely-dark-active],
@@ -589,6 +602,9 @@ const YOUTUBE_FORCE_CSS = `
   }
   html[data-truely-dark-active] ytd-app,
   html[data-truely-dark-active] #content,
+  html[data-truely-dark-active] #background,
+  html[data-truely-dark-active] ytd-app #background,
+  html[data-truely-dark-active] ytd-stateful-shell,
   html[data-truely-dark-active] ytd-page-manager,
   html[data-truely-dark-active] ytd-browse,
   html[data-truely-dark-active] ytd-two-column-browse-results-renderer,
@@ -596,7 +612,10 @@ const YOUTUBE_FORCE_CSS = `
   html[data-truely-dark-active] ytd-rich-grid-renderer,
   html[data-truely-dark-active] ytd-section-list-renderer,
   html[data-truely-dark-active] #primary,
-  html[data-truely-dark-active] #primary-inner {
+  html[data-truely-dark-active] #primary-inner,
+  html[data-truely-dark-active] #guide,
+  html[data-truely-dark-active] ytd-guide-renderer,
+  html[data-truely-dark-active] ytd-mini-guide-renderer {
     background-color: var(--truely-dark-bg, #0f0f0f) !important;
     background-image: none !important;
     color: #f1f1f1 !important;
@@ -604,7 +623,8 @@ const YOUTUBE_FORCE_CSS = `
   html[data-truely-dark-active] #masthead,
   html[data-truely-dark-active] ytd-masthead,
   html[data-truely-dark-active] #header,
-  html[data-truely-dark-active] ytd-app #masthead-container {
+  html[data-truely-dark-active] ytd-app #masthead-container,
+  html[data-truely-dark-active] #masthead-container {
     background-color: #0f0f0f !important;
     background-image: none !important;
   }
@@ -615,19 +635,37 @@ const YOUTUBE_FORCE_CSS = `
   html[data-truely-dark-active] input#search,
   html[data-truely-dark-active] form#search-form,
   html[data-truely-dark-active] #search-input #search,
-  html[data-truely-dark-active] ytd-searchbox .ytSearchboxComponentInputBox {
+  html[data-truely-dark-active] ytd-searchbox .ytSearchboxComponentInputBox,
+  html[data-truely-dark-active] ytd-searchbox .ytSearchboxComponentInputBoxDark {
     background-color: #121212 !important;
     color: #f1f1f1 !important;
     border-color: #3f3f3f !important;
   }
+  html[data-truely-dark-active] ytd-topbar-menu-button-renderer,
+  html[data-truely-dark-active] ytd-button-renderer,
+  html[data-truely-dark-active] #buttons ytd-button-renderer,
+  html[data-truely-dark-active] .yt-spec-button-shape-next,
+  html[data-truely-dark-active] tp-yt-paper-button,
+  html[data-truely-dark-active] yt-icon-button {
+    color: #f1f1f1 !important;
+  }
+  html[data-truely-dark-active] .yt-spec-button-shape-next--call-to-action,
+  html[data-truely-dark-active] ytd-button-renderer.style-scope.ytd-masthead,
+  html[data-truely-dark-active] #sign-in-button {
+    background-color: #065fd4 !important;
+    color: #fff !important;
+  }
   html[data-truely-dark-active] ytd-message-renderer,
   html[data-truely-dark-active] ytd-message-renderer #content,
   html[data-truely-dark-active] ytd-message-renderer #title,
+  html[data-truely-dark-active] ytd-message-renderer #message,
   html[data-truely-dark-active] ytd-message-renderer yt-formatted-string,
   html[data-truely-dark-active] #title.ytd-message-renderer,
+  html[data-truely-dark-active] #message.ytd-message-renderer,
   html[data-truely-dark-active] ytd-browse h1,
   html[data-truely-dark-active] ytd-browse h2,
-  html[data-truely-dark-active] ytd-browse h3 {
+  html[data-truely-dark-active] ytd-browse h3,
+  html[data-truely-dark-active] yt-formatted-string {
     background-color: var(--truely-dark-bg, #0f0f0f) !important;
     color: #f1f1f1 !important;
   }
@@ -820,7 +858,15 @@ const XAI_FORCE_CSS = `
   html[data-truely-dark-active] [class*="onetrust"],
   html[data-truely-dark-active] #onetrust-banner-sdk,
   html[data-truely-dark-active] .ot-sdk-container,
-  html[data-truely-dark-active] [class*="banner"][class*="cookie"] {
+  html[data-truely-dark-active] [class*="banner"][class*="cookie"],
+  html[data-truely-dark-active] [class*="privacy"],
+  html[data-truely-dark-active] [class*="Privacy"],
+  html[data-truely-dark-active] [class*="gdpr"],
+  html[data-truely-dark-active] [class*="Gdpr"],
+  html[data-truely-dark-active] [class*="notice"],
+  html[data-truely-dark-active] [class*="Notice"],
+  html[data-truely-dark-active] [class*="cookie-banner"],
+  html[data-truely-dark-active] [class*="CookieBanner"] {
     background-color: #141414 !important;
     background-image: none !important;
     color: #e8eaed !important;
@@ -830,8 +876,28 @@ const XAI_FORCE_CSS = `
   html[data-truely-dark-active] [class*="Cookie"] *,
   html[data-truely-dark-active] [class*="consent"] *,
   html[data-truely-dark-active] [class*="Consent"] *,
-  html[data-truely-dark-active] #onetrust-banner-sdk * {
+  html[data-truely-dark-active] [class*="privacy"] *,
+  html[data-truely-dark-active] [class*="Privacy"] *,
+  html[data-truely-dark-active] #onetrust-banner-sdk *,
+  html[data-truely-dark-active] [class*="cookie-banner"] *,
+  html[data-truely-dark-active] [class*="CookieBanner"] * {
     color: #e8eaed !important;
+  }
+  html[data-truely-dark-active] [class*="cookie"] button,
+  html[data-truely-dark-active] [class*="consent"] button,
+  html[data-truely-dark-active] [class*="privacy"] button,
+  html[data-truely-dark-active] [class*="cookie-banner"] button,
+  html[data-truely-dark-active] [class*="CookieBanner"] button {
+    background-color: #1a1a1a !important;
+    color: #e8eaed !important;
+    border-color: #3c4043 !important;
+  }
+  html[data-truely-dark-active] [class*="cookie"] button[class*="primary"],
+  html[data-truely-dark-active] [class*="consent"] button[class*="primary"],
+  html[data-truely-dark-active] [class*="cookie"] button:last-of-type,
+  html[data-truely-dark-active] [class*="consent"] button:last-of-type {
+    background-color: #e8eaed !important;
+    color: #0a0a0a !important;
   }
 `;
 

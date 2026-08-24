@@ -104,11 +104,12 @@ export async function executeMainWorldSoftFilter(
 }
 
 export async function executeMainWorldForceStylesheet(tabId: number, url: string): Promise<boolean> {
+  const hostname = getHostnameFromUrl(url);
   const effective = await resolveEffectiveForUrl(url);
   if (!effective?.active) return false;
 
   const forceCss = generateForceStylesheetCss(effective);
-  const shadowCss = generateShadowForceCss(effective);
+  const shadowCss = generateShadowForceCss(effective, hostname);
 
   return dispatchMainWorldApply(tabId, {
     bg: resolveForceBackgroundColor(effective),
@@ -131,7 +132,7 @@ export async function executeMainWorldNuclearForce(tabId: number, url: string): 
   if (!effective?.active) return false;
 
   const nuclearCss = generateNuclearForceCss(effective, hostname);
-  const shadowCss = generateShadowForceCss(effective);
+  const shadowCss = generateShadowForceCss(effective, hostname);
 
   return dispatchMainWorldApply(tabId, {
     bg: resolveForceBackgroundColor(effective),

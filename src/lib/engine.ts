@@ -191,6 +191,7 @@ export function generateForceStylesheetCss(settings: EffectiveSiteSettings): str
 export function applyForceStylesheetMode(
   settings: EffectiveSiteSettings,
   doc: Document = document,
+  hostname?: string,
 ): void {
   stripInvertSoftArtifacts(doc);
 
@@ -220,7 +221,11 @@ export function applyForceStylesheetMode(
   styleEl.textContent = css;
   appendStyleElement(doc, styleEl);
 
-  pierceOpenShadowRoots(doc, generateShadowForceCss({ ...settings, backgroundColor: forceBg }), SHADOW_FORCE_STYLE_ID);
+  pierceOpenShadowRoots(
+    doc,
+    generateShadowForceCss({ ...settings, backgroundColor: forceBg }, hostname),
+    SHADOW_FORCE_STYLE_ID,
+  );
 }
 
 const CHROME_BACKDROP_RESET = `
@@ -424,6 +429,15 @@ function clearInlineBackground(el: HTMLElement): void {
 /** Force-mode root surfaces must be dark (no invert pre-bg leak). */
 export const MIN_FORCE_ROOT_LUMINANCE = 0.45;
 
+function isForceRootBackgroundDark(view: Window, el: Element | null): boolean {
+  if (!el) return false;
+  const bg = view.getComputedStyle(el).backgroundColor;
+  if (!bg) return false;
+  const rgb = parseColor(bg);
+  if (!rgb) return false;
+  return rgbByteLuminance(rgb.r, rgb.g, rgb.b) < MIN_FORCE_ROOT_LUMINANCE;
+}
+
 /**
  * Verified force stylesheet: force attr set, no invert filter, dark root background.
  */
@@ -437,21 +451,12 @@ export function verifyForceApplication(doc: Document = document): boolean {
   const htmlFilter = view.getComputedStyle(html).filter;
   if (computedFilterHasStrictInvert(htmlFilter)) return false;
 
-  const htmlBg = view.getComputedStyle(html).backgroundColor;
-  if (!htmlBg) return false;
-
-  const htmlRgb = parseColor(htmlBg);
-  if (!htmlRgb) return false;
-  if (rgbByteLuminance(htmlRgb.r, htmlRgb.g, htmlRgb.b) >= MIN_FORCE_ROOT_LUMINANCE) {
-    return false;
-  }
-
   if (doc.body) {
     const bodyFilter = view.getComputedStyle(doc.body).filter;
     if (computedFilterHasStrictInvert(bodyFilter)) return false;
   }
 
-  return true;
+  return isForceRootBackgroundDark(view, html) || isForceRootBackgroundDark(view, doc.body);
 }
 
 /**
@@ -605,7 +610,7 @@ function applyFilterTarget(
   hostname?: string,
 ): void {
   if (effectivePrefersForceSoft(settings, hostname)) {
-    applyForceStylesheetMode(settings, doc);
+    applyForceStylesheetMode(settings, doc, hostname);
     return;
   }
 
@@ -684,7 +689,7 @@ export function applyDarkMode(
     stripInvertSoftArtifacts(doc);
     html.setAttribute(ROOT_ATTR, settings.mode);
     restorePreloadDark(doc);
-    applyForceStylesheetMode(settings, doc);
+    applyForceStylesheetMode(settings, doc, hostname);
     const applied = verifyForceApplication(doc);
     return { filterTarget: 'force', applied };
   }

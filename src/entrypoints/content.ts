@@ -192,7 +192,7 @@ export default defineContentScript({
         applyDarkMode(settings, document, getCurrentHostname());
         pierceOpenShadowRoots(
           document,
-          generateShadowForceCss(settings),
+          generateShadowForceCss(settings, getCurrentHostname()),
           SHADOW_FORCE_STYLE_ID,
         );
         void requestApplyMainWorldForce();
@@ -249,7 +249,7 @@ export default defineContentScript({
         applyDarkMode(settings, document, hostname);
         pierceOpenShadowRoots(
           document,
-          generateShadowForceCss(settings),
+          generateShadowForceCss(settings, getCurrentHostname()),
           SHADOW_FORCE_STYLE_ID,
         );
         contentStrict = isSoftFilterActive();

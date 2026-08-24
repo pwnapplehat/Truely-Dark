@@ -1,20 +1,47 @@
 import type { EffectiveSiteSettings } from '../types';
 import { ROOT_ATTR } from './engine';
-import { hostPrefersForceStylesheet, resolveForceBackgroundColor } from './site-packs';
+import {
+  hostPrefersForceStylesheet,
+  resolveForceBackgroundColor,
+} from './site-packs';
 
 export const SHADOW_FORCE_STYLE_ID = 'truely-dark-shadow-force';
 export const SHADOW_FILTER_STYLE_ID = 'truely-dark-shadow-filter';
+
+const YOUTUBE_SHADOW_FORCE_CSS = `
+  input, textarea, select, #search, #container, #search-input,
+  .ytSearchboxComponentInputBox, .ytSearchboxComponentInputBoxDark,
+  .ytSearchboxComponentSearchForm, form {
+    background-color: #121212 !important;
+    color: #f1f1f1 !important;
+    border-color: #3f3f3f !important;
+  }
+  .yt-spec-button-shape-next--call-to-action,
+  tp-yt-paper-button.yt-spec-button-shape-next {
+    background-color: #065fd4 !important;
+    color: #fff !important;
+  }
+`;
+
+function hostnameUsesYouTubeShadowPack(hostname?: string): boolean {
+  if (!hostname) return false;
+  const normalized = hostname.toLowerCase();
+  return normalized === 'youtube.com' || normalized.endsWith('.youtube.com');
+}
 
 /**
  * CSS injected inside each open shadow root for force (direct dark) mode.
  * Shell-only — never paint every descendant opaque.
  */
-export function generateShadowForceCss(settings: EffectiveSiteSettings): string {
+export function generateShadowForceCss(
+  settings: EffectiveSiteSettings,
+  hostname?: string,
+): string {
   const bg = resolveForceBackgroundColor(settings);
   const text = '#e8e8e8';
   const link = '#8ab4f8';
 
-  return `
+  let css = `
     :host {
       background-color: ${bg} !important;
       background-image: none !important;
@@ -28,6 +55,18 @@ export function generateShadowForceCss(settings: EffectiveSiteSettings): string 
       background-color: transparent !important;
     }
   `;
+
+  const resolvedHost =
+    hostname ??
+    (typeof settings.sitePack?.origins?.[0] === 'string'
+      ? settings.sitePack.origins[0]
+      : undefined);
+
+  if (hostnameUsesYouTubeShadowPack(resolvedHost)) {
+    css += YOUTUBE_SHADOW_FORCE_CSS;
+  }
+
+  return css;
 }
 
 /**
