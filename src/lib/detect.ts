@@ -92,12 +92,15 @@ export interface AuthoredSignalInput {
 
 /**
  * True when a computed background matches Truely Dark FOUC preload (#121212).
+ * Must not treat arbitrary native dark surfaces (#0a0a0a, #0d1117, etc.) as poison.
  */
 export function isExtensionInjectedBackground(color: string | undefined): boolean {
   if (!color) return false;
   const rgb = parseColor(color);
   if (!rgb) return false;
-  return rgb.r <= 20 && rgb.g <= 20 && rgb.b <= 20;
+  return (
+    Math.abs(rgb.r - 18) <= 1 && Math.abs(rgb.g - 18) <= 1 && Math.abs(rgb.b - 18) <= 1
+  );
 }
 
 /**
@@ -297,8 +300,17 @@ function collectAuthoredSignals(doc: Document): AuthoredSignalInput {
   const prefersDark =
     doc.defaultView?.matchMedia('(prefers-color-scheme: dark)').matches ?? false;
 
+  const hasDarkClass = html.classList.contains('dark');
+  const hasLightClass = html.classList.contains('light');
+  const dataThemeFromClass =
+    hasDarkClass && !hasLightClass ? 'dark' : hasLightClass && !hasDarkClass ? 'light' : undefined;
+
   return {
-    dataTheme: html.getAttribute('data-theme') ?? html.getAttribute('theme') ?? undefined,
+    dataTheme:
+      html.getAttribute('data-theme') ??
+      html.getAttribute('theme') ??
+      dataThemeFromClass ??
+      undefined,
     dataColorMode:
       html.getAttribute('data-color-mode') ??
       html.getAttribute('data-mode') ??
@@ -308,6 +320,40 @@ function collectAuthoredSignals(doc: Document): AuthoredSignalInput {
       doc.querySelector('meta[name="color-scheme"]')?.getAttribute('content') ?? undefined,
     prefersDark,
   };
+}
+
+function detectComputedColorSchemeDark(doc: Document): DetectionOutcome | null {
+  const view = doc.defaultView;
+  if (!view) return null;
+  const scheme = view.getComputedStyle(doc.documentElement).colorScheme;
+  if (scheme === 'dark') {
+    return { result: 'dark', confidence: 'high' };
+  }
+  return null;
+}
+
+/**
+ * Uniform dark html/body before extension paint — native dark SPAs (x.ai, etc.).
+ */
+export function detectNativeDarkRootSurfaces(doc: Document = document): DetectionOutcome | null {
+  const view = doc.defaultView;
+  if (!view) return null;
+
+  const htmlLum = getElementBackgroundLuminance(doc.documentElement, doc);
+  const bodyLum = doc.body ? getElementBackgroundLuminance(doc.body, doc) : null;
+
+  const samples = [htmlLum, bodyLum].filter((lum): lum is number => lum !== null);
+  if (samples.length === 0) return null;
+
+  const darkSamples = samples.filter((lum) => lum < DARK_LUMINANCE_THRESHOLD);
+  const lightSamples = samples.filter((lum) => lum > LIGHT_LUMINANCE_THRESHOLD);
+
+  if (lightSamples.length > 0) return null;
+  if (darkSamples.length === samples.length) {
+    return { result: 'dark', confidence: 'high' };
+  }
+
+  return null;
 }
 
 function getElementBackgroundLuminance(el: Element, doc: Document): number | null {
@@ -424,12 +470,18 @@ function detectFromRegionalLuminance(doc: Document): DetectionOutcome {
 export function detectFromDom(doc: Document = document): DetectionOutcome {
   const html = doc.documentElement;
 
-  if (hasExtensionMarkup(doc) && html.hasAttribute(EXTENSION_MARKERS.rootAttr)) {
-    return detectFromAuthoredSignals(collectAuthoredSignals(doc));
-  }
-
   const authoredOutcome = detectFromAuthoredSignals(collectAuthoredSignals(doc));
   if (authoredOutcome.result !== 'unknown') return authoredOutcome;
+
+  const colorSchemeDark = detectComputedColorSchemeDark(doc);
+  if (colorSchemeDark) return colorSchemeDark;
+
+  const rootDark = detectNativeDarkRootSurfaces(doc);
+  if (rootDark) return rootDark;
+
+  if (hasExtensionMarkup(doc) && html.hasAttribute(EXTENSION_MARKERS.rootAttr)) {
+    return { result: 'unknown', confidence: 'low' };
+  }
 
   // theme-color is a weak hint only — never high-confidence native-dark skip
   const themeColorContent = doc

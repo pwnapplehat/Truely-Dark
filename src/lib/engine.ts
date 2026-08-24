@@ -2,7 +2,7 @@ import type { EffectiveSiteSettings } from '../types';
 import { parseColor, rgbByteLuminance } from './color';
 import { isExtensionInjectedBackground } from './detect';
 import { computedFilterHasStrictInvert } from './filter-verify';
-import { MARKETING_FORCE_SHELL_CSS, hostPrefersForceStylesheet, isYouTubeHostname, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor, syncYouTubeNativeDarkHint } from './site-packs';
+import { MARKETING_FORCE_SHELL_CSS, hostMatchesSitePackOrigin, hostPrefersForceStylesheet, hostUsesMarketingForceShell, isYouTubeHostname, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor, syncYouTubeNativeDarkHint } from './site-packs';
 import {
   pierceOpenShadowRoots,
   generateShadowForceCss,
@@ -112,12 +112,21 @@ export function stripInvertSoftArtifacts(doc: Document = document): void {
   removePiercedShadowStyles(doc, [SHADOW_FILTER_STYLE_ID]);
 }
 
-export function generateForceStylesheetCss(settings: EffectiveSiteSettings): string {
+export function generateForceStylesheetCss(
+  settings: EffectiveSiteSettings,
+  hostname?: string,
+): string {
   const bg = resolveForceBackgroundColor(settings);
   const text = '#e8e8e8';
   const link = '#8ab4f8';
   const border = '#3c4043';
-  const preferForce = settings.sitePack?.preferForceStylesheet === true;
+  const resolvedHost =
+    hostname ??
+    settings.sitePack?.origins?.[0] ??
+    '';
+  const preferForce =
+    settings.sitePack?.preferForceStylesheet === true ||
+    hostPrefersForceStylesheet(resolvedHost);
 
   let css = `
     html[${ROOT_ATTR}] {
@@ -175,11 +184,11 @@ export function generateForceStylesheetCss(settings: EffectiveSiteSettings): str
     `;
   }
 
-  if (preferForce) {
+  if (preferForce && hostUsesMarketingForceShell(resolvedHost)) {
     css += MARKETING_FORCE_SHELL_CSS;
   }
 
-  if (settings.sitePack?.customCss) {
+  if (settings.sitePack?.customCss && hostMatchesSitePackOrigin(resolvedHost, settings.sitePack)) {
     css += settings.sitePack.customCss;
   }
 
@@ -212,7 +221,7 @@ export function applyForceStylesheetMode(
     doc.body.style.setProperty('color', '#e8e8e8', 'important');
   }
 
-  const css = generateForceStylesheetCss(settings);
+  const css = generateForceStylesheetCss(settings, hostname);
   let styleEl = doc.getElementById(STYLE_ID) as HTMLStyleElement | null;
   if (!styleEl) {
     styleEl = doc.createElement('style');
@@ -270,7 +279,7 @@ export function generateDarkCss(
   hostname?: string,
 ): string {
   if (effectivePrefersForceSoft(settings, hostname)) {
-    return generateForceStylesheetCss(settings);
+    return generateForceStylesheetCss(settings, hostname);
   }
 
   const filter = buildFilterString(

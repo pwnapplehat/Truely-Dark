@@ -214,14 +214,31 @@ describe('force-first marketing Soft', () => {
   });
 
   it('generateForceStylesheetCss includes marketing shell without invert pre-bg', () => {
-    const css = generateForceStylesheetCss({
-      ...ovhEffective,
-      active: true,
-      mode: 'soft',
-    });
+    const css = generateForceStylesheetCss(
+      {
+        ...ovhEffective,
+        active: true,
+        mode: 'soft',
+      },
+      'www.ovhcloud.com',
+    );
     expect(css).toContain('--truely-dark-bg');
     expect(css).not.toContain('invert(1)');
     expect(css).toContain('[class*="logo"]');
+    expect(css).toContain('color-scheme: dark');
+  });
+
+  it('generateForceStylesheetCss omits marketing shell and pack CSS on OVH Manager hosts', () => {
+    const css = generateForceStylesheetCss(
+      {
+        ...ovhEffective,
+        active: true,
+        mode: 'soft',
+      },
+      'manager.ca.ovhcloud.com',
+    );
+    expect(css).not.toContain('ods-header-universe');
+    expect(css).not.toContain('menu-navbar');
   });
 
   it('verifyForceApplication rejects invert filter on force path', () => {

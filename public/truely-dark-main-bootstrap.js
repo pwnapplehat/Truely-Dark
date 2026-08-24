@@ -17,8 +17,16 @@
 
   var preferForceWatchdogTimer = null;
 
+  function isOvhManagerHost(hostname) {
+    if (!hostname) return false;
+    return /^(?:[a-z0-9-]+\.)*manager(?:\.[a-z0-9-]+)*\.ovhcloud\.com$/i.test(
+      String(hostname).toLowerCase(),
+    );
+  }
+
   function hostnamePrefersForce(hostname) {
     if (!hostname) return false;
+    if (isOvhManagerHost(hostname)) return false;
     var h = String(hostname).toLowerCase();
     for (var i = 0; i < PREFER_FORCE_SUFFIXES.length; i++) {
       var suffix = PREFER_FORCE_SUFFIXES[i];

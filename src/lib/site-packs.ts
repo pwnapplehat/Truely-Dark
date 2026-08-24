@@ -39,13 +39,22 @@ export function syncYouTubeNativeDarkHint(doc: Document, enable: boolean): void 
 export const INVERT_COUNTER_FILTER =
   'invert(1) hue-rotate(180deg) brightness(0.98) contrast(0.92)';
 
-/** Host suffixes that must never receive invert Soft (MAIN bootstrap duplicates this list). */
-export const PREFER_FORCE_HOST_SUFFIXES = [
-  'ovhcloud.com',
-  'x.ai',
-  'medium.com',
-  'youtube.com',
-] as const;
+import {
+  hostMatchesSitePackOrigin,
+  hostPrefersForceStylesheet as classifyHostPrefersForce,
+  hostUsesMarketingForceShell,
+  isOvhManagerHost,
+  OVH_MARKETING_ORIGINS,
+  PREFER_FORCE_HOST_SUFFIXES,
+} from './host-classification';
+
+export {
+  hostMatchesSitePackOrigin,
+  hostUsesMarketingForceShell,
+  isOvhManagerHost,
+  OVH_MARKETING_ORIGINS,
+  PREFER_FORCE_HOST_SUFFIXES,
+} from './host-classification';
 
 /** Hide OVH fixed white overlay whenever Truely Dark is active — even if invert leaks once. */
 export const REDIRECTION_BANNER_KILL_CSS = `
@@ -61,17 +70,13 @@ export const REDIRECTION_BANNER_KILL_CSS = `
   }
 `;
 
-/** Shared force-mode shell — root surfaces only; headers stay transparent. */
+/** Shared force-mode shell — html/body only; never paint SPA shells (main/#root). */
 export const MARKETING_FORCE_SHELL_CSS = `
   html[data-truely-dark-active] {
     color-scheme: dark !important;
   }
   html[data-truely-dark-active],
-  html[data-truely-dark-active] body,
-  html[data-truely-dark-active] #__next,
-  html[data-truely-dark-active] #root,
-  html[data-truely-dark-active] main,
-  html[data-truely-dark-active] [role="main"] {
+  html[data-truely-dark-active] body {
     background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
     background-image: none !important;
     color: #e8eaed !important;
@@ -102,16 +107,6 @@ export const MARKETING_FORCE_SHELL_CSS = `
   html[data-truely-dark-active] footer,
   html[data-truely-dark-active] [role="contentinfo"] {
     background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
-    background-image: none !important;
-    color: #e8eaed !important;
-  }
-  html[data-truely-dark-active] section[class*="hero"],
-  html[data-truely-dark-active] section[class*="Hero"],
-  html[data-truely-dark-active] [class*="hero"]:not(header):not(nav),
-  html[data-truely-dark-active] [class*="Hero"]:not(header):not(nav),
-  html[data-truely-dark-active] [class*="card"],
-  html[data-truely-dark-active] [class*="Card"] {
-    background-color: #1a1a1a !important;
     background-image: none !important;
     color: #e8eaed !important;
   }
@@ -1170,7 +1165,8 @@ export const SITE_PACKS: SitePack[] = [
     skipDetect: false,
   },
   {
-    origins: ['ovhcloud.com', 'www.ovhcloud.com'],
+    origins: [...OVH_MARKETING_ORIGINS],
+    exactOriginsOnly: true,
     mode: 'soft',
     skipDetect: true,
     requiresVisualVerify: true,
@@ -1210,10 +1206,7 @@ export const SITE_PACKS: SitePack[] = [
 ];
 
 export function findSitePack(hostname: string): SitePack | undefined {
-  const normalized = hostname.toLowerCase();
-  return SITE_PACKS.find((pack) =>
-    pack.origins.some((origin) => normalized === origin || normalized.endsWith(`.${origin}`)),
-  );
+  return SITE_PACKS.find((pack) => hostMatchesSitePackOrigin(hostname, pack));
 }
 
 export function hostUsesInjectCssFallback(hostname: string): boolean {
@@ -1232,12 +1225,7 @@ export function hostUsesForceStylesheetFallback(hostname: string): boolean {
 }
 
 export function hostPrefersForceStylesheet(hostname: string): boolean {
-  const normalized = hostname.toLowerCase();
-  for (const suffix of PREFER_FORCE_HOST_SUFFIXES) {
-    if (normalized === suffix || normalized.endsWith(`.${suffix}`)) {
-      return true;
-    }
-  }
+  if (classifyHostPrefersForce(hostname)) return true;
   const pack = findSitePack(hostname);
   return pack?.preferForceStylesheet === true;
 }

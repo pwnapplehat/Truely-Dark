@@ -67,6 +67,12 @@ const SITES: SiteCase[] = [
     expectActive: true,
   },
   {
+    hostname: 'manager.ca.ovhcloud.com',
+    origin: 'https://manager.ca.ovhcloud.com',
+    detect: makeDetection('light', 'medium'),
+    expectActive: true,
+  },
+  {
     hostname: 'www.google.com',
     origin: 'https://www.google.com',
     detect: makeDetection('light', 'medium'),

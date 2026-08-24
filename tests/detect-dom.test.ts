@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, beforeEach } from 'vitest';
-import { detectFromDom } from '../src/lib/detect';
+import { detectFromDom, detectNativeDarkRootSurfaces } from '../src/lib/detect';
 import { DEFAULT_SETTINGS } from '../src/lib/defaults';
 import { resolveEffectiveSettings } from '../src/lib/resolver';
 
@@ -221,5 +221,42 @@ describe('detectFromDom — mixed marketing pages', () => {
     expect(resolved.active).toBe(true);
     expect(resolved.mode).toBe('soft');
     expect(resolved.nativeDark).toBe(false);
+  });
+});
+
+describe('detectFromDom — x.ai native dark Auto skip', () => {
+  beforeEach(() => {
+    document.documentElement.removeAttribute('data-truely-dark-active');
+    document.documentElement.className = '';
+    document.getElementById('truely-dark-preload')?.remove();
+    document.getElementById('truely-dark-styles')?.remove();
+  });
+
+  it('detectNativeDarkRootSurfaces detects uniform dark html/body', () => {
+    document.documentElement.innerHTML = '<head></head><body></body>';
+    document.documentElement.style.setProperty('background-color', '#0a0a0a', 'important');
+    document.body.style.setProperty('background-color', '#0a0a0a', 'important');
+
+    expect(detectNativeDarkRootSurfaces(document)).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
+  });
+
+  it('detectFromDom treats exact html.dark class as native dark (not theme-dark)', () => {
+    document.documentElement.innerHTML = '<head></head><body></body>';
+    document.documentElement.classList.add('dark');
+
+    expect(detectFromDom(document)).toEqual({ result: 'dark', confidence: 'high' });
+  });
+
+  it('detectFromDom still detects native dark when extension attrs are present', () => {
+    document.documentElement.innerHTML = '<head></head><body></body>';
+    document.documentElement.classList.add('dark');
+    document.documentElement.setAttribute('data-truely-dark-active', 'soft');
+    document.documentElement.style.setProperty('background-color', '#0a0a0a', 'important');
+    document.body.style.setProperty('background-color', '#0a0a0a', 'important');
+
+    expect(detectFromDom(document)).toEqual({ result: 'dark', confidence: 'high' });
   });
 });

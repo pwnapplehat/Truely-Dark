@@ -341,6 +341,13 @@ export default defineContentScript({
           return;
         }
 
+        // Auto must observe the native page — strip extension paint before detection.
+        if (siteMode === 'auto' && isDarkModeActive()) {
+          stopPreferForceWatchdog();
+          removeDarkMode();
+          await requestRemoveInsertCss();
+        }
+
         const useCacheOnly = batterySaver;
         const detectOutcome = await runDetection(useCacheOnly);
 

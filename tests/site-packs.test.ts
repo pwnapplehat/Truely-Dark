@@ -32,6 +32,12 @@ describe('findSitePack', () => {
     expect(css).toContain('redirection-banners');
   });
 
+  it('OVH marketing pack does not match Manager control-panel hosts', () => {
+    expect(findSitePack('manager.ca.ovhcloud.com')).toBeUndefined();
+    expect(findSitePack('www.ovhcloud.com')?.exactOriginsOnly).toBe(true);
+    expect(hostPrefersForceStylesheet('manager.ca.ovhcloud.com')).toBe(false);
+  });
+
   it('apple.com uses preferForce Soft with promo tile surfaces', () => {
     const pack = findSitePack('www.apple.com');
     expect(pack?.preferForceStylesheet).toBe(true);

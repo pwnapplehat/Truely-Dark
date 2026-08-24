@@ -51,6 +51,8 @@ export interface TruelyDarkSettings {
 
 export interface SitePack {
   origins: string[];
+  /** Match origins exactly only — subdomains like manager.* do not inherit this pack. */
+  exactOriginsOnly?: boolean;
   mode: SiteMode;
   invertSelectors?: string[];
   ignoreImages?: boolean;

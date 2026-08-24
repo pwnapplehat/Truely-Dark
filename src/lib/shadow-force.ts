@@ -196,11 +196,7 @@ export function generateNuclearForceCss(
   if (preferForce) {
     return `
       html[${ROOT_ATTR}],
-      html[${ROOT_ATTR}] body,
-      html[${ROOT_ATTR}] main,
-      html[${ROOT_ATTR}] [role="main"],
-      html[${ROOT_ATTR}] #root,
-      html[${ROOT_ATTR}] #__next {
+      html[${ROOT_ATTR}] body {
         background-color: ${bg} !important;
         background-image: none !important;
         color: ${text} !important;
@@ -231,16 +227,7 @@ export function generateNuclearForceCss(
       color: ${text} !important;
       filter: none !important;
       -webkit-filter: none !important;
-    }
-    html[${ROOT_ATTR}] main,
-    html[${ROOT_ATTR}] [role="main"],
-    html[${ROOT_ATTR}] header,
-    html[${ROOT_ATTR}] nav,
-    html[${ROOT_ATTR}] footer,
-    html[${ROOT_ATTR}] section {
-      background-color: ${bg} !important;
-      background-image: none !important;
-      color: ${text} !important;
+      color-scheme: dark !important;
     }
     html[${ROOT_ATTR}] a,
     html[${ROOT_ATTR}] a:visited {

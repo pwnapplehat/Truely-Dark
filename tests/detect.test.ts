@@ -4,6 +4,7 @@ import {
   analyzeRegionalLuminances,
   computeLuminance,
   detectFromAuthoredSignals,
+  detectFromDom,
   detectFromSignals,
   detectPageTheme,
   isDetectCacheValid,
@@ -345,6 +346,17 @@ describe('analyzeRegionalLuminances — mixed marketing pages', () => {
       detectOutcome: outcome,
     });
 
+    expect(result.active).toBe(false);
+    expect(result.nativeDark).toBe(true);
+  });
+
+  it('x.ai Auto with dark/high detectOutcome stays inactive', () => {
+    const result = resolveEffectiveSettings({
+      origin: 'https://x.ai',
+      hostname: 'x.ai',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: makeDetection('dark', 'high'),
+    });
     expect(result.active).toBe(false);
     expect(result.nativeDark).toBe(true);
   });

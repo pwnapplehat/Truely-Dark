@@ -143,7 +143,8 @@ export async function insertForceStylesheetForTab(tabId: number, url: string): P
     return false;
   }
 
-  const css = generateForceStylesheetCss(effective);
+  const hostname = getHostnameFromUrl(url);
+  const css = generateForceStylesheetCss(effective, hostname ?? undefined);
   const previous = tabForceCss.get(tabId);
 
   if (previous === css) return true;
