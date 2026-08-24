@@ -8,7 +8,7 @@ export function siteStatusLabel(tabInfo: TabInfo): string {
   if (tabInfo.pageRestricted) {
     return 'Browser blocks dark mode on this page';
   }
-  if (tabInfo.nativeDark) {
+  if (tabInfo.nativeDark || tabInfo.autoNativeSkip) {
     return 'Natively dark — Truely Dark skipped';
   }
   if (tabInfo.injectionPending) {
@@ -33,7 +33,7 @@ export function siteStatusLabel(tabInfo: TabInfo): string {
 }
 
 export function statusDotClass(tabInfo: TabInfo): string {
-  if (tabInfo.pageRestricted || tabInfo.nativeDark) {
+  if (tabInfo.pageRestricted || tabInfo.nativeDark || tabInfo.autoNativeSkip) {
     return 'popup-status-dot--native';
   }
   if (tabInfo.injectionPending) {
@@ -52,7 +52,9 @@ export function statusDotClass(tabInfo: TabInfo): string {
  * True when popup may claim Soft/On is visibly active.
  */
 export function isTruthfulActiveStatus(tabInfo: TabInfo): boolean {
-  if (!tabInfo.active || tabInfo.pageRestricted || tabInfo.nativeDark) return false;
+  if (!tabInfo.active || tabInfo.pageRestricted || tabInfo.nativeDark || tabInfo.autoNativeSkip) {
+    return false;
+  }
   if (tabInfo.injectionPending) return false;
   if (tabInfo.galleryInjectionBlocked) return false;
   return tabInfo.softApplied;

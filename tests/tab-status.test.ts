@@ -12,6 +12,7 @@ const baseTab = (partial: Partial<TabInfo>): TabInfo => ({
   active: true,
   globalEnabled: true,
   nativeDark: false,
+  autoNativeSkip: false,
   pageRestricted: false,
   softApplied: true,
   injectionPending: false,
@@ -77,6 +78,52 @@ describe('siteStatusLabel', () => {
         baseTab({ effectiveMode: 'auto', resolvedMode: 'soft', softApplied: true }),
       ),
     ).toBe('Extension dark mode active (Auto)');
+  });
+
+  it('shows exact native skip string for x.ai Auto inactive without Soft', () => {
+    const tab = baseTab({
+      hostname: 'x.ai',
+      origin: 'https://x.ai',
+      url: 'https://x.ai/pricing',
+      effectiveMode: 'auto',
+      resolvedMode: 'auto',
+      active: false,
+      nativeDark: true,
+      autoNativeSkip: true,
+      softApplied: false,
+    });
+    expect(siteStatusLabel(tab)).toBe('Natively dark — Truely Dark skipped');
+    expect(statusDotClass(tab)).toBe('popup-status-dot--native');
+  });
+
+  it('shows native skip via autoNativeSkip when nativeDark field lagged', () => {
+    expect(
+      siteStatusLabel(
+        baseTab({
+          effectiveMode: 'auto',
+          resolvedMode: 'auto',
+          active: false,
+          nativeDark: false,
+          autoNativeSkip: true,
+          softApplied: false,
+        }),
+      ),
+    ).toBe('Natively dark — Truely Dark skipped');
+  });
+
+  it('does not show native skip for Auto inactive when both skip flags false', () => {
+    expect(
+      siteStatusLabel(
+        baseTab({
+          effectiveMode: 'auto',
+          resolvedMode: 'auto',
+          active: false,
+          nativeDark: false,
+          autoNativeSkip: false,
+          softApplied: false,
+        }),
+      ),
+    ).toBe('Dark mode off on this site');
   });
 
   it('shows native skip for Auto defer when content settled native-dark', () => {

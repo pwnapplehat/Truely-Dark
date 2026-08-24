@@ -14,8 +14,10 @@ export interface DetectionOutcome {
 /** Content-script response for popup live Auto status. */
 export interface LiveDetectResponse {
   outcome: DetectionOutcome;
-  /** True when content has settled on native-dark skip this navigation. */
-  contentNativeDark?: boolean;
+  /** True when Auto settled on native-dark skip (lock, detect, or content resolver). */
+  autoNativeSkip?: boolean;
+  /** True when Auto settle lock is skip-native this navigation. */
+  skipNativeLocked?: boolean;
 }
 
 export interface SiteOverride {
@@ -139,6 +141,8 @@ export interface TabInfo {
   active: boolean;
   globalEnabled: boolean;
   nativeDark: boolean;
+  /** Auto mode native-dark skip — drives popup status when inactive without Soft. */
+  autoNativeSkip: boolean;
   /** chrome://, about:, etc. — content scripts cannot run. */
   pageRestricted: boolean;
   /** Whether invert filter is visibly applied (from content script verification). */

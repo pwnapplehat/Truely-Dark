@@ -1,9 +1,9 @@
 import { detectFromDom, detectFromDomPaintFree } from '../lib/detect';
 import {
   bumpAutoGeneration,
+  computeLiveAutoNativeSkip,
   lockAutoApplyHysteresis,
   lockAutoDecision,
-  queryLiveAutoDetection,
   resetAutoSession,
   resolveAutoDetectOutcome,
   shouldRedetectOnThemeMutation,
@@ -524,10 +524,7 @@ export default defineContentScript({
       sendResponse: (response?: unknown) => void,
     ): boolean | void {
       if (message.type === 'GET_LIVE_DETECT') {
-        sendResponse({
-          outcome: queryLiveAutoDetection(document, detectFromDomPaintFree),
-          contentNativeDark: lastEffectiveSettings?.nativeDark === true,
-        });
+        sendResponse(computeLiveAutoNativeSkip(document, detectFromDomPaintFree, lastEffectiveSettings));
         return true;
       }
       if (message.type === 'SETTINGS_CHANGED') {

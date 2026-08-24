@@ -32,6 +32,7 @@ const baseTab = (partial: Partial<TabInfo>): TabInfo => ({
   active: true,
   globalEnabled: true,
   nativeDark: false,
+  autoNativeSkip: false,
   pageRestricted: false,
   softApplied: false,
   injectionPending: false,

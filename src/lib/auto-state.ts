@@ -1,4 +1,4 @@
-import type { DetectionOutcome, SiteMode } from '../types';
+import type { DetectionOutcome, EffectiveSiteSettings, LiveDetectResponse, SiteMode } from '../types';
 import { isNativeDarkSkip } from './resolver';
 
 export type AutoDecision = 'apply-soft' | 'skip-native';
@@ -159,4 +159,27 @@ export function queryLiveAutoDetection(
     if (locked) return locked;
   }
   return detectPaintFree(doc);
+}
+
+/**
+ * Build GET_LIVE_DETECT payload for popup status honesty.
+ */
+export function computeLiveAutoNativeSkip(
+  doc: Document,
+  detectPaintFree: (document: Document) => DetectionOutcome,
+  lastEffective: EffectiveSiteSettings | null,
+): LiveDetectResponse {
+  const outcome = queryLiveAutoDetection(doc, detectPaintFree);
+  const skipNativeLocked =
+    isAutoDecisionLocked() && getAutoSessionLock()?.decision === 'skip-native';
+  const autoNativeSkip =
+    skipNativeLocked ||
+    isNativeDarkSkip(outcome) ||
+    lastEffective?.nativeDark === true;
+
+  return {
+    outcome,
+    autoNativeSkip,
+    skipNativeLocked,
+  };
 }

@@ -2,6 +2,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
   bumpAutoGeneration,
+  computeLiveAutoNativeSkip,
   getAutoSessionLock,
   getLockedAutoDetectOutcome,
   isAutoDecisionLocked,
@@ -103,6 +104,31 @@ describe('auto-state — hysteresis and settle lock', () => {
     lockAutoDecision(makeDetection('dark', 'high'));
     const outcome = queryLiveAutoDetection(document, detectFromDomPaintFree);
     expect(outcome).toEqual(makeDetection('dark', 'high'));
+  });
+
+  it('computeLiveAutoNativeSkip exposes skip-native lock to popup', () => {
+    lockAutoDecision(makeDetection('dark', 'high'));
+    const payload = computeLiveAutoNativeSkip(document, detectFromDomPaintFree, null);
+    expect(payload.outcome).toEqual(makeDetection('dark', 'high'));
+    expect(payload.autoNativeSkip).toBe(true);
+    expect(payload.skipNativeLocked).toBe(true);
+  });
+
+  it('computeLiveAutoNativeSkip uses lastEffective nativeDark', () => {
+    const payload = computeLiveAutoNativeSkip(document, detectFromDomPaintFree, {
+      active: false,
+      skipProcessing: true,
+      nativeDark: true,
+      mode: 'auto',
+      brightness: 100,
+      contrast: 100,
+      sepia: 0,
+      preserveMedia: true,
+      backgroundColor: '#121212',
+      sitePack: undefined,
+    });
+    expect(payload.autoNativeSkip).toBe(true);
+    expect(payload.skipNativeLocked).toBe(false);
   });
 
   it('lockAutoApplyHysteresis prevents oscillation after Soft applies', () => {

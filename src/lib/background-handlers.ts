@@ -2,7 +2,6 @@ import type {
   DetectConfidence,
   DetectResult,
   DetectionOutcome,
-  LiveDetectResponse,
   SiteMode,
   TabInfo,
   TruelyDarkMessage,
@@ -11,6 +10,10 @@ import type {
 import { DETECT_CACHE_TTL_MS } from '../types';
 import { applyPreset, migrateSettings } from './defaults';
 import { purgePoisonedDetectCache } from './detect';
+import {
+  parseLiveDetectResponse,
+  resolveAutoNativeDarkForTab,
+} from './live-detect-bridge';
 import { getHostnameFromUrl, getOriginFromUrl, hostPrefersForceStylesheet, hostUsesInvertSupplement } from './site-packs';
 import {
   cycleSiteMode,
@@ -63,39 +66,18 @@ async function purgeStaleDetectCache(): Promise<void> {
 
 interface LiveDetectQueryResult {
   detectOutcome?: DetectionOutcome;
-  contentNativeDark?: boolean;
+  autoNativeSkip?: boolean;
+  skipNativeLocked?: boolean;
 }
 
-function parseLiveDetectResponse(
-  response: LiveDetectResponse | DetectionOutcome | undefined,
-): LiveDetectQueryResult {
-  if (!response || typeof response !== 'object') {
-    return {};
-  }
-
-  if ('outcome' in response) {
-    const { outcome, contentNativeDark } = response;
-    if (outcome?.result && outcome.confidence) {
-      return {
-        detectOutcome: outcome,
-        contentNativeDark: contentNativeDark === true,
-      };
-    }
-    return {};
-  }
-
-  const legacy = response as DetectionOutcome;
-  if (legacy.result && legacy.confidence) {
-    return { detectOutcome: legacy };
-  }
-  return {};
-}
-
+/** Main frame only — allFrames content scripts otherwise race on tabs.sendMessage. */
 async function queryLiveDetection(tabId: number): Promise<LiveDetectQueryResult> {
   try {
-    const response = (await browser.tabs.sendMessage(tabId, {
-      type: 'GET_LIVE_DETECT',
-    })) as LiveDetectResponse | DetectionOutcome | undefined;
+    const response = await browser.tabs.sendMessage(
+      tabId,
+      { type: 'GET_LIVE_DETECT' },
+      { frameId: 0 },
+    );
     return parseLiveDetectResponse(response);
   } catch {
     // Content script may not be ready yet
@@ -120,6 +102,7 @@ async function buildTabInfo(
       active: false,
       globalEnabled: settings.enabled,
       nativeDark: false,
+      autoNativeSkip: false,
       pageRestricted: true,
       softApplied: false,
       injectionPending: false,
@@ -135,11 +118,10 @@ async function buildTabInfo(
   const systemDark = await getSystemDarkPreference();
   const siteMode = getSiteMode(settings, origin);
   let detectOutcome: DetectionOutcome | undefined;
-  let contentNativeDark = false;
+  let liveDetect: LiveDetectQueryResult = {};
   if (siteMode === 'auto' && tabId !== undefined) {
-    const live = await queryLiveDetection(tabId);
-    detectOutcome = live.detectOutcome;
-    contentNativeDark = live.contentNativeDark === true;
+    liveDetect = await queryLiveDetection(tabId);
+    detectOutcome = liveDetect.detectOutcome;
   }
   const effective = resolveEffectiveSettings({
     origin,
@@ -149,8 +131,12 @@ async function buildTabInfo(
     detectOutcome,
   });
 
-  const nativeDark =
-    effective.nativeDark || (siteMode === 'auto' && contentNativeDark);
+  const autoNativeSkip = resolveAutoNativeDarkForTab(
+    siteMode,
+    effective.nativeDark,
+    liveDetect,
+  );
+  const nativeDark = autoNativeSkip;
 
   if (nativeDark && tabId !== undefined) {
     setTabSoftApplied(tabId, false);
@@ -182,6 +168,7 @@ async function buildTabInfo(
     active: effective.active,
     globalEnabled: settings.enabled,
     nativeDark,
+    autoNativeSkip,
     pageRestricted: false,
     softApplied,
     injectionPending,
