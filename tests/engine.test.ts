@@ -228,6 +228,10 @@ describe('force-first marketing Soft', () => {
     expect(css).not.toContain('invert(1)');
     expect(css).toContain('[class*="logo"]');
     expect(css).toContain('color-scheme: dark');
+    expect(css).toContain('[class*="card"]');
+    expect(css).not.toMatch(
+      /html\[data-truely-dark-active\]\s+h1,\s*\n\s*html\[data-truely-dark-active\]\s+h2/,
+    );
   });
 
   it('generateForceStylesheetCss omits marketing shell and pack CSS on OVH Manager hosts', () => {

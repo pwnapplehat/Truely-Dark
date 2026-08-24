@@ -1,5 +1,13 @@
 import { detectFromDom } from '../lib/detect';
 import {
+  bumpAutoGeneration,
+  lockAutoDecision,
+  resetAutoSession,
+  resolveAutoDetectOutcome,
+  shouldRedetectOnThemeMutation,
+  shouldRunPaintFreeAutoDetect,
+} from '../lib/auto-state';
+import {
   applyDarkMode,
   buildFilterString,
   computePreInvertBackground,
@@ -87,6 +95,7 @@ export default defineContentScript({
     let lastEffectiveSettings: EffectiveSiteSettings | null = null;
     let lastDetectOutcome: DetectionOutcome | undefined;
     let injectionStatusReported = false;
+    let forceAutoRedetect = false;
 
     async function reportInjectionStatus(contentStrict: boolean): Promise<void> {
       const hostname = getCurrentHostname();
@@ -335,7 +344,7 @@ export default defineContentScript({
       });
     }
 
-    async function refresh(): Promise<void> {
+    async function refresh(options: { forceAutoRedetect?: boolean } = {}): Promise<void> {
       try {
         const fullSettings = await sendMessage<import('../types').TruelyDarkSettings>({
           type: 'GET_SETTINGS',
@@ -347,25 +356,54 @@ export default defineContentScript({
         const hostname = getCurrentHostname();
         const siteMode =
           fullSettings.siteOverrides[origin]?.mode ?? fullSettings.defaultMode;
+        const extensionActive = isDarkModeActive();
+        const redetect =
+          options.forceAutoRedetect === true || forceAutoRedetect;
+        forceAutoRedetect = false;
 
         if (!fullSettings.enabled || siteMode === 'off' || isExcludedOrigin(hostname, siteMode)) {
           lastEffectiveSettings = null;
           stopPreferForceWatchdog();
+          resetAutoSession();
           removeDarkMode();
           void requestRemoveInsertCss();
           void reportInjectionStatus(false);
           return;
         }
 
-        // Auto must observe the native page — strip extension paint before detection.
-        if (siteMode === 'auto' && isDarkModeActive()) {
-          stopPreferForceWatchdog();
-          removeDarkMode();
-          await requestRemoveInsertCss();
+        if (siteMode !== 'auto') {
+          resetAutoSession();
         }
 
         const useCacheOnly = batterySaver;
-        const detectOutcome = await runDetection(useCacheOnly);
+        let detectOutcome: DetectionOutcome | undefined;
+
+        if (siteMode === 'auto') {
+          const shouldDetect = shouldRunPaintFreeAutoDetect(
+            siteMode,
+            extensionActive,
+            redetect,
+          );
+
+          if (shouldDetect && extensionActive) {
+            stopPreferForceWatchdog();
+            removeDarkMode();
+            await requestRemoveInsertCss();
+          }
+
+          if (shouldDetect && !useCacheOnly) {
+            detectOutcome = await runDetection(false);
+            if (detectOutcome) {
+              lockAutoDecision(detectOutcome);
+            }
+          } else {
+            detectOutcome = resolveAutoDetectOutcome(siteMode, extensionActive, undefined);
+          }
+        } else if (!useCacheOnly) {
+          detectOutcome = await runDetection(false);
+        }
+
+        detectOutcome = resolveAutoDetectOutcome(siteMode, extensionActive, detectOutcome);
 
         if (detectOutcome) {
           await reportDetection(detectOutcome);
@@ -403,13 +441,13 @@ export default defineContentScript({
       }
     }
 
-    function debouncedRefresh(): void {
+    function debouncedRefresh(force = false): void {
       if (batterySaver) {
-        refresh();
+        refresh({ forceAutoRedetect: force });
         return;
       }
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => refresh(), 300);
+      debounceTimer = setTimeout(() => refresh({ forceAutoRedetect: force }), 300);
     }
 
     function setupMutationObserver(): void {
@@ -418,7 +456,20 @@ export default defineContentScript({
 
       detectObserver = new MutationObserver((mutations) => {
         const relevant = mutations.some(isThemeRelatedMutation);
-        if (relevant) debouncedRefresh();
+        if (!relevant) return;
+
+        const autoMode = lastEffectiveSettings?.mode === 'auto';
+
+        if (autoMode && !shouldRedetectOnThemeMutation('auto')) {
+          return;
+        }
+
+        if (autoMode) {
+          bumpAutoGeneration();
+          forceAutoRedetect = true;
+        }
+
+        debouncedRefresh(autoMode);
       });
 
       const target = document.documentElement;
@@ -460,7 +511,9 @@ export default defineContentScript({
         return true;
       }
       if (message.type === 'SETTINGS_CHANGED') {
-        debouncedRefresh();
+        resetAutoSession();
+        forceAutoRedetect = true;
+        debouncedRefresh(true);
       }
     }
 
@@ -478,18 +531,21 @@ export default defineContentScript({
 
     window.addEventListener('pageshow', () => {
       injectionStatusReported = false;
-      debouncedRefresh();
+      resetAutoSession();
+      debouncedRefresh(true);
     });
     window.addEventListener('popstate', () => {
       injectionStatusReported = false;
-      debouncedRefresh();
+      resetAutoSession();
+      debouncedRefresh(true);
     });
     window.addEventListener('hashchange', () => {
       injectionStatusReported = false;
-      debouncedRefresh();
+      resetAutoSession();
+      debouncedRefresh(true);
     });
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') debouncedRefresh();
+      if (document.visibilityState === 'visible') debouncedRefresh(false);
     });
 
     window.addEventListener('beforeunload', () => {

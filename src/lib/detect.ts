@@ -5,6 +5,7 @@ import {
   parseColor,
   rgbByteLuminance,
 } from './color';
+import { computedFilterHasStrictInvert } from './filter-verify';
 
 export { computeLuminance, parseColor } from './color';
 
@@ -80,6 +81,9 @@ export const EXTENSION_MARKERS = {
   preloadStyleId: 'truely-dark-preload',
   styleId: 'truely-dark-styles',
   rootAttr: 'data-truely-dark-active',
+  forceAttr: 'data-truely-dark-force',
+  appShellAttr: 'data-truely-dark-app-shell',
+  filterTargetAttr: 'data-truely-dark-filter-target',
 } as const;
 
 export interface AuthoredSignalInput {
@@ -289,9 +293,43 @@ function hasExtensionMarkup(doc: Document): boolean {
   const html = doc.documentElement;
   return (
     html.hasAttribute(EXTENSION_MARKERS.rootAttr) ||
+    html.hasAttribute(EXTENSION_MARKERS.forceAttr) ||
+    html.hasAttribute(EXTENSION_MARKERS.appShellAttr) ||
     doc.getElementById(EXTENSION_MARKERS.preloadStyleId) !== null ||
     doc.getElementById(EXTENSION_MARKERS.styleId) !== null
   );
+}
+
+/**
+ * True when Truely Dark Soft/On/force paint is actively applied — not site-native dark.
+ * Used to break Auto feedback loops (invert → color-scheme dark → false native skip).
+ */
+export function isExtensionPaintActive(doc: Document = document): boolean {
+  const html = doc.documentElement;
+  if (html.hasAttribute(EXTENSION_MARKERS.rootAttr)) return true;
+  if (html.hasAttribute(EXTENSION_MARKERS.forceAttr)) return true;
+  if (html.hasAttribute(EXTENSION_MARKERS.appShellAttr)) return true;
+  if (doc.getElementById(EXTENSION_MARKERS.styleId)) return true;
+
+  const view = doc.defaultView;
+  if (!view) return false;
+
+  const htmlFilter = view.getComputedStyle(html).filter;
+  if (computedFilterHasStrictInvert(htmlFilter)) return true;
+
+  const body = doc.body;
+  if (body) {
+    const bodyFilter = view.getComputedStyle(body).filter;
+    if (computedFilterHasStrictInvert(bodyFilter)) return true;
+  }
+
+  return false;
+}
+
+function hasAuthoredNativeDarkSignal(doc: Document): boolean {
+  const signals = collectAuthoredSignals(doc);
+  const authored = detectFromAuthoredSignals(signals);
+  return authored.result === 'dark' && authored.confidence === 'high';
 }
 
 function collectAuthoredSignals(doc: Document): AuthoredSignalInput {
@@ -323,6 +361,10 @@ function collectAuthoredSignals(doc: Document): AuthoredSignalInput {
 }
 
 function detectComputedColorSchemeDark(doc: Document): DetectionOutcome | null {
+  if (isExtensionPaintActive(doc) && !hasAuthoredNativeDarkSignal(doc)) {
+    return null;
+  }
+
   const view = doc.defaultView;
   if (!view) return null;
   const scheme = view.getComputedStyle(doc.documentElement).colorScheme;
@@ -336,6 +378,10 @@ function detectComputedColorSchemeDark(doc: Document): DetectionOutcome | null {
  * Uniform dark html/body before extension paint — native dark SPAs (x.ai, etc.).
  */
 export function detectNativeDarkRootSurfaces(doc: Document = document): DetectionOutcome | null {
+  if (isExtensionPaintActive(doc) && !hasAuthoredNativeDarkSignal(doc)) {
+    return null;
+  }
+
   const candidates: Element[] = [doc.documentElement];
   if (doc.body) candidates.push(doc.body);
   const nextRoot = doc.querySelector('#__next');
@@ -484,20 +530,18 @@ function detectFromRegionalLuminance(doc: Document): DetectionOutcome {
  * Never uses CSS class-name heuristics (theme-dark etc.) or theme-color alone for skip.
  */
 export function detectFromDom(doc: Document = document): DetectionOutcome {
-  const html = doc.documentElement;
-
   const authoredOutcome = detectFromAuthoredSignals(collectAuthoredSignals(doc));
   if (authoredOutcome.result !== 'unknown') return authoredOutcome;
+
+  if (isExtensionPaintActive(doc) && !hasAuthoredNativeDarkSignal(doc)) {
+    return { result: 'unknown', confidence: 'low' };
+  }
 
   const colorSchemeDark = detectComputedColorSchemeDark(doc);
   if (colorSchemeDark) return colorSchemeDark;
 
   const rootDark = detectNativeDarkRootSurfaces(doc);
   if (rootDark) return rootDark;
-
-  if (hasExtensionMarkup(doc) && html.hasAttribute(EXTENSION_MARKERS.rootAttr)) {
-    return { result: 'unknown', confidence: 'low' };
-  }
 
   // theme-color is a weak hint only — never high-confidence native-dark skip
   const themeColorContent = doc

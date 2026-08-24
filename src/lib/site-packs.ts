@@ -111,20 +111,14 @@ export const MARKETING_FORCE_SHELL_CSS = `
     background-image: none !important;
     color: #e8eaed !important;
   }
-  html[data-truely-dark-active] h1,
-  html[data-truely-dark-active] h2,
-  html[data-truely-dark-active] h3,
-  html[data-truely-dark-active] h4,
-  html[data-truely-dark-active] p,
-  html[data-truely-dark-active] span,
-  html[data-truely-dark-active] li,
-  html[data-truely-dark-active] label {
+  html[data-truely-dark-active] footer h1,
+  html[data-truely-dark-active] footer h2,
+  html[data-truely-dark-active] footer h3,
+  html[data-truely-dark-active] footer p,
+  html[data-truely-dark-active] footer span,
+  html[data-truely-dark-active] footer li,
+  html[data-truely-dark-active] [role="contentinfo"] * {
     color: #e8eaed !important;
-  }
-  html[data-truely-dark-active] small,
-  html[data-truely-dark-active] [class*="subtitle"],
-  html[data-truely-dark-active] [class*="description"] {
-    color: #bdc1c6 !important;
   }
   html[data-truely-dark-active] a,
   html[data-truely-dark-active] a:visited {
@@ -299,6 +293,15 @@ const OVH_FORCE_CSS = `
   }
   html[data-truely-dark-active][data-truely-dark-force] section[class*="homepage"],
   html[data-truely-dark-active][data-truely-dark-force] .homepage-hero,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="solution-card"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="SolutionCard"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="solution-tile"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="SolutionTile"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="odss-card"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="infrastructure"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Infrastructure"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="map-callout"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="MapCallout"],
   html[data-truely-dark-active][data-truely-dark-force] [data-ods-domain-form],
   html[data-truely-dark-active][data-truely-dark-force] [data-domain-wrapper],
   html[data-truely-dark-active][data-truely-dark-force] [data-domain-cards],
@@ -388,11 +391,7 @@ const OVH_FORCE_CSS = `
   html[data-truely-dark-active][data-truely-dark-force] [class*="Mainmenu"],
   html[data-truely-dark-active][data-truely-dark-force] [class*="mega-menu"],
   html[data-truely-dark-active][data-truely-dark-force] [class*="MegaMenu"],
-  html[data-truely-dark-active][data-truely-dark-force] [class*="megamenu"],
-  html[data-truely-dark-active][data-truely-dark-force] [class*="overlay"]:not(.redirection-banners):not([class*="redirection"]),
-  html[data-truely-dark-active][data-truely-dark-force] [class*="Overlay"]:not([class*="redirection"]),
-  html[data-truely-dark-active][data-truely-dark-force] [aria-hidden="true"],
-  html[data-truely-dark-active][data-truely-dark-force] [hidden] {
+  html[data-truely-dark-active][data-truely-dark-force] [class*="megamenu"] {
     background: transparent !important;
     background-color: transparent !important;
     background-image: none !important;

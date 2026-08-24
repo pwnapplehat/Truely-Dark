@@ -2,7 +2,7 @@ import type { EffectiveSiteSettings } from '../types';
 import { parseColor, rgbByteLuminance } from './color';
 import { isExtensionInjectedBackground } from './detect';
 import { computedFilterHasStrictInvert } from './filter-verify';
-import { MARKETING_FORCE_SHELL_CSS, hostMatchesSitePackOrigin, hostPrefersForceStylesheet, hostUsesAppShellSoft, hostUsesMarketingForceShell, isYouTubeHostname, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor, syncYouTubeNativeDarkHint } from './site-packs';
+import { FORCE_MARKETING_BG, MARKETING_FORCE_SHELL_CSS, hostMatchesSitePackOrigin, hostPrefersForceStylesheet, hostUsesAppShellSoft, hostUsesMarketingForceShell, isYouTubeHostname, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor, syncYouTubeNativeDarkHint } from './site-packs';
 import {
   pierceOpenShadowRoots,
   generateShadowForceCss,
@@ -20,6 +20,73 @@ const STYLE_ID = 'truely-dark-styles';
 const PRELOAD_STYLE_ID = 'truely-dark-preload';
 const SHADOW_STYLE_ID = 'truely-dark-shadow-styles';
 const ADOPTED_SHEETS = new WeakMap<Document, CSSStyleSheet>();
+
+/**
+ * Force Soft invariant: paired background + foreground on marketing surfaces.
+ * Never paint text color globally without a co-located dark background (contrast death).
+ */
+export const MARKETING_FORCE_SURFACE_PAIRING_CSS = `
+  html[${ROOT_ATTR}][${FORCE_ATTR}] main,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [role="main"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] section,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] article,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] aside,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Card"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="tile"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Tile"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="panel"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Panel"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="section"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Section"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="solution"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Solution"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="callout"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Callout"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="wrapper"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="box"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Box"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="odss-"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="ods-"]:not([class*="ods-header"]):not([class*="ods-footer"]) {
+    background-color: var(--truely-dark-bg, ${FORCE_MARKETING_BG}) !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+  }
+  html[${ROOT_ATTR}][${FORCE_ATTR}] section h1,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] section h2,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] section h3,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] section h4,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] section p,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] section span,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] section li,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] section label,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] article h1,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] article h2,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] article h3,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] article p,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] article span,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] article li,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"] h1,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"] h2,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"] h3,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"] p,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"] span,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"] li,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="tile"] h1,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="tile"] h2,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="tile"] p,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="tile"] span,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="tile"] li {
+    color: #e8eaed !important;
+  }
+  html[${ROOT_ATTR}][${FORCE_ATTR}] section small,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] article small,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"] small,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="subtitle"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="description"] {
+    color: #bdc1c6 !important;
+  }
+`;
 
 function setAdoptedStylesheet(doc: Document, css: string): void {
   if (!('adoptedStyleSheets' in doc)) return;
@@ -195,6 +262,7 @@ export function generateForceStylesheetCss(
 
   if (preferForce && hostUsesMarketingForceShell(resolvedHost)) {
     css += MARKETING_FORCE_SHELL_CSS;
+    css += MARKETING_FORCE_SURFACE_PAIRING_CSS;
   }
 
   if (settings.sitePack?.customCss && hostMatchesSitePackOrigin(resolvedHost, settings.sitePack)) {
