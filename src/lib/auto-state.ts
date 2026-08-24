@@ -13,6 +13,9 @@ export interface AutoSessionLock {
 /** Minimum time before Auto re-detects after a settled decision (acceptance: 30s stable). */
 export const AUTO_SETTLE_COOLDOWN_MS = 30_000;
 
+/** SPA paint-free detect retries before Auto may apply Soft on preferForce / verify hosts (x.ai). */
+export const AUTO_SPA_SETTLE_DELAYS_MS = [300, 800, 1500] as const;
+
 /** Shorter window for explicit theme-attribute mutations (user toggled site theme). */
 export const AUTO_THEME_MUTATION_COOLDOWN_MS = 5_000;
 
@@ -46,14 +49,35 @@ export function isDecisiveAutoDetectOutcome(outcome: DetectionOutcome): boolean 
 export function lockAutoDecision(outcome: DetectionOutcome): AutoDecision | null {
   if (!isDecisiveAutoDetectOutcome(outcome)) return null;
 
-  const decision: AutoDecision = isNativeDarkSkip(outcome) ? 'skip-native' : 'apply-soft';
+  if (!isNativeDarkSkip(outcome)) {
+    // apply-soft is locked only post-injection (lockAutoApplyHysteresis) — never at detect time.
+    return null;
+  }
+
   lock = {
-    decision,
+    decision: 'skip-native',
     detectOutcome: outcome,
     lockedAt: Date.now(),
     generation,
   };
-  return decision;
+  return 'skip-native';
+}
+
+/**
+ * Defer Soft on Auto until SPA paint-free detect settles (x.ai pricing, marketing SPAs).
+ * Native skip (dark/high) never defers.
+ */
+export function shouldDeferAutoSoftApply(
+  hostname: string,
+  outcome: DetectionOutcome | undefined,
+  settlePass: number,
+  hostPrefersForce: (host: string) => boolean,
+  hostRequiresVerify: (host: string) => boolean,
+): boolean {
+  if (outcome && isNativeDarkSkip(outcome)) return false;
+  if (settlePass >= AUTO_SPA_SETTLE_DELAYS_MS.length) return false;
+  if (hostPrefersForce(hostname) || hostRequiresVerify(hostname)) return true;
+  return outcome?.result === 'unknown' && outcome?.confidence === 'low';
 }
 
 /**

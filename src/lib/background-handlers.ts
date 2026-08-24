@@ -11,7 +11,7 @@ import { DETECT_CACHE_TTL_MS } from '../types';
 import { applyPreset, migrateSettings } from './defaults';
 import { purgePoisonedDetectCache } from './detect';
 import {
-  parseLiveDetectResponse,
+  queryTabLiveDetection,
   resolveAutoNativeDarkForTab,
 } from './live-detect-bridge';
 import { getHostnameFromUrl, getOriginFromUrl, hostPrefersForceStylesheet, hostUsesInvertSupplement } from './site-packs';
@@ -70,19 +70,8 @@ interface LiveDetectQueryResult {
   skipNativeLocked?: boolean;
 }
 
-/** Main frame only — allFrames content scripts otherwise race on tabs.sendMessage. */
 async function queryLiveDetection(tabId: number): Promise<LiveDetectQueryResult> {
-  try {
-    const response = await browser.tabs.sendMessage(
-      tabId,
-      { type: 'GET_LIVE_DETECT' },
-      { frameId: 0 },
-    );
-    return parseLiveDetectResponse(response);
-  } catch {
-    // Content script may not be ready yet
-  }
-  return {};
+  return queryTabLiveDetection(tabId);
 }
 
 async function buildTabInfo(
@@ -527,8 +516,11 @@ export function registerBackgroundHandlers(): void {
       ) {
         const settings = await getSettings();
         const info = await buildTabInfo(tab.url, settings, tabId);
-        if (info.pageRestricted || !info.active) {
+        if (info.pageRestricted || !info.active || info.nativeDark || info.autoNativeSkip) {
           setTabSoftApplied(tabId, false);
+          if (info.nativeDark || info.autoNativeSkip) {
+            await removeSoftCssForTab(tabId);
+          }
         } else if (isChromeGalleryUrl(tab.url)) {
           if (!isPopupLikelyOpen()) {
             await settleTabSoftApplied(tabId, tab.windowId, tab.url, false);

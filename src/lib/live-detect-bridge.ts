@@ -7,6 +7,21 @@ export interface LiveDetectQueryResult {
   skipNativeLocked?: boolean;
 }
 
+/** Main frame only — allFrames content scripts otherwise race on tabs.sendMessage. */
+export async function queryTabLiveDetection(tabId: number): Promise<LiveDetectQueryResult> {
+  try {
+    const response = await browser.tabs.sendMessage(
+      tabId,
+      { type: 'GET_LIVE_DETECT' },
+      { frameId: 0 },
+    );
+    return parseLiveDetectResponse(response);
+  } catch {
+    // Content script may not be ready yet
+  }
+  return {};
+}
+
 /**
  * Parse GET_LIVE_DETECT payload from the main-frame content script.
  */

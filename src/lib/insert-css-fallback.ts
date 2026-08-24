@@ -1,11 +1,16 @@
-import type { EffectiveSiteSettings } from '../types';
+import type { DetectionOutcome, EffectiveSiteSettings } from '../types';
 import {
   generateDarkCss,
   generateForceStylesheetCss,
   type FilterTarget,
 } from './engine';
 import { generateNuclearForceCss } from './shadow-force';
-import { resolveEffectiveSettings } from './resolver';
+import { resolveEffectiveSettings, getSiteMode } from './resolver';
+import {
+  type LiveDetectQueryResult,
+  queryTabLiveDetection,
+  resolveAutoNativeDarkForTab,
+} from './live-detect-bridge';
 import { isConfigurableWebPage } from './restricted-hosts';
 import { getSystemDarkPreference } from './schedule';
 import {
@@ -31,7 +36,10 @@ export function getInsertedCssForTab(tabId: number): string | undefined {
   return tabInsertedCss.get(tabId);
 }
 
-export async function resolveEffectiveForUrl(url: string): Promise<EffectiveSiteSettings | null> {
+export async function resolveEffectiveForUrl(
+  url: string,
+  tabId?: number,
+): Promise<EffectiveSiteSettings | null> {
   if (!isConfigurableWebPage(url)) return null;
 
   const origin = getOriginFromUrl(url);
@@ -40,12 +48,37 @@ export async function resolveEffectiveForUrl(url: string): Promise<EffectiveSite
 
   const settings = await getSettings();
   const systemDark = await getSystemDarkPreference();
-  return resolveEffectiveSettings({
+  const siteMode = getSiteMode(settings, origin);
+
+  let liveDetect: LiveDetectQueryResult = {};
+  let detectOutcome: DetectionOutcome | undefined;
+  if (siteMode === 'auto' && tabId !== undefined) {
+    liveDetect = await queryTabLiveDetection(tabId);
+    detectOutcome = liveDetect.detectOutcome;
+  }
+
+  const effective = resolveEffectiveSettings({
     origin,
     hostname,
     settings,
     systemDark,
+    detectOutcome,
   });
+
+  if (
+    siteMode === 'auto' &&
+    resolveAutoNativeDarkForTab(siteMode, effective.nativeDark, liveDetect)
+  ) {
+    return {
+      ...effective,
+      active: false,
+      nativeDark: true,
+      skipProcessing: true,
+      mode: 'auto',
+    };
+  }
+
+  return effective;
 }
 
 async function removeInsertedCss(tabId: number): Promise<void> {
@@ -84,7 +117,7 @@ export async function insertSoftCssForTab(
     return insertForceStylesheetForTab(tabId, url);
   }
 
-  const effective = await resolveEffectiveForUrl(url);
+  const effective = await resolveEffectiveForUrl(url, tabId);
   if (!effective?.active) {
     await removeInsertedCss(tabId);
     return false;
@@ -141,7 +174,7 @@ async function removeInsertedForceCss(tabId: number): Promise<void> {
 export async function insertForceStylesheetForTab(tabId: number, url: string): Promise<boolean> {
   await removeInsertedCss(tabId);
 
-  const effective = await resolveEffectiveForUrl(url);
+  const effective = await resolveEffectiveForUrl(url, tabId);
   if (!effective?.active) {
     await removeInsertedForceCss(tabId);
     return false;
@@ -180,7 +213,7 @@ export async function insertForceStylesheetForTab(tabId: number, url: string): P
 }
 
 export async function insertNuclearForceCssForTab(tabId: number, url: string): Promise<boolean> {
-  const effective = await resolveEffectiveForUrl(url);
+  const effective = await resolveEffectiveForUrl(url, tabId);
   if (!effective?.active) {
     await removeInsertedNuclearCss(tabId);
     return false;
@@ -273,7 +306,7 @@ export async function insertInvertSupplementForTab(tabId: number, url: string): 
     return false;
   }
 
-  const effective = await resolveEffectiveForUrl(url);
+  const effective = await resolveEffectiveForUrl(url, tabId);
   if (!effective?.active) {
     await removeInsertedInvertSupplementCss(tabId);
     return false;
@@ -321,7 +354,7 @@ export async function maybeProactiveInsertCss(tabId: number, url: string): Promi
   const hostname = getHostnameFromUrl(url);
   if (!hostname) return;
 
-  const effective = await resolveEffectiveForUrl(url);
+  const effective = await resolveEffectiveForUrl(url, tabId);
   if (!effective?.active) return;
 
   if (hostPrefersForceStylesheet(hostname)) {

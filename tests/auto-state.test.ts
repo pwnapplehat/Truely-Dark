@@ -11,6 +11,7 @@ import {
   queryLiveAutoDetection,
   resetAutoSession,
   resolveAutoDetectOutcome,
+  shouldDeferAutoSoftApply,
   shouldRedetectOnThemeMutation,
   shouldRunPaintFreeAutoDetect,
 } from '../src/lib/auto-state';
@@ -22,9 +23,11 @@ describe('auto-state — hysteresis and settle lock', () => {
     resetAutoSession();
   });
 
-  it('locks apply-soft on light detect outcome', () => {
+  it('locks apply-soft only via lockAutoApplyHysteresis, not at detect time', () => {
     const outcome = makeDetection('light', 'medium');
-    expect(lockAutoDecision(outcome)).toBe('apply-soft');
+    expect(lockAutoDecision(outcome)).toBeNull();
+    expect(isAutoDecisionLocked()).toBe(false);
+    lockAutoApplyHysteresis(outcome);
     expect(isAutoDecisionLocked()).toBe(true);
     expect(getAutoSessionLock()?.decision).toBe('apply-soft');
   });
@@ -34,14 +37,44 @@ describe('auto-state — hysteresis and settle lock', () => {
     expect(isAutoDecisionLocked()).toBe(false);
   });
 
+  it('shouldDeferAutoSoftApply defers preferForce hosts until settle passes', () => {
+    expect(
+      shouldDeferAutoSoftApply(
+        'x.ai',
+        makeDetection('light', 'medium'),
+        0,
+        () => true,
+        () => true,
+      ),
+    ).toBe(true);
+    expect(
+      shouldDeferAutoSoftApply(
+        'x.ai',
+        makeDetection('dark', 'high'),
+        0,
+        () => true,
+        () => true,
+      ),
+    ).toBe(false);
+    expect(
+      shouldDeferAutoSoftApply(
+        'x.ai',
+        makeDetection('light', 'medium'),
+        3,
+        () => true,
+        () => true,
+      ),
+    ).toBe(false);
+  });
+
   it('locks skip-native on high-confidence dark', () => {
     const outcome = makeDetection('dark', 'high');
     expect(lockAutoDecision(outcome)).toBe('skip-native');
     expect(getAutoSessionLock()?.decision).toBe('skip-native');
   });
 
-  it('does not run paint-free detect while extension active and locked', () => {
-    lockAutoDecision(makeDetection('light', 'medium'));
+  it('does not run paint-free detect while extension active and apply-soft locked', () => {
+    lockAutoApplyHysteresis(makeDetection('light', 'medium'));
     expect(shouldRunPaintFreeAutoDetect('auto', true, false)).toBe(false);
   });
 
@@ -50,13 +83,13 @@ describe('auto-state — hysteresis and settle lock', () => {
   });
 
   it('forces paint-free detect when explicitly requested', () => {
-    lockAutoDecision(makeDetection('light', 'medium'));
+    lockAutoApplyHysteresis(makeDetection('light', 'medium'));
     expect(shouldRunPaintFreeAutoDetect('auto', true, true)).toBe(true);
   });
 
   it('resolveAutoDetectOutcome preserves apply-soft lock while extension active', () => {
     const locked = makeDetection('light', 'medium');
-    lockAutoDecision(locked);
+    lockAutoApplyHysteresis(locked);
 
     const resolved = resolveAutoDetectOutcome(
       'auto',
@@ -76,14 +109,14 @@ describe('auto-state — hysteresis and settle lock', () => {
   });
 
   it('resetAutoSession clears lock on navigation', () => {
-    lockAutoDecision(makeDetection('light', 'medium'));
+    lockAutoApplyHysteresis(makeDetection('light', 'medium'));
     resetAutoSession();
     expect(isAutoDecisionLocked()).toBe(false);
     expect(getLockedAutoDetectOutcome()).toBeUndefined();
   });
 
   it('bumpAutoGeneration invalidates prior lock', () => {
-    lockAutoDecision(makeDetection('light', 'medium'));
+    lockAutoApplyHysteresis(makeDetection('light', 'medium'));
     bumpAutoGeneration();
     expect(isAutoDecisionLocked()).toBe(false);
   });

@@ -169,10 +169,7 @@ export async function resolveSoftAppliedForTab(
   if (!visual.inconclusive && visual.applied) return true;
 
   if (visual.inconclusive) {
-    if (hostUsesForceSoftEngine(hostname)) {
-      return true;
-    }
-    return hostRequiresMarketingVisualVerify(hostname) ? false : contentStrict;
+    return contentStrict;
   }
 
   const escalated = await escalateSoftApplication(tabId, windowId, url, verifyOptions);

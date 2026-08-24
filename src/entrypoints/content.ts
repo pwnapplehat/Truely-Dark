@@ -1,11 +1,13 @@
 import { detectFromDom, detectFromDomPaintFree } from '../lib/detect';
 import {
+  AUTO_SPA_SETTLE_DELAYS_MS,
   bumpAutoGeneration,
   computeLiveAutoNativeSkip,
   lockAutoApplyHysteresis,
   lockAutoDecision,
   resetAutoSession,
   resolveAutoDetectOutcome,
+  shouldDeferAutoSoftApply,
   shouldRedetectOnThemeMutation,
   shouldRunPaintFreeAutoDetect,
 } from '../lib/auto-state';
@@ -38,6 +40,7 @@ import {
   getOriginFromUrl,
   hostUsesForceSoftEngine,
   hostUsesInvertSoft,
+  hostPrefersForceStylesheet,
   hostRequiresVisualVerify,
   hostUsesAppShellSoft,
   hostUsesInjectCssFallback,
@@ -86,7 +89,10 @@ export default defineContentScript({
   matchAboutBlank: true,
   registration: 'manifest',
   main() {
-    if (!isAppShellHost()) {
+    // Auto detect/apply runs in the top frame only — subframes must not inject or report status.
+    if (window.self !== window.top) return;
+
+    if (!isAppShellHost() && !hostPrefersForceStylesheet(getCurrentHostname())) {
       injectPreloadCss();
     }
 
@@ -99,6 +105,18 @@ export default defineContentScript({
     let lastDetectOutcome: DetectionOutcome | undefined;
     let injectionStatusReported = false;
     let forceAutoRedetect = false;
+    let autoSettlePass = 0;
+
+    function resetAutoSettlePass(): void {
+      autoSettlePass = 0;
+    }
+
+    function scheduleAutoSettleRetry(): void {
+      if (autoSettlePass >= AUTO_SPA_SETTLE_DELAYS_MS.length) return;
+      const delay = AUTO_SPA_SETTLE_DELAYS_MS[autoSettlePass];
+      autoSettlePass += 1;
+      window.setTimeout(() => debouncedRefresh(true), delay);
+    }
 
     async function reportInjectionStatus(contentStrict: boolean): Promise<void> {
       const hostname = getCurrentHostname();
@@ -368,6 +386,7 @@ export default defineContentScript({
           lastEffectiveSettings = null;
           stopPreferForceWatchdog();
           resetAutoSession();
+          resetAutoSettlePass();
           removeDarkMode();
           void requestRemoveInsertCss();
           void reportInjectionStatus(false);
@@ -376,6 +395,7 @@ export default defineContentScript({
 
         if (siteMode !== 'auto') {
           resetAutoSession();
+          resetAutoSettlePass();
         }
 
         const useCacheOnly = batterySaver;
@@ -419,22 +439,40 @@ export default defineContentScript({
           detectOutcome,
         });
 
-        lastEffectiveSettings = effective;
+        const deferAutoApply =
+          siteMode === 'auto' &&
+          shouldDeferAutoSoftApply(
+            hostname,
+            detectOutcome,
+            autoSettlePass,
+            hostPrefersForceStylesheet,
+            hostRequiresVisualVerify,
+          );
 
-        if (effective.skipProcessing && !effective.active) {
+        if (deferAutoApply) {
+          lastEffectiveSettings = {
+            ...effective,
+            active: false,
+            nativeDark: false,
+            skipProcessing: true,
+            mode: 'auto',
+          };
           stopPreferForceWatchdog();
           removeDarkMode();
           void requestRemoveInsertCss();
           void reportInjectionStatus(false);
+          scheduleAutoSettleRetry();
+          return;
+        }
 
-          if (
-            siteMode === 'auto' &&
-            detectOutcome?.result === 'unknown' &&
-            detectOutcome.confidence === 'low'
-          ) {
-            window.setTimeout(() => debouncedRefresh(true), 300);
-            window.setTimeout(() => debouncedRefresh(true), 800);
-          }
+        lastEffectiveSettings = effective;
+
+        if (effective.skipProcessing && !effective.active) {
+          resetAutoSettlePass();
+          stopPreferForceWatchdog();
+          removeDarkMode();
+          void requestRemoveInsertCss();
+          void reportInjectionStatus(false);
           return;
         }
 
@@ -483,6 +521,7 @@ export default defineContentScript({
 
         if (autoMode) {
           bumpAutoGeneration();
+          resetAutoSettlePass();
           forceAutoRedetect = true;
         }
 
@@ -529,6 +568,7 @@ export default defineContentScript({
       }
       if (message.type === 'SETTINGS_CHANGED') {
         resetAutoSession();
+        resetAutoSettlePass();
         forceAutoRedetect = true;
         debouncedRefresh(true);
       }
