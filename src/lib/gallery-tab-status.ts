@@ -1,5 +1,5 @@
 import { isChromeGalleryUrl } from './gallery-access';
-import { attemptGalleryInjection } from './gallery-injection';
+import { markGalleryInjectionExhausted } from './gallery-gesture-state';
 import { resolveEffectiveSettings } from './resolver';
 import { getSystemDarkPreference } from './schedule';
 import { getHostnameFromUrl, getOriginFromUrl } from './site-packs';
@@ -14,6 +14,7 @@ import {
  */
 export function settleGalleryTabBlocked(tabId: number): void {
   cancelTabResolveInFlight(tabId);
+  markGalleryInjectionExhausted(tabId);
   setTabSoftApplied(tabId, false);
 }
 
@@ -37,8 +38,5 @@ export async function ensureGalleryTabSettled(tabId: number, url: string): Promi
 
   if (!effective.active) {
     setTabSoftApplied(tabId, false);
-    return;
   }
-
-  await attemptGalleryInjection(tabId, url);
 }

@@ -48,6 +48,29 @@ describe('siteStatusLabel', () => {
     ).toContain('(On)');
   });
 
+  it('shows active Soft for force-applied marketing hosts', () => {
+    expect(
+      siteStatusLabel(
+        baseTab({
+          hostname: 'www.ovhcloud.com',
+          effectiveMode: 'soft',
+          resolvedMode: 'soft',
+          softApplied: true,
+        }),
+      ),
+    ).toBe('Extension dark mode active (Soft)');
+    expect(
+      isTruthfulActiveStatus(
+        baseTab({
+          hostname: 'www.ovhcloud.com',
+          effectiveMode: 'soft',
+          resolvedMode: 'soft',
+          softApplied: true,
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it('shows Auto label when effective mode is auto', () => {
     expect(
       siteStatusLabel(

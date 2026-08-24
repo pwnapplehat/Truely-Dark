@@ -367,6 +367,28 @@ const OVH_FORCE_CSS = `
   html[data-truely-dark-active][data-truely-dark-force] [class*="Logo"] img {
     background-color: transparent !important;
   }
+  html[data-truely-dark-active][data-truely-dark-force] .oui-cta,
+  html[data-truely-dark-active][data-truely-dark-force] .oui-cta--primary,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="oui-cta"] {
+    background-color: #0050d7 !important;
+    color: #fff !important;
+    border-color: #0050d7 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] .oui-cta *,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="oui-cta"] * {
+    color: #fff !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] .oui-back-to-top {
+    background-color: #1a1a2e !important;
+    background: #1a1a2e !important;
+    color: #e8eaed !important;
+    border-color: #3c4043 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] .oui-back-to-top__icon {
+    color: #e8eaed !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
 `;
 
 /** Apple force Soft — dark promo surfaces, images stay natural (no invert). */
@@ -554,10 +576,69 @@ const GOOGLE_SEARCH_CSS = `
   }
 `;
 
-const YOUTUBE_CSS = `
-  ytd-app,
-  #content,
-  ytd-page-manager {
+const YOUTUBE_FORCE_CSS = `
+  html[data-truely-dark-active] {
+    --truely-dark-bg: #0f0f0f;
+    color-scheme: dark !important;
+  }
+  html[data-truely-dark-active],
+  html[data-truely-dark-active] body {
+    background-color: var(--truely-dark-bg, #0f0f0f) !important;
+    background-image: none !important;
+    color: #f1f1f1 !important;
+  }
+  html[data-truely-dark-active] ytd-app,
+  html[data-truely-dark-active] #content,
+  html[data-truely-dark-active] ytd-page-manager,
+  html[data-truely-dark-active] ytd-browse,
+  html[data-truely-dark-active] ytd-two-column-browse-results-renderer,
+  html[data-truely-dark-active] #page-manager,
+  html[data-truely-dark-active] ytd-rich-grid-renderer,
+  html[data-truely-dark-active] ytd-section-list-renderer,
+  html[data-truely-dark-active] #primary,
+  html[data-truely-dark-active] #primary-inner {
+    background-color: var(--truely-dark-bg, #0f0f0f) !important;
+    background-image: none !important;
+    color: #f1f1f1 !important;
+  }
+  html[data-truely-dark-active] #masthead,
+  html[data-truely-dark-active] ytd-masthead,
+  html[data-truely-dark-active] #header,
+  html[data-truely-dark-active] ytd-app #masthead-container {
+    background-color: #0f0f0f !important;
+    background-image: none !important;
+  }
+  html[data-truely-dark-active] #search,
+  html[data-truely-dark-active] ytd-searchbox,
+  html[data-truely-dark-active] ytd-searchbox #container,
+  html[data-truely-dark-active] ytd-searchbox input,
+  html[data-truely-dark-active] input#search,
+  html[data-truely-dark-active] form#search-form,
+  html[data-truely-dark-active] #search-input #search,
+  html[data-truely-dark-active] ytd-searchbox .ytSearchboxComponentInputBox {
+    background-color: #121212 !important;
+    color: #f1f1f1 !important;
+    border-color: #3f3f3f !important;
+  }
+  html[data-truely-dark-active] ytd-message-renderer,
+  html[data-truely-dark-active] ytd-message-renderer #content,
+  html[data-truely-dark-active] ytd-message-renderer #title,
+  html[data-truely-dark-active] ytd-message-renderer yt-formatted-string,
+  html[data-truely-dark-active] #title.ytd-message-renderer,
+  html[data-truely-dark-active] ytd-browse h1,
+  html[data-truely-dark-active] ytd-browse h2,
+  html[data-truely-dark-active] ytd-browse h3 {
+    background-color: var(--truely-dark-bg, #0f0f0f) !important;
+    color: #f1f1f1 !important;
+  }
+  html[data-truely-dark-active] img,
+  html[data-truely-dark-active] video,
+  html[data-truely-dark-active] ytd-thumbnail,
+  html[data-truely-dark-active] #thumbnail,
+  html[data-truely-dark-active] yt-image,
+  html[data-truely-dark-active] ytd-thumbnail img {
+    filter: none !important;
+    -webkit-filter: none !important;
     background-color: transparent !important;
   }
 `;
@@ -730,6 +811,28 @@ const XAI_FORCE_CSS = `
     mix-blend-mode: normal !important;
     content: none !important;
   }
+  html[data-truely-dark-active] [class*="cookie"],
+  html[data-truely-dark-active] [class*="Cookie"],
+  html[data-truely-dark-active] [class*="consent"],
+  html[data-truely-dark-active] [class*="Consent"],
+  html[data-truely-dark-active] [id*="cookie"],
+  html[data-truely-dark-active] [id*="Cookie"],
+  html[data-truely-dark-active] [class*="onetrust"],
+  html[data-truely-dark-active] #onetrust-banner-sdk,
+  html[data-truely-dark-active] .ot-sdk-container,
+  html[data-truely-dark-active] [class*="banner"][class*="cookie"] {
+    background-color: #141414 !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+    border-color: #3c4043 !important;
+  }
+  html[data-truely-dark-active] [class*="cookie"] *,
+  html[data-truely-dark-active] [class*="Cookie"] *,
+  html[data-truely-dark-active] [class*="consent"] *,
+  html[data-truely-dark-active] [class*="Consent"] *,
+  html[data-truely-dark-active] #onetrust-banner-sdk * {
+    color: #e8eaed !important;
+  }
 `;
 
 const OVH_FORCE_PACK_CSS = `${REDIRECTION_BANNER_KILL_CSS}${FORCE_FORM_SURFACE_CSS}${OVH_FORCE_CSS}`;
@@ -838,7 +941,10 @@ export const SITE_PACKS: SitePack[] = [
     origins: ['youtube.com', 'www.youtube.com', 'm.youtube.com'],
     mode: 'auto',
     skipDetect: false,
-    customCss: YOUTUBE_CSS,
+    preferForceStylesheet: true,
+    requiresVisualVerify: true,
+    forceStylesheetFallback: true,
+    customCss: YOUTUBE_FORCE_CSS,
   },
   {
     origins: ['twitter.com', 'www.twitter.com'],

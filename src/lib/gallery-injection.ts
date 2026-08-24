@@ -8,14 +8,20 @@ import {
   executeMainWorldNuclearForce,
   executeMainWorldSoftFilter,
 } from './main-world-inject';
+import { isGalleryInjectionExhausted } from './gallery-gesture-state';
+import { isChromeGalleryUrl } from './gallery-access';
 import { registerGalleryContentScripts } from './register-content-scripts';
 import { getHostnameFromUrl, hostPrefersForceStylesheet } from './site-packs';
 
 /**
  * Exhaust MV3 injection paths for Chrome Web Store gallery tabs.
  * Uses host_permissions + activeTab user gesture (popup open counts).
+ * No-ops after a failed gesture ladder until navigation clears exhausted state.
  */
 export async function attemptGalleryInjection(tabId: number, url: string): Promise<boolean> {
+  if (!isChromeGalleryUrl(url) || isGalleryInjectionExhausted(tabId)) {
+    return false;
+  }
   try {
     await registerGalleryContentScripts();
   } catch {

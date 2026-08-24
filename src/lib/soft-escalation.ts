@@ -139,6 +139,10 @@ export async function resolveSoftAppliedForTab(
   const hostname = getHostnameFromUrl(url);
   const verifyOptions: VisualVerifyOptions = { ...options, hostname };
 
+  if (contentStrict && hostPrefersForceStylesheet(hostname)) {
+    return true;
+  }
+
   if (!hostRequiresVisualVerify(hostname)) {
     return contentStrict;
   }

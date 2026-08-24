@@ -29,15 +29,7 @@ describe('resolveSoftAppliedForTab OVH signals', () => {
     vi.mocked(captureTabVisualAnalysis).mockReset();
   });
 
-  it('requires marketing visual quality when contentStrict is true on OVH', async () => {
-    vi.mocked(captureTabVisualAnalysis).mockResolvedValue({
-      average: 0.15,
-      max: 0.2,
-      topBandMax: 0.2,
-      gutterMax: 0.2,
-      footerBandMax: 0.2,
-    });
-
+  it('trusts verified force application on OVH when contentStrict is true', async () => {
     const applied = await resolveSoftAppliedForTab(
       1,
       1,
@@ -45,7 +37,7 @@ describe('resolveSoftAppliedForTab OVH signals', () => {
       true,
     );
     expect(applied).toBe(true);
-    expect(captureTabVisualAnalysis).toHaveBeenCalled();
+    expect(captureTabVisualAnalysis).not.toHaveBeenCalled();
   });
 
   it('returns true from dark OVH-like capture without contentStrict', async () => {

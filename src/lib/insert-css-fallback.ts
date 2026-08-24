@@ -7,8 +7,6 @@ import {
 import { generateNuclearForceCss } from './shadow-force';
 import { resolveEffectiveSettings } from './resolver';
 import { isConfigurableWebPage } from './restricted-hosts';
-import { isChromeGalleryHost } from './gallery-access';
-import { attemptGalleryInjection } from './gallery-injection';
 import { getSystemDarkPreference } from './schedule';
 import {
   findSitePack,
@@ -320,11 +318,6 @@ export async function maybeProactiveInsertCss(tabId: number, url: string): Promi
 
   const effective = await resolveEffectiveForUrl(url);
   if (!effective?.active) return;
-
-  if (isChromeGalleryHost(hostname)) {
-    await attemptGalleryInjection(tabId, url);
-    return;
-  }
 
   if (hostUsesInjectCssFallback(hostname)) {
     await insertSoftCssForTab(tabId, url, 'html');

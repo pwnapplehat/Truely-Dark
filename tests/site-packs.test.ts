@@ -82,6 +82,14 @@ describe('findSitePack', () => {
     expect(hostRequiresMarketingVisualVerify('www.x.ai')).toBe(true);
   });
 
+  it('YouTube uses force-first Soft without invert on thumbnails', () => {
+    const pack = findSitePack('www.youtube.com');
+    expect(pack?.preferForceStylesheet).toBe(true);
+    expect(pack?.customCss).toContain('ytd-app');
+    expect(pack?.customCss).toContain('ytd-searchbox');
+    expect(pack?.customCss).toContain('filter: none');
+  });
+
   it('matches google.com search', () => {
     const pack = findSitePack('www.google.com');
     expect(pack?.origins).toContain('google.com');

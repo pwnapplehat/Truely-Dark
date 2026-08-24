@@ -38,7 +38,6 @@ import {
   isGalleryGestureAttempted,
 } from './gallery-gesture-state';
 import { ensureGalleryTabSettled } from './gallery-tab-status';
-import { attemptGalleryInjection } from './gallery-injection';
 import { isPopupLikelyOpen, isPopupSender, markPopupOpen } from './popup-state';
 import {
   clearTabSoftApplied,
@@ -286,10 +285,6 @@ export function registerBackgroundHandlers(): void {
             return { success: true };
           }
 
-          if (isChromeGalleryHost(injectionHostname) && injectionUrl) {
-            void attemptGalleryInjection(injectionTabId, injectionUrl);
-          }
-
           if (hostPrefersForceStylesheet(injectionHostname) && injectionUrl) {
             void escalatePreferForceMainWorldForTab(injectionTabId, injectionUrl);
           } else if (hostUsesInvertSupplement(injectionHostname) && injectionUrl) {
@@ -457,7 +452,6 @@ export function registerBackgroundHandlers(): void {
         if (info.pageRestricted || !info.active) {
           setTabSoftApplied(tabId, false);
         } else if (isChromeGalleryUrl(tab.url)) {
-          await attemptGalleryInjection(tabId, tab.url);
           if (!isPopupLikelyOpen()) {
             await settleTabSoftApplied(tabId, tab.windowId, tab.url, false);
           }

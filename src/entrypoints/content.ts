@@ -10,6 +10,7 @@ import {
   isSoftFilterActive,
   removeDarkMode,
   stripInvertSoftArtifacts,
+  verifyForceApplication,
 } from '../lib/engine';
 import { computedFilterHasStrictInvert } from '../lib/filter-verify';
 import {
@@ -254,10 +255,11 @@ export default defineContentScript({
         contentStrict = isSoftFilterActive();
       }
 
-      if (preferForce) {
+  if (preferForce) {
         await requestApplyMainWorldForce();
         startPreferForceWatchdog(settings);
         runPreferForceWatchdog(settings);
+        contentStrict = verifyForceApplication(document);
       } else {
         stopPreferForceWatchdog();
         await requestInvertSupplementIfNeeded();
