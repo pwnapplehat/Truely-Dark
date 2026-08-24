@@ -12,9 +12,10 @@ import { isPopupLikelyOpen } from './popup-state';
 import { isChromeGalleryHost } from './gallery-access';
 import {
   getHostnameFromUrl,
-  hostPrefersForceStylesheet,
   hostRequiresMarketingVisualVerify,
   hostRequiresVisualVerify,
+  hostUsesForceSoftEngine,
+  hostUsesInvertSoft,
 } from './site-packs';
 import {
   captureTabVisualAnalysis,
@@ -41,7 +42,7 @@ function isVisualAppliedForHost(
   hostname: string,
   analysis: import('./visual-verify').VisualSampleAnalysis,
 ): boolean {
-  if (hostPrefersForceStylesheet(hostname)) {
+  if (hostUsesForceSoftEngine(hostname)) {
     return isSoftAppliedFromVisualAnalysis(analysis);
   }
   if (hostRequiresMarketingVisualVerify(hostname)) {
@@ -118,7 +119,7 @@ export async function escalateSoftApplication(
     ...forceSteps,
   ];
 
-  const steps = hostPrefersForceStylesheet(hostname) ? forceSteps : invertSteps;
+  const steps = hostUsesInvertSoft(hostname) ? invertSteps : forceSteps;
 
   for (const step of steps) {
     await step();
@@ -143,7 +144,7 @@ export async function resolveSoftAppliedForTab(
   const hostname = getHostnameFromUrl(url);
   const verifyOptions: VisualVerifyOptions = { ...options, hostname };
 
-  if (contentStrict && hostPrefersForceStylesheet(hostname)) {
+  if (contentStrict && hostUsesForceSoftEngine(hostname)) {
     return true;
   }
 
@@ -168,7 +169,7 @@ export async function resolveSoftAppliedForTab(
   if (!visual.inconclusive && visual.applied) return true;
 
   if (visual.inconclusive) {
-    if (hostPrefersForceStylesheet(hostname)) {
+    if (hostUsesForceSoftEngine(hostname)) {
       return true;
     }
     return hostRequiresMarketingVisualVerify(hostname) ? false : contentStrict;
@@ -179,7 +180,7 @@ export async function resolveSoftAppliedForTab(
 
   if (visual.analysis && hostRequiresMarketingVisualVerify(hostname)) {
     if (
-      hostPrefersForceStylesheet(hostname) &&
+      hostUsesForceSoftEngine(hostname) &&
       visual.analysis.average < VISUAL_APPLIED_AVERAGE_THRESHOLD
     ) {
       return true;

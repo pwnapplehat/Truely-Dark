@@ -1,7 +1,8 @@
 import type { EffectiveSiteSettings } from '../types';
 import { ROOT_ATTR } from './engine';
 import {
-  hostPrefersForceStylesheet,
+  hostUsesForceSoftEngine,
+  hostUsesMarketingForceShell,
   resolveForceBackgroundColor,
 } from './site-packs';
 
@@ -37,7 +38,7 @@ export function generateShadowForceCss(
   settings: EffectiveSiteSettings,
   hostname?: string,
 ): string {
-  const bg = resolveForceBackgroundColor(settings);
+  const bg = resolveForceBackgroundColor(settings, hostname);
   const text = '#e8e8e8';
   const link = '#8ab4f8';
 
@@ -186,12 +187,12 @@ export function generateNuclearForceCss(
   settings: EffectiveSiteSettings,
   hostname?: string,
 ): string {
-  const bg = resolveForceBackgroundColor(settings);
+  const bg = resolveForceBackgroundColor(settings, hostname);
   const text = '#e8e8e8';
   const link = '#8ab4f8';
   const preferForce =
     settings.sitePack?.preferForceStylesheet === true ||
-    (hostname ? hostPrefersForceStylesheet(hostname) : false);
+    (hostname ? hostUsesForceSoftEngine(hostname) : true);
 
   if (preferForce) {
     return `

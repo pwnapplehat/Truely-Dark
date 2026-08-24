@@ -18,6 +18,12 @@ export const PREFER_FORCE_HOST_SUFFIXES = [
   'youtube.com',
 ] as const;
 
+/**
+ * Explicit opt-in for page-wide invert Soft — static/simple pages only.
+ * Default Soft engine is force surface darkening; invert flips dark chrome to white.
+ */
+export const INVERT_SOFT_HOST_SUFFIXES = [] as const;
+
 export function normalizeHostname(hostname: string): string {
   return hostname.toLowerCase().trim();
 }
@@ -52,6 +58,29 @@ export function hostUsesAppShellSoft(hostname: string): boolean {
 }
 
 /**
+ * Page-wide invert(1) Soft — opt-in only. Complex SPAs must use force surface Soft.
+ */
+export function hostUsesInvertSoft(hostname: string): boolean {
+  if (hostUsesAppShellSoft(hostname)) return false;
+  const normalized = normalizeHostname(hostname);
+  for (const suffix of INVERT_SOFT_HOST_SUFFIXES) {
+    if (normalized === suffix || normalized.endsWith(`.${suffix}`)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Default Soft engine: direct dark stylesheet with paired surfaces (no html invert).
+ */
+export function hostUsesForceSoftEngine(hostname: string): boolean {
+  if (hostUsesAppShellSoft(hostname)) return false;
+  if (hostUsesInvertSoft(hostname)) return false;
+  return true;
+}
+
+/**
  * Force-stylesheet Soft engine (no invert filter). Manager uses app-shell Soft instead.
  */
 export function hostPrefersForceStylesheet(hostname: string): boolean {
@@ -63,7 +92,7 @@ export function hostPrefersForceStylesheet(hostname: string): boolean {
       return true;
     }
   }
-  return false;
+  return hostUsesForceSoftEngine(hostname);
 }
 
 export interface SitePackOriginMatch {

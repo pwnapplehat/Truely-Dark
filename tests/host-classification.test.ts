@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   hostPrefersForceStylesheet,
   hostUsesAppShellSoft,
+  hostUsesForceSoftEngine,
+  hostUsesInvertSoft,
   hostUsesMarketingForceShell,
   isOvhManagerHost,
   isOvhMarketingHost,
@@ -37,5 +39,14 @@ describe('host-classification — OVH Manager vs marketing', () => {
   it('routes Manager to app-shell Soft instead of invert or force', () => {
     expect(hostUsesAppShellSoft('manager.ca.ovhcloud.com')).toBe(true);
     expect(hostPrefersForceStylesheet('manager.ca.ovhcloud.com')).toBe(false);
+    expect(hostUsesForceSoftEngine('manager.ca.ovhcloud.com')).toBe(false);
+    expect(hostUsesInvertSoft('manager.ca.ovhcloud.com')).toBe(false);
+  });
+
+  it('defaults generic SPAs to force Soft, not invert', () => {
+    expect(hostUsesForceSoftEngine('mail.google.com')).toBe(true);
+    expect(hostUsesForceSoftEngine('dashboard.marsproxies.com')).toBe(true);
+    expect(hostUsesInvertSoft('mail.google.com')).toBe(false);
+    expect(hostPrefersForceStylesheet('example.com')).toBe(true);
   });
 });

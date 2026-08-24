@@ -2,7 +2,7 @@ import type { EffectiveSiteSettings } from '../types';
 import { parseColor, rgbByteLuminance } from './color';
 import { isExtensionInjectedBackground } from './detect';
 import { computedFilterHasStrictInvert } from './filter-verify';
-import { FORCE_MARKETING_BG, MARKETING_FORCE_SHELL_CSS, hostMatchesSitePackOrigin, hostPrefersForceStylesheet, hostUsesAppShellSoft, hostUsesMarketingForceShell, isYouTubeHostname, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor, syncYouTubeNativeDarkHint } from './site-packs';
+import { FORCE_MARKETING_BG, MARKETING_FORCE_SHELL_CSS, hostMatchesSitePackOrigin, hostPrefersForceStylesheet, hostUsesAppShellSoft, hostUsesForceSoftEngine, hostUsesInvertSoft, hostUsesMarketingForceShell, isYouTubeHostname, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor, syncYouTubeNativeDarkHint } from './site-packs';
 import {
   pierceOpenShadowRoots,
   generateShadowForceCss,
@@ -88,6 +88,99 @@ export const MARKETING_FORCE_SURFACE_PAIRING_CSS = `
   }
 `;
 
+/**
+ * Default Soft engine — paired bg+fg on app/dashboard/email surfaces (no html invert).
+ * Chrome sidebars with native dark theme stay readable; main panels darken coherently.
+ */
+export const SPA_FORCE_SURFACE_CSS = `
+  html[${ROOT_ATTR}][${FORCE_ATTR}] header,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] nav,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [role="banner"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [role="navigation"] {
+    background-color: transparent !important;
+    background-image: none !important;
+  }
+  html[${ROOT_ATTR}][${FORCE_ATTR}] main,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [role="main"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [role="region"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [role="grid"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [role="row"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] #root,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] #__next,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] #app,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] section,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] article,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] form,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] fieldset,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] table,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] thead,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] tbody,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] tr,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] td,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] th,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Card"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="panel"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Panel"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="content"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Content"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="container"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Container"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="wrapper"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Wrapper"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="dashboard"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Dashboard"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="module"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Module"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="tile"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="Tile"],
+  html[${ROOT_ATTR}][${FORCE_ATTR}] c-wiz {
+    background-color: var(--truely-dark-bg, #121212) !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+    border-color: #3c4043 !important;
+  }
+  html[${ROOT_ATTR}][${FORCE_ATTR}] main h1,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] main h2,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] main h3,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] main p,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] main span,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] main li,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [role="main"] h1,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [role="main"] h2,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [role="main"] p,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [role="main"] span,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [role="main"] li,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"] h1,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"] h2,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"] p,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="card"] span,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="panel"] h1,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="panel"] p,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] [class*="panel"] span,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] form label,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] form span,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] td,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] th {
+    color: #e8eaed !important;
+  }
+  html[${ROOT_ATTR}][${FORCE_ATTR}] input:not([type="image"]):not([type="checkbox"]):not([type="radio"]),
+  html[${ROOT_ATTR}][${FORCE_ATTR}] textarea,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] select {
+    background-color: #1a1a1a !important;
+    color: #e8eaed !important;
+    border-color: #3c4043 !important;
+  }
+  html[${ROOT_ATTR}][${FORCE_ATTR}] img,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] svg,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] picture,
+  html[${ROOT_ATTR}][${FORCE_ATTR}] video {
+    background-color: transparent !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
+`;
+
 function setAdoptedStylesheet(doc: Document, css: string): void {
   if (!('adoptedStyleSheets' in doc)) return;
 
@@ -160,16 +253,29 @@ export function buildFilterString(
 }
 
 /**
- * Direct dark stylesheet when invert filter cannot paint (CWS / layered hosts).
- * Original Truely Dark implementation — not vendored Dark Reader logic.
+ * Default Soft = force surface darkening. Invert is opt-in only (hostUsesInvertSoft).
  */
 export function effectivePrefersForceSoft(
   settings: EffectiveSiteSettings,
   hostname?: string,
 ): boolean {
   if (hostname && hostUsesAppShellSoft(hostname)) return false;
+  if (hostname && hostUsesInvertSoft(hostname)) return false;
   if (settings.sitePack?.preferForceStylesheet === true) return true;
-  if (hostname && hostPrefersForceStylesheet(hostname)) return true;
+  if (hostname && hostUsesForceSoftEngine(hostname)) return true;
+  return false;
+}
+
+/** True only for explicit invert-opt-in hosts (empty allowlist by default). */
+export function effectiveUsesInvertSoft(
+  settings: EffectiveSiteSettings,
+  hostname?: string,
+): boolean {
+  if (hostname && hostUsesAppShellSoft(hostname)) return false;
+  if (hostname && hostUsesInvertSoft(hostname)) return true;
+  if (settings.sitePack?.invertOnlyCustomCss && !settings.sitePack.preferForceStylesheet) {
+    return true;
+  }
   return false;
 }
 
@@ -192,17 +298,14 @@ export function generateForceStylesheetCss(
   settings: EffectiveSiteSettings,
   hostname?: string,
 ): string {
-  const bg = resolveForceBackgroundColor(settings);
-  const text = '#e8e8e8';
-  const link = '#8ab4f8';
-  const border = '#3c4043';
   const resolvedHost =
     hostname ??
     settings.sitePack?.origins?.[0] ??
     '';
-  const preferForce =
-    settings.sitePack?.preferForceStylesheet === true ||
-    hostPrefersForceStylesheet(resolvedHost);
+  const bg = resolveForceBackgroundColor(settings, resolvedHost);
+  const text = '#e8e8e8';
+  const link = '#8ab4f8';
+  const usesMarketingShell = hostUsesMarketingForceShell(resolvedHost);
 
   let css = `
     html[${ROOT_ATTR}] {
@@ -217,52 +320,17 @@ export function generateForceStylesheetCss(
       filter: none !important;
       -webkit-filter: none !important;
     }
+    html[${ROOT_ATTR}] a,
+    html[${ROOT_ATTR}] a:visited {
+      color: ${link} !important;
+    }
   `;
 
-  if (!preferForce) {
-    css += `
-    html[${ROOT_ATTR}] main,
-    html[${ROOT_ATTR}] [role="main"],
-    html[${ROOT_ATTR}] #root,
-    html[${ROOT_ATTR}] #__next,
-    html[${ROOT_ATTR}] header,
-    html[${ROOT_ATTR}] nav,
-    html[${ROOT_ATTR}] footer,
-    html[${ROOT_ATTR}] section,
-    html[${ROOT_ATTR}] article,
-    html[${ROOT_ATTR}] aside,
-    html[${ROOT_ATTR}] c-wiz {
-      background-color: ${bg} !important;
-      background-image: none !important;
-      color: ${text} !important;
-      border-color: ${border} !important;
-    }
-    html[${ROOT_ATTR}] a,
-    html[${ROOT_ATTR}] a:visited {
-      color: ${link} !important;
-    }
-    html[${ROOT_ATTR}] h1,
-    html[${ROOT_ATTR}] h2,
-    html[${ROOT_ATTR}] h3,
-    html[${ROOT_ATTR}] h4,
-    html[${ROOT_ATTR}] p,
-    html[${ROOT_ATTR}] span,
-    html[${ROOT_ATTR}] li {
-      color: ${text} !important;
-    }
-    `;
-  } else {
-    css += `
-    html[${ROOT_ATTR}] a,
-    html[${ROOT_ATTR}] a:visited {
-      color: ${link} !important;
-    }
-    `;
-  }
-
-  if (preferForce && hostUsesMarketingForceShell(resolvedHost)) {
+  if (usesMarketingShell) {
     css += MARKETING_FORCE_SHELL_CSS;
     css += MARKETING_FORCE_SURFACE_PAIRING_CSS;
+  } else {
+    css += SPA_FORCE_SURFACE_CSS;
   }
 
   if (settings.sitePack?.customCss && hostMatchesSitePackOrigin(resolvedHost, settings.sitePack)) {
@@ -282,7 +350,7 @@ export function applyForceStylesheetMode(
   stripInvertSoftArtifacts(doc);
 
   const html = doc.documentElement;
-  const forceBg = resolveForceBackgroundColor(settings);
+  const forceBg = resolveForceBackgroundColor(settings, hostname);
 
   html.setAttribute(ROOT_ATTR, settings.mode);
   html.setAttribute(FORCE_ATTR, 'true');

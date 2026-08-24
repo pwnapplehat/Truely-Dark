@@ -4,14 +4,14 @@ import {
   resolveEffectiveForUrl,
 } from './insert-css-fallback';
 import { executeMainWorldForceStylesheet } from './main-world-inject';
-import { getHostnameFromUrl, hostPrefersForceStylesheet } from './site-packs';
+import { getHostnameFromUrl, hostUsesForceSoftEngine, hostUsesInvertSoft } from './site-packs';
 
 /**
  * Background-driven MAIN-world force apply — do not rely on isolated→MAIN CustomEvent.
  */
 export async function applyPreferForceMainWorldForTab(tabId: number, url: string): Promise<boolean> {
   const hostname = getHostnameFromUrl(url);
-  if (!hostname || !hostPrefersForceStylesheet(hostname)) return false;
+  if (!hostname || !hostUsesForceSoftEngine(hostname)) return false;
 
   const effective = await resolveEffectiveForUrl(url);
   if (!effective?.active) return false;
@@ -24,7 +24,7 @@ export async function applyPreferForceMainWorldForTab(tabId: number, url: string
 export async function applyInvertSupplementForTabIfNeeded(tabId: number, url: string): Promise<boolean> {
   const effective = await resolveEffectiveForUrl(url);
   if (!effective?.active) return false;
-  if (hostPrefersForceStylesheet(getHostnameFromUrl(url))) return false;
+  if (hostUsesForceSoftEngine(getHostnameFromUrl(url))) return false;
   return insertInvertSupplementForTab(tabId, url);
 }
 

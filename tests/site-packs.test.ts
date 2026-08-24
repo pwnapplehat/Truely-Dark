@@ -45,12 +45,12 @@ describe('findSitePack', () => {
     expect(pack?.customCss).toContain('filter: none');
   });
 
-  it('wikipedia.org has invert-safe counter-invert footer supplement', () => {
+  it('wikipedia.org has force footer surfaces (no invert supplement)', () => {
     const pack = findSitePack('en.wikipedia.org');
-    const css = pack?.invertOnlyCustomCss ?? '';
-    expect(css).toContain('navbox');
-    expect(css).toContain('hue-rotate(180deg)');
+    const css = pack?.customCss ?? '';
     expect(css).toContain('#footer');
+    expect(css).toContain('data-truely-dark-force');
+    expect(css).not.toContain('hue-rotate(180deg)');
   });
 
   it('OVH force pack darkens domain-search and partner strips', () => {

@@ -51,6 +51,8 @@ import {
 export {
   hostMatchesSitePackOrigin,
   hostUsesAppShellSoft,
+  hostUsesForceSoftEngine,
+  hostUsesInvertSoft,
   hostUsesMarketingForceShell,
   isOvhManagerHost,
   OVH_MARKETING_ORIGINS,
@@ -517,77 +519,43 @@ const APPLE_FORCE_CSS = `
   }
 `;
 
-/** Invert Soft supplement — wikipedia.org footer/navbox under invert Soft. */
-const WIKIPEDIA_INVERT_SURFACE_CSS = `
-  html[data-truely-dark-active] body .navbox,
-  html[data-truely-dark-active] body .navbox-inner,
-  html[data-truely-dark-active] body .navbox-title,
-  html[data-truely-dark-active] body .navbox-list,
-  html[data-truely-dark-active] body table.navbox,
-  html[data-truely-dark-active] body .navbox th,
-  html[data-truely-dark-active] body .navbox td {
-    background-color: #1a1a1a !important;
-    background-image: none !important;
-    filter: ${INVERT_COUNTER_FILTER} !important;
-    -webkit-filter: ${INVERT_COUNTER_FILTER} !important;
-    color: #e8eaed !important;
-    border-color: #3c4043 !important;
-  }
-  html[data-truely-dark-active] body #footer,
-  html[data-truely-dark-active] body footer#footer,
-  html[data-truely-dark-active] body .mw-footer,
-  html[data-truely-dark-active] body footer.mw-footer,
-  html[data-truely-dark-active] body .footer-info,
-  html[data-truely-dark-active] body #footer-info,
-  html[data-truely-dark-active] body #footer-info-lastmod,
-  html[data-truely-dark-active] body #footer-info-copyright,
-  html[data-truely-dark-active] body #footer-info-poweredby,
-  html[data-truely-dark-active] body #footer-info-viewport,
-  html[data-truely-dark-active] body [id^="footer-info"],
-  html[data-truely-dark-active] body #mw-data-after-content,
-  html[data-truely-dark-active] body .post-content,
-  html[data-truely-dark-active] body .mw-portlet-footer,
-  html[data-truely-dark-active] body #lastmod,
-  html[data-truely-dark-active] body .lastmod,
-  html[data-truely-dark-active] body #footer-info-text,
-  html[data-truely-dark-active] body .footer-info-text,
-  html[data-truely-dark-active] body .license,
-  html[data-truely-dark-active] body #footer li,
-  html[data-truely-dark-active] body #footer ul,
-  html[data-truely-dark-active] body .mw-footer li,
-  html[data-truely-dark-active] body .mw-footer ul,
-  html[data-truely-dark-active] body #footer-info li,
-  html[data-truely-dark-active] body #footer-info ul,
-  html[data-truely-dark-active] body .footer-info li,
-  html[data-truely-dark-active] body .footer-info ul,
-  html[data-truely-dark-active] body [id*="footer"],
-  html[data-truely-dark-active] body [class*="footer"] {
+/** Force Soft footer/navbox surfaces for wikipedia.org (no invert counter-filter). */
+const WIKIPEDIA_FORCE_SURFACE_CSS = `
+  html[data-truely-dark-active][data-truely-dark-force] body .navbox,
+  html[data-truely-dark-active][data-truely-dark-force] body .navbox-inner,
+  html[data-truely-dark-active][data-truely-dark-force] body .navbox-title,
+  html[data-truely-dark-active][data-truely-dark-force] body .navbox-list,
+  html[data-truely-dark-active][data-truely-dark-force] body table.navbox,
+  html[data-truely-dark-active][data-truely-dark-force] body .navbox th,
+  html[data-truely-dark-active][data-truely-dark-force] body .navbox td,
+  html[data-truely-dark-active][data-truely-dark-force] body #footer,
+  html[data-truely-dark-active][data-truely-dark-force] body footer#footer,
+  html[data-truely-dark-active][data-truely-dark-force] body .mw-footer,
+  html[data-truely-dark-active][data-truely-dark-force] body footer.mw-footer,
+  html[data-truely-dark-active][data-truely-dark-force] body .footer-info,
+  html[data-truely-dark-active][data-truely-dark-force] body #footer-info,
+  html[data-truely-dark-active][data-truely-dark-force] body [id^="footer-info"],
+  html[data-truely-dark-active][data-truely-dark-force] body #mw-data-after-content,
+  html[data-truely-dark-active][data-truely-dark-force] body [id*="footer"],
+  html[data-truely-dark-active][data-truely-dark-force] body [class*="footer"] {
     background-color: ${FORCE_MARKETING_BG} !important;
     background-image: none !important;
-    filter: ${INVERT_COUNTER_FILTER} !important;
-    -webkit-filter: ${INVERT_COUNTER_FILTER} !important;
+    filter: none !important;
+    -webkit-filter: none !important;
     color: #e8eaed !important;
     border-color: #3c4043 !important;
   }
-  html[data-truely-dark-active] body #footer *,
-  html[data-truely-dark-active] body .mw-footer *,
-  html[data-truely-dark-active] body #footer-info *,
-  html[data-truely-dark-active] body [id^="footer-info"] *,
-  html[data-truely-dark-active] body .footer-info *,
-  html[data-truely-dark-active] body .license *,
-  html[data-truely-dark-active] body #lastmod *,
-  html[data-truely-dark-active] body .lastmod *,
-  html[data-truely-dark-active] body #mw-data-after-content * {
+  html[data-truely-dark-active][data-truely-dark-force] body #footer *,
+  html[data-truely-dark-active][data-truely-dark-force] body .mw-footer *,
+  html[data-truely-dark-active][data-truely-dark-force] body #footer-info *,
+  html[data-truely-dark-active][data-truely-dark-force] body [id^="footer-info"] *,
+  html[data-truely-dark-active][data-truely-dark-force] body .footer-info * {
     color: #e8eaed !important;
   }
-  html[data-truely-dark-active] body .mw-footer img,
-  html[data-truely-dark-active] body #footer img,
-  html[data-truely-dark-active] body .footer-info img {
-    background-color: transparent !important;
-    filter: ${INVERT_COUNTER_FILTER} !important;
-    -webkit-filter: ${INVERT_COUNTER_FILTER} !important;
-  }
 `;
+
+/** @deprecated Invert-only path removed — kept for tests referencing counter-invert constant. */
+const WIKIPEDIA_INVERT_SURFACE_CSS = WIKIPEDIA_FORCE_SURFACE_CSS;
 
 const GOOGLE_DOCS_CSS = `
   .docs-material,
@@ -1116,7 +1084,7 @@ export const SITE_PACKS: SitePack[] = [
     origins: ['wikipedia.org'],
     mode: 'auto',
     skipDetect: false,
-    invertOnlyCustomCss: WIKIPEDIA_INVERT_SURFACE_CSS,
+    customCss: WIKIPEDIA_FORCE_SURFACE_CSS,
   },
   {
     origins: ['github.com', 'www.github.com'],
@@ -1245,11 +1213,19 @@ export function hostRequiresMarketingVisualVerify(hostname: string): boolean {
   return pack?.preferForceStylesheet === true && pack?.requiresVisualVerify === true;
 }
 
-/** Force-mode bg for marketing hosts — dark surfaces only, never invert pre-bg white. */
+/** Force-mode bg — marketing hosts use shell bg; apps/dashboards use preset Midnight. */
 export function resolveForceBackgroundColor(
   settings: Pick<EffectiveSiteSettings, 'backgroundColor' | 'sitePack'>,
+  hostname?: string,
 ): string {
-  if (settings.sitePack?.preferForceStylesheet) {
+  if (hostname && hostUsesMarketingForceShell(hostname)) {
+    return FORCE_MARKETING_BG;
+  }
+  if (
+    settings.sitePack?.preferForceStylesheet &&
+    hostname &&
+    hostMatchesSitePackOrigin(hostname, settings.sitePack)
+  ) {
     return FORCE_MARKETING_BG;
   }
   return settings.backgroundColor;

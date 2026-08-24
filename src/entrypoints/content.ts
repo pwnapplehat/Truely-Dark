@@ -36,7 +36,8 @@ import { resolveEffectiveSettings } from '../lib/resolver';
 import {
   getHostnameFromUrl,
   getOriginFromUrl,
-  hostPrefersForceStylesheet,
+  hostUsesForceSoftEngine,
+  hostUsesInvertSoft,
   hostRequiresVisualVerify,
   hostUsesAppShellSoft,
   hostUsesInjectCssFallback,
@@ -71,7 +72,7 @@ function getCurrentOrigin(): string {
 }
 
 function isPreferForceHost(): boolean {
-  return hostPrefersForceStylesheet(getCurrentHostname());
+  return hostUsesForceSoftEngine(getCurrentHostname());
 }
 
 function isAppShellHost(): boolean {
@@ -186,7 +187,7 @@ export default defineContentScript({
 
     async function requestInvertSupplementIfNeeded(): Promise<void> {
       const hostname = getCurrentHostname();
-      if (hostPrefersForceStylesheet(hostname) || !resolveInvertSupplementCss(hostname)) return;
+      if (hostUsesInvertSoft(hostname) || !resolveInvertSupplementCss(hostname)) return;
       try {
         await sendMessage({ type: 'INSERT_INVERT_SUPPLEMENT' });
       } catch {

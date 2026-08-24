@@ -112,7 +112,7 @@ export async function executeMainWorldForceStylesheet(tabId: number, url: string
   const shadowCss = generateShadowForceCss(effective, hostname);
 
   return dispatchMainWorldApply(tabId, {
-    bg: resolveForceBackgroundColor(effective),
+    bg: resolveForceBackgroundColor(effective, hostname ?? undefined),
     text: '#e8e8e8',
     mode: effective.mode,
     force: true,
@@ -135,7 +135,7 @@ export async function executeMainWorldNuclearForce(tabId: number, url: string): 
   const shadowCss = generateShadowForceCss(effective, hostname);
 
   return dispatchMainWorldApply(tabId, {
-    bg: resolveForceBackgroundColor(effective),
+    bg: resolveForceBackgroundColor(effective, hostname ?? undefined),
     text: '#e8e8e8',
     mode: effective.mode,
     force: true,

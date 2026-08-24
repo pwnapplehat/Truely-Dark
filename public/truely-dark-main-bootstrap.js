@@ -24,15 +24,11 @@
     );
   }
 
+  /** Default Soft = force surfaces. Invert is opt-in only (Manager excluded). */
   function hostnamePrefersForce(hostname) {
     if (!hostname) return false;
     if (isOvhManagerHost(hostname)) return false;
-    var h = String(hostname).toLowerCase();
-    for (var i = 0; i < PREFER_FORCE_SUFFIXES.length; i++) {
-      var suffix = PREFER_FORCE_SUFFIXES[i];
-      if (h === suffix || h.endsWith('.' + suffix)) return true;
-    }
-    return false;
+    return true;
   }
 
   function filterStringHasInvert(filterStr) {

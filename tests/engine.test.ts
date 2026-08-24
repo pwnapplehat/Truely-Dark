@@ -35,7 +35,7 @@ describe('computePreInvertBackground', () => {
   });
 });
 
-describe('generateDarkCss — invert-safe backgrounds', () => {
+describe('generateDarkCss — default force Soft (no page-wide invert)', () => {
   const baseSettings = resolveEffectiveSettings({
     origin: 'https://example.com',
     hostname: 'example.com',
@@ -43,17 +43,18 @@ describe('generateDarkCss — invert-safe backgrounds', () => {
     detectOutcome: { result: 'light', confidence: 'medium' },
   });
 
-  it('uses pre-invert light background under filter, not dark preset hex', () => {
+  it('uses force stylesheet with SPA surface pairing, not invert filter', () => {
     const css = generateDarkCss({
       ...baseSettings,
       active: true,
       mode: 'soft',
       backgroundColor: '#121212',
-    });
+    }, 'html', 'example.com');
 
-    expect(css).toContain('background-color: #ededed');
-    expect(css).not.toMatch(/background-color:\s*#121212/);
-    expect(css).toContain('invert(1)');
+    expect(css).not.toMatch(/\binvert\s*\(\s*1/);
+    expect(css).toContain('data-truely-dark-force');
+    expect(css).toContain('[role="main"]');
+    expect(css).toContain('#121212');
   });
 
   it('does not counter-invert iframe elements', () => {
@@ -62,48 +63,32 @@ describe('generateDarkCss — invert-safe backgrounds', () => {
       active: true,
       mode: 'soft',
       preserveMedia: true,
-    });
+    }, 'html', 'example.com');
 
     expect(css).not.toMatch(/iframe\s*\{[^}]*filter:\s*invert/);
   });
 
-  it('includes body fallback CSS and backdrop-filter reset', () => {
+  it('includes SPA form/input dark surfaces for dashboards', () => {
     const css = generateDarkCss({
       ...baseSettings,
       active: true,
       mode: 'soft',
-    });
+    }, 'html', 'dashboard.marsproxies.com');
 
-    expect(css).toContain('-webkit-filter');
-    expect(css).toContain('backdrop-filter: none');
-    expect(generateDarkCss({ ...baseSettings, active: true, mode: 'soft' }, 'body')).toContain(
-      'html[data-truely-dark-active] body',
-    );
+    expect(css).toContain('textarea');
+    expect(css).toContain('[class*="panel"]');
+    expect(css).not.toMatch(/\binvert\s*\(\s*1/);
   });
 
-  it('includes media preserve selectors and fullscreen video reset', () => {
+  it('includes media preserve without invert on force path', () => {
     const css = generateDarkCss({
       ...baseSettings,
       active: true,
       mode: 'soft',
       preserveMedia: true,
-    });
+    }, 'html', 'example.com');
 
-    expect(css).toContain('picture');
-    expect(css).toContain('svg');
-    expect(css).toContain('video:fullscreen');
     expect(css).toContain('filter: none');
-  });
-
-  it('sets invert-safe preload background on html and body', () => {
-    const css = generateDarkCss({
-      ...baseSettings,
-      active: true,
-      mode: 'soft',
-      backgroundColor: '#121212',
-    });
-    expect(css).toContain('html[data-truely-dark-active] body');
-    expect(css).toContain('#ededed');
   });
   it('OVH force pack CSS contains no invert pre-bg #ffffff', () => {
     const pack = findSitePack('www.ovhcloud.com');
@@ -156,23 +141,35 @@ describe('generateDarkCss — invert-safe backgrounds', () => {
     removeDarkMode();
   });
 
-  it('generateDarkCss with example.com uses invert path', () => {
+  it('generateDarkCss with example.com uses force path, never invert', () => {
     const css = generateDarkCss({
       ...baseSettings,
       active: true,
       mode: 'soft',
-    });
-    expect(css).toContain('invert(1)');
-    expect(css).not.toContain('data-truely-dark-force');
+    }, 'html', 'example.com');
+    expect(css).not.toMatch(/\binvert\s*\(\s*1/);
+    expect(css).toContain('data-truely-dark-force');
   });
 });
 
 describe('effectivePrefersForceSoft', () => {
-  it('returns true for OVH hostname even without sitePack on settings object', () => {
+  it('returns true by default for generic hosts (force surface Soft)', () => {
     expect(effectivePrefersForceSoft({ backgroundColor: '#121212' } as never, 'www.ovhcloud.com')).toBe(
       true,
     );
     expect(effectivePrefersForceSoft({ backgroundColor: '#121212' } as never, 'example.com')).toBe(
+      true,
+    );
+    expect(effectivePrefersForceSoft({ backgroundColor: '#121212' } as never, 'mail.google.com')).toBe(
+      true,
+    );
+    expect(effectivePrefersForceSoft({ backgroundColor: '#121212' } as never, 'dashboard.marsproxies.com')).toBe(
+      true,
+    );
+  });
+
+  it('returns false for Manager app-shell hosts', () => {
+    expect(effectivePrefersForceSoft({ backgroundColor: '#121212' } as never, 'manager.ca.ovhcloud.com')).toBe(
       false,
     );
   });
@@ -361,10 +358,12 @@ describe('applyDarkMode integration', () => {
     detectOutcome: { result: 'light', confidence: 'medium' },
   });
 
-  it('activates invert filter on example.com-like page', () => {
+  it('applyDarkMode activates force Soft on example.com-like page', () => {
     document.documentElement.innerHTML = '<head></head><body style="background:#fff">Hi</body>';
-    const result = applyDarkMode({ ...effective, active: true, mode: 'soft' });
+    const result = applyDarkMode({ ...effective, active: true, mode: 'soft' }, document, 'example.com');
     expect(isDarkModeActive()).toBe(true);
+    expect(document.documentElement.getAttribute('data-truely-dark-force')).toBe('true');
+    expect(result.filterTarget).toBe('force');
     expect(result.applied || isSoftFilterActive()).toBe(true);
     removeDarkMode();
     expect(isDarkModeActive()).toBe(false);
