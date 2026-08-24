@@ -35,7 +35,7 @@ import {
   SHADOW_FILTER_STYLE_ID,
   SHADOW_FORCE_STYLE_ID,
 } from '../lib/shadow-force';
-import { sendMessage } from '../lib/messaging';
+import { sendMessage } from '../lib/messaging-client';
 import { resolveEffectiveSettings } from '../lib/resolver';
 import {
   getHostnameFromUrl,
@@ -631,19 +631,26 @@ export default defineContentScript({
     ): boolean | void {
       if (message.type === 'GET_LIVE_DETECT') {
         void (async () => {
-          await requestRemoveInsertCss();
-          const payload = computeLiveAutoNativeSkip(
-            document,
-            detectFromDomPaintFree,
-            lastEffectiveSettings,
-          );
-          if (payload.autoNativeSkip && isDarkModeActive()) {
-            stopPreferForceWatchdog();
-            removeDarkMode();
-            await requestRemoveInsertCss();
-            void reportInjectionStatus(false);
+          try {
+            const payload = computeLiveAutoNativeSkip(
+              document,
+              detectFromDomPaintFree,
+              lastEffectiveSettings,
+            );
+            if (payload.autoNativeSkip && isDarkModeActive()) {
+              stopPreferForceWatchdog();
+              removeDarkMode();
+              await requestRemoveInsertCss();
+              void reportInjectionStatus(false);
+            }
+            sendResponse(payload);
+          } catch {
+            sendResponse({
+              outcome: { result: 'unknown', confidence: 'low' },
+              autoNativeSkip: false,
+              skipNativeLocked: false,
+            });
           }
-          sendResponse(payload);
         })();
         return true;
       }

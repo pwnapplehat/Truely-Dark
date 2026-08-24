@@ -4,6 +4,12 @@ export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-react'],
   manifestVersion: 3,
+  vite: () => ({
+    build: {
+      // Avoid cross-world modulepreload mismatch in extension popups (messaging chunk).
+      modulePreload: false,
+    },
+  }),
   manifest: {
     name: 'Truely Dark',
     short_name: 'Truely Dark',

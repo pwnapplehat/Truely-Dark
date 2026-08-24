@@ -498,7 +498,12 @@ function rejectSpaMisleadingAuthoredLight(
   return { result: 'unknown', confidence: 'low' };
 }
 
-const SPA_ROOT_SELECTORS = ['#__next', '#root'] as const;
+const SPA_ROOT_SELECTORS = [
+  '#__next',
+  '#root',
+  '#app',
+  '[data-nextjs-scroll-focus-boundary]',
+] as const;
 
 function collectSpaRootElements(doc: Document): Element[] {
   const roots: Element[] = [];

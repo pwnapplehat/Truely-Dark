@@ -4,7 +4,7 @@ import '../../components/controls.css';
 import '../../assets/global.css';
 import { PRESETS } from '../../lib/defaults';
 import { GALLERY_CHROME_LIMITATION } from '../../lib/gallery-access';
-import { sendMessage } from '../../lib/messaging';
+import { sendMessage } from '../../lib/messaging-client';
 import type { PresetId, SiteMode, TruelyDarkSettings } from '../../types';
 import './options.css';
 

@@ -118,6 +118,15 @@ describe('x.ai Auto native skip integration', () => {
     expect(effective.nativeDark).toBe(false);
   });
 
+  it('paint-free detect on x.ai white #app root without #__next yields light/high', () => {
+    document.documentElement.innerHTML =
+      '<head></head><body><div id="app" style="background-color:#ffffff;min-height:100vh"><main style="background-color:#ffffff"><div class="rounded border bg-white">Free</div></main></div></body>';
+    document.documentElement.classList.add('light');
+
+    const outcome = detectFromDomPaintFree(document);
+    expect(outcome).toEqual({ result: 'light', confidence: 'high' });
+  });
+
   it('paint-free detect on x.ai white #__next yields light/high — Auto Soft applies', () => {
     document.documentElement.innerHTML =
       '<head></head><body><div id="__next" style="background-color:#ffffff;min-height:100vh"><main style="background-color:#ffffff"><div class="rounded border bg-white">Free</div></main></div></body>';

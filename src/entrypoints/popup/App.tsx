@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { CollapsibleSection, ModeSelector, Slider, Toggle } from '../../components/Controls';
 import '../../components/controls.css';
 import '../../assets/global.css';
-import { sendMessage } from '../../lib/messaging';
+import { sendMessage } from '../../lib/messaging-client';
 import { siteStatusLabel, statusDotClass } from '../../lib/tab-status';
 import type { SiteMode, TabInfo, TruelyDarkSettings } from '../../types';
 import './popup.css';
@@ -43,6 +43,10 @@ export function PopupApp() {
 
   useEffect(() => {
     load();
+    const safety = window.setTimeout(() => {
+      setLoading(false);
+    }, 1500);
+    return () => window.clearTimeout(safety);
   }, [load]);
 
   useEffect(() => {
@@ -127,7 +131,7 @@ export function PopupApp() {
               ? 'Browser blocks dark mode on this page (chrome://, about:, etc.).'
               : 'Open a regular webpage to configure per-site settings.'}
           </div>
-        ) : (
+        ) : tabInfo ? (
           <>
             <div className="popup-site">{tabInfo.hostname}</div>
             <div className="popup-status">
@@ -136,6 +140,11 @@ export function PopupApp() {
             </div>
             <ModeSelector value={tabInfo.effectiveMode} onChange={setSiteMode} />
           </>
+        ) : (
+          <div className="popup-status">
+            <span className="popup-status-dot popup-status-dot--inactive" />
+            Resolving site status…
+          </div>
         )}
 
         <CollapsibleSection title="Advanced">

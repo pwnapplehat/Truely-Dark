@@ -7,13 +7,32 @@ export interface LiveDetectQueryResult {
   skipNativeLocked?: boolean;
 }
 
+/** Popup GET_TAB_INFO must not hang on content-script round-trips. */
+export const LIVE_DETECT_QUERY_TIMEOUT_MS = 800;
+
+/** PreferForce settle cap while popup is open. */
+export const POPUP_SETTLE_TIMEOUT_MS = 800;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => {
+      setTimeout(() => resolve(fallback), ms);
+    }),
+  ]);
+}
+
 /** Main frame only — allFrames content scripts otherwise race on tabs.sendMessage. */
 export async function queryTabLiveDetection(tabId: number): Promise<LiveDetectQueryResult> {
   try {
-    const response = await browser.tabs.sendMessage(
-      tabId,
-      { type: 'GET_LIVE_DETECT' },
-      { frameId: 0 },
+    const response = await withTimeout(
+      browser.tabs.sendMessage(
+        tabId,
+        { type: 'GET_LIVE_DETECT' },
+        { frameId: 0 },
+      ),
+      LIVE_DETECT_QUERY_TIMEOUT_MS,
+      undefined,
     );
     return parseLiveDetectResponse(response);
   } catch {

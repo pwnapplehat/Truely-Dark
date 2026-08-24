@@ -13,6 +13,7 @@ import { purgePoisonedDetectCache } from './detect';
 import {
   queryTabLiveDetection,
   resolveAutoNativeDarkForTab,
+  POPUP_SETTLE_TIMEOUT_MS,
 } from './live-detect-bridge';
 import { getHostnameFromUrl, getOriginFromUrl, hostPrefersForceStylesheet, hostUsesInvertSupplement } from './site-packs';
 import {
@@ -22,7 +23,7 @@ import {
 } from './resolver';
 import { isConfigurableWebPage } from './restricted-hosts';
 import { getSettings, setSettings, updateSettings } from './storage';
-import { broadcastSettingsChanged, onMessage } from './messaging';
+import { broadcastSettingsChanged, onMessage } from './messaging-host';
 import { getSystemDarkPreference } from './schedule';
 import { settingsSchema } from './schema';
 import {
@@ -108,17 +109,36 @@ async function buildTabInfo(
   const siteMode = getSiteMode(settings, origin);
   let detectOutcome: DetectionOutcome | undefined;
   let liveDetect: LiveDetectQueryResult = {};
+  const settledApplied = tabId !== undefined ? getTabSoftApplied(tabId) : undefined;
+
   if (siteMode === 'auto' && tabId !== undefined) {
-    liveDetect = await queryLiveDetection(tabId);
-    detectOutcome = liveDetect.detectOutcome;
+    if (settledApplied === true) {
+      const cached = settings.detectCache[origin];
+      if (cached) {
+        detectOutcome = { result: cached.result, confidence: cached.confidence };
+      }
+    } else {
+      liveDetect = await queryLiveDetection(tabId);
+      detectOutcome = liveDetect.detectOutcome;
+    }
   }
-  const effective = resolveEffectiveSettings({
+  let effective = resolveEffectiveSettings({
     origin,
     hostname,
     settings,
     systemDark,
     detectOutcome,
   });
+
+  if (settledApplied === true && siteMode === 'auto') {
+    effective = {
+      ...effective,
+      active: true,
+      nativeDark: false,
+      skipProcessing: false,
+      mode: effective.mode === 'auto' ? 'soft' : effective.mode,
+    };
+  }
 
   const autoNativeSkip = resolveAutoNativeDarkForTab(
     siteMode,
@@ -323,7 +343,12 @@ export function registerBackgroundHandlers(): void {
             currentWindow: true,
           });
           if (activeTab?.id === tabId && activeTab.windowId !== undefined) {
-            await ensurePreferForceTabSettled(tabId, activeTab.windowId, tabUrl);
+            await Promise.race([
+              ensurePreferForceTabSettled(tabId, activeTab.windowId, tabUrl),
+              new Promise<void>((resolve) => {
+                setTimeout(resolve, POPUP_SETTLE_TIMEOUT_MS);
+              }),
+            ]);
             tabInfo = await buildTabInfo(tabUrl, tabSettings, tabId);
           }
         }
