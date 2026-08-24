@@ -138,6 +138,53 @@ describe('resolveEffectiveSettings — Auto mode', () => {
     expect(result.nativeDark).toBe(true);
     expect(result.active).toBe(false);
   });
+
+  it('prefers cached native dark over live unknown for Auto popup status (x.ai)', () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      detectCache: {
+        'https://x.ai': {
+          result: 'dark' as const,
+          confidence: 'high' as const,
+          timestamp: Date.now(),
+        },
+      },
+    };
+
+    const result = resolveEffectiveSettings({
+      origin: 'https://x.ai',
+      hostname: 'x.ai',
+      settings,
+      detectOutcome: makeDetection('unknown', 'low'),
+    });
+
+    expect(result.nativeDark).toBe(true);
+    expect(result.active).toBe(false);
+    expect(result.mode).toBe('auto');
+  });
+
+  it('prefers live native dark skip over non-native cache entry', () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      detectCache: {
+        'https://x.ai': {
+          result: 'light' as const,
+          confidence: 'medium' as const,
+          timestamp: Date.now(),
+        },
+      },
+    };
+
+    const result = resolveEffectiveSettings({
+      origin: 'https://x.ai',
+      hostname: 'x.ai',
+      settings,
+      detectOutcome: makeDetection('dark', 'high'),
+    });
+
+    expect(result.nativeDark).toBe(true);
+    expect(result.active).toBe(false);
+  });
 });
 
 describe('isNativeDarkSkip', () => {

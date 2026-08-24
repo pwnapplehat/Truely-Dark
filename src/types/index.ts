@@ -11,6 +11,13 @@ export interface DetectionOutcome {
   confidence: DetectConfidence;
 }
 
+/** Content-script response for popup live Auto status. */
+export interface LiveDetectResponse {
+  outcome: DetectionOutcome;
+  /** True when content has settled on native-dark skip this navigation. */
+  contentNativeDark?: boolean;
+}
+
 export interface SiteOverride {
   mode: SiteMode;
   brightness?: number;

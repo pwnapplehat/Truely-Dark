@@ -76,14 +76,20 @@ function resolvePreserveMedia(
 function getDetectionOutcome(
   ctx: ResolveContext,
 ): DetectionOutcome {
-  const { origin, settings, detectOutcome } = ctx;
-
-  if (detectOutcome) return detectOutcome;
+  const { origin, settings, detectOutcome: live } = ctx;
 
   const cached = settings.detectCache[origin];
-  if (cached && isDetectCacheValid(cached.timestamp, DETECT_CACHE_TTL_MS)) {
-    return { result: cached.result, confidence: cached.confidence };
-  }
+  const validCache =
+    cached && isDetectCacheValid(cached.timestamp, DETECT_CACHE_TTL_MS)
+      ? ({ result: cached.result, confidence: cached.confidence } satisfies DetectionOutcome)
+      : undefined;
+
+  // Locked skip-native / live dark+high must win; live unknown must not mask cached native skip.
+  if (live && isNativeDarkSkip(live)) return live;
+  if (validCache && isNativeDarkSkip(validCache)) return validCache;
+
+  if (live) return live;
+  if (validCache) return validCache;
 
   return { result: 'unknown', confidence: 'low' };
 }

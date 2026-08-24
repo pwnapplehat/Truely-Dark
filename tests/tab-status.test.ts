@@ -79,6 +79,29 @@ describe('siteStatusLabel', () => {
     ).toBe('Extension dark mode active (Auto)');
   });
 
+  it('shows native skip for Auto defer when content settled native-dark', () => {
+    expect(
+      siteStatusLabel(
+        baseTab({
+          effectiveMode: 'auto',
+          resolvedMode: 'auto',
+          active: false,
+          nativeDark: true,
+          softApplied: false,
+        }),
+      ),
+    ).toBe('Natively dark — Truely Dark skipped');
+    expect(
+      statusDotClass(
+        baseTab({
+          active: false,
+          nativeDark: true,
+          softApplied: false,
+        }),
+      ),
+    ).toBe('popup-status-dot--native');
+  });
+
   it('shows native skip', () => {
     expect(
       siteStatusLabel(baseTab({ active: false, nativeDark: true, softApplied: false })),

@@ -524,7 +524,10 @@ export default defineContentScript({
       sendResponse: (response?: unknown) => void,
     ): boolean | void {
       if (message.type === 'GET_LIVE_DETECT') {
-        sendResponse(queryLiveAutoDetection(document, detectFromDomPaintFree));
+        sendResponse({
+          outcome: queryLiveAutoDetection(document, detectFromDomPaintFree),
+          contentNativeDark: lastEffectiveSettings?.nativeDark === true,
+        });
         return true;
       }
       if (message.type === 'SETTINGS_CHANGED') {

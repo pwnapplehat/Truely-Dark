@@ -2,6 +2,7 @@ import type {
   DetectConfidence,
   DetectResult,
   DetectionOutcome,
+  LiveDetectResponse,
   SiteMode,
   TabInfo,
   TruelyDarkMessage,
@@ -60,18 +61,46 @@ async function purgeStaleDetectCache(): Promise<void> {
   }
 }
 
-async function queryLiveDetection(tabId: number): Promise<DetectionOutcome | undefined> {
-  try {
-    const outcome = (await browser.tabs.sendMessage(tabId, {
-      type: 'GET_LIVE_DETECT',
-    })) as DetectionOutcome | undefined;
+interface LiveDetectQueryResult {
+  detectOutcome?: DetectionOutcome;
+  contentNativeDark?: boolean;
+}
+
+function parseLiveDetectResponse(
+  response: LiveDetectResponse | DetectionOutcome | undefined,
+): LiveDetectQueryResult {
+  if (!response || typeof response !== 'object') {
+    return {};
+  }
+
+  if ('outcome' in response) {
+    const { outcome, contentNativeDark } = response;
     if (outcome?.result && outcome.confidence) {
-      return outcome;
+      return {
+        detectOutcome: outcome,
+        contentNativeDark: contentNativeDark === true,
+      };
     }
+    return {};
+  }
+
+  const legacy = response as DetectionOutcome;
+  if (legacy.result && legacy.confidence) {
+    return { detectOutcome: legacy };
+  }
+  return {};
+}
+
+async function queryLiveDetection(tabId: number): Promise<LiveDetectQueryResult> {
+  try {
+    const response = (await browser.tabs.sendMessage(tabId, {
+      type: 'GET_LIVE_DETECT',
+    })) as LiveDetectResponse | DetectionOutcome | undefined;
+    return parseLiveDetectResponse(response);
   } catch {
     // Content script may not be ready yet
   }
-  return undefined;
+  return {};
 }
 
 async function buildTabInfo(
@@ -106,8 +135,11 @@ async function buildTabInfo(
   const systemDark = await getSystemDarkPreference();
   const siteMode = getSiteMode(settings, origin);
   let detectOutcome: DetectionOutcome | undefined;
+  let contentNativeDark = false;
   if (siteMode === 'auto' && tabId !== undefined) {
-    detectOutcome = await queryLiveDetection(tabId);
+    const live = await queryLiveDetection(tabId);
+    detectOutcome = live.detectOutcome;
+    contentNativeDark = live.contentNativeDark === true;
   }
   const effective = resolveEffectiveSettings({
     origin,
@@ -117,7 +149,10 @@ async function buildTabInfo(
     detectOutcome,
   });
 
-  if (effective.nativeDark && tabId !== undefined) {
+  const nativeDark =
+    effective.nativeDark || (siteMode === 'auto' && contentNativeDark);
+
+  if (nativeDark && tabId !== undefined) {
     setTabSoftApplied(tabId, false);
   }
 
@@ -146,7 +181,7 @@ async function buildTabInfo(
     resolvedMode: effective.mode,
     active: effective.active,
     globalEnabled: settings.enabled,
-    nativeDark: effective.nativeDark,
+    nativeDark,
     pageRestricted: false,
     softApplied,
     injectionPending,
