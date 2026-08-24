@@ -10,7 +10,7 @@ export const DEFAULT_SETTINGS: TruelyDarkSettings = {
   sepia: 0,
   preserveMedia: true,
   batterySaver: false,
-  enableOnRestrictedPages: false,
+  enableOnRestrictedPages: true,
   preset: 'midnight',
   schedule: {
     enabled: false,
@@ -120,7 +120,7 @@ export function migrateSettings(
   }
 
   if (data.enableOnRestrictedPages === undefined) {
-    merged.enableOnRestrictedPages = false;
+    merged.enableOnRestrictedPages = true;
   }
 
   const cache = (data.detectCache ?? {}) as Record<string, Record<string, unknown>>;

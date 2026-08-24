@@ -1,5 +1,4 @@
 import { resolveSoftAppliedForTab } from './soft-escalation';
-import { isChromeGalleryUrl } from './gallery-access';
 
 /** Max wall time before injection status must settle (true or false). */
 export const INJECTION_RESOLVE_TIMEOUT_MS = 2000;
@@ -58,12 +57,6 @@ export async function settleTabSoftApplied(
   contentStrict: boolean,
   force = false,
 ): Promise<boolean> {
-  if (isChromeGalleryUrl(url)) {
-    cancelTabResolveInFlight(tabId);
-    setTabSoftApplied(tabId, false);
-    return false;
-  }
-
   if (contentStrict) {
     setTabSoftApplied(tabId, true);
     return true;

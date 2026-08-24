@@ -563,21 +563,40 @@ const YOUTUBE_CSS = `
 `;
 
 const CHROME_WEB_STORE_CSS = `
+  html[data-truely-dark-active] {
+    --truely-dark-bg: #121212;
+    color-scheme: dark !important;
+  }
   html[data-truely-dark-active],
   html[data-truely-dark-active] body {
-    min-height: 100vh;
+    background-color: var(--truely-dark-bg, #121212) !important;
+    background-image: none !important;
+    color: #e8eaed !important;
   }
   html[data-truely-dark-active] c-wiz,
   html[data-truely-dark-active] main,
   html[data-truely-dark-active] #root,
   html[data-truely-dark-active] [role="main"],
   html[data-truely-dark-active] header,
-  html[data-truely-dark-active] nav {
-    background-color: transparent !important;
+  html[data-truely-dark-active] nav,
+  html[data-truely-dark-active] section,
+  html[data-truely-dark-active] article,
+  html[data-truely-dark-active] [class*="card"],
+  html[data-truely-dark-active] [class*="Card"] {
+    background-color: var(--truely-dark-bg, #121212) !important;
     background-image: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    color: #e8eaed !important;
     isolation: auto !important;
+  }
+  html[data-truely-dark-active] h1,
+  html[data-truely-dark-active] h2,
+  html[data-truely-dark-active] h3,
+  html[data-truely-dark-active] p,
+  html[data-truely-dark-active] span,
+  html[data-truely-dark-active] a {
+    color: #e8eaed !important;
   }
 `;
 
@@ -757,6 +776,7 @@ export const SITE_PACKS: SitePack[] = [
     skipDetect: false,
     injectCssFallback: true,
     requiresVisualVerify: true,
+    preferForceStylesheet: true,
     forceStylesheetFallback: true,
     customCss: CHROME_WEB_STORE_CSS,
   },
@@ -766,6 +786,7 @@ export const SITE_PACKS: SitePack[] = [
     skipDetect: false,
     injectCssFallback: true,
     requiresVisualVerify: true,
+    preferForceStylesheet: true,
     forceStylesheetFallback: true,
     customCss: CHROME_WEB_STORE_CSS,
   },

@@ -1,4 +1,5 @@
 import { isChromeGalleryUrl } from './gallery-access';
+import { attemptGalleryInjection } from './gallery-injection';
 import { markGalleryGestureAttempted } from './gallery-gesture-state';
 import { settleGalleryTabBlocked } from './gallery-tab-status';
 import {
@@ -11,13 +12,33 @@ import {
   executeMainWorldNuclearForce,
   executeMainWorldSoftFilter,
 } from './main-world-inject';
-import { registerGalleryContentScripts } from './register-content-scripts';
 import { setTabSoftApplied, settleTabSoftApplied } from './tab-injection-state';
 import { getHostnameFromUrl, hostPrefersForceStylesheet, hostRequiresVisualVerify } from './site-packs';
 import { verifyVisualDarkness } from './soft-escalation';
 
 export interface GestureActivateOptions {
   enableOnRestrictedPages: boolean;
+}
+
+async function attemptStandardInjection(tabId: number, url: string): Promise<boolean> {
+  const hostname = getHostnameFromUrl(url);
+  const preferForce = hostPrefersForceStylesheet(hostname);
+
+  const softInserted = preferForce ? false : await insertSoftCssForTab(tabId, url, 'html');
+  const softMain = preferForce ? false : await executeMainWorldSoftFilter(tabId, url, 'html');
+  const forceInserted = await insertForceStylesheetForTab(tabId, url);
+  const forceMain = await executeMainWorldForceStylesheet(tabId, url);
+  const nuclearInserted = preferForce ? false : await insertNuclearForceCssForTab(tabId, url);
+  const nuclearMain = preferForce ? false : await executeMainWorldNuclearForce(tabId, url);
+
+  return (
+    softInserted ||
+    softMain ||
+    forceInserted ||
+    forceMain ||
+    nuclearInserted ||
+    nuclearMain
+  );
 }
 
 /**
@@ -39,32 +60,9 @@ export async function gestureActivateSoftForTab(
     return false;
   }
 
-  if (gallery) {
-    try {
-      await registerGalleryContentScripts();
-    } catch {
-      // activeTab scripting may still work without dynamic registration
-    }
-  }
-
-  const softInserted = hostPrefersForceStylesheet(getHostnameFromUrl(url))
-    ? false
-    : await insertSoftCssForTab(tabId, url, 'html');
-  const softMain = hostPrefersForceStylesheet(getHostnameFromUrl(url))
-    ? false
-    : await executeMainWorldSoftFilter(tabId, url, 'html');
-  const forceInserted = await insertForceStylesheetForTab(tabId, url);
-  const forceMain = await executeMainWorldForceStylesheet(tabId, url);
-  const nuclearInserted = await insertNuclearForceCssForTab(tabId, url);
-  const nuclearMain = await executeMainWorldNuclearForce(tabId, url);
-
-  const injectionSucceeded =
-    softInserted ||
-    softMain ||
-    forceInserted ||
-    forceMain ||
-    nuclearInserted ||
-    nuclearMain;
+  const injectionSucceeded = gallery
+    ? await attemptGalleryInjection(tabId, url)
+    : await attemptStandardInjection(tabId, url);
 
   if (gallery) {
     const visuallyDark = await verifyVisualDarkness(windowId);
@@ -72,6 +70,10 @@ export async function gestureActivateSoftForTab(
       setTabSoftApplied(tabId, true);
       return true;
     }
+
+    const applied = await settleTabSoftApplied(tabId, windowId, url, false, true);
+    if (applied) return true;
+
     settleGalleryTabBlocked(tabId);
     return false;
   }
@@ -82,7 +84,6 @@ export async function gestureActivateSoftForTab(
     !applied &&
     (hostRequiresVisualVerify(getHostnameFromUrl(url)) || injectionSucceeded)
   ) {
-    await executeMainWorldNuclearForce(tabId, url);
     applied = await settleTabSoftApplied(tabId, windowId, url, false, true);
     if (!applied && injectionSucceeded) {
       const visuallyDark = await verifyVisualDarkness(windowId);

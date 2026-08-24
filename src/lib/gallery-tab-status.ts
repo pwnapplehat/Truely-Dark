@@ -1,4 +1,5 @@
 import { isChromeGalleryUrl } from './gallery-access';
+import { attemptGalleryInjection } from './gallery-injection';
 import { resolveEffectiveSettings } from './resolver';
 import { getSystemDarkPreference } from './schedule';
 import { getHostnameFromUrl, getOriginFromUrl } from './site-packs';
@@ -9,7 +10,7 @@ import {
 } from './tab-injection-state';
 
 /**
- * Gallery hosts cannot rely on visual verify — settle blocked immediately (no Applying…).
+ * Settle gallery tab to blocked after injection attempts failed.
  */
 export function settleGalleryTabBlocked(tabId: number): void {
   cancelTabResolveInFlight(tabId);
@@ -17,7 +18,8 @@ export function settleGalleryTabBlocked(tabId: number): void {
 }
 
 /**
- * When gallery tab is active, settle to blocked without waiting on escalation.
+ * Proactively attempt gallery injection on navigation; does not settle blocked
+ * until visual verify / gesture path completes.
  */
 export async function ensureGalleryTabSettled(tabId: number, url: string): Promise<void> {
   if (!isChromeGalleryUrl(url)) return;
@@ -38,5 +40,5 @@ export async function ensureGalleryTabSettled(tabId: number, url: string): Promi
     return;
   }
 
-  settleGalleryTabBlocked(tabId);
+  await attemptGalleryInjection(tabId, url);
 }

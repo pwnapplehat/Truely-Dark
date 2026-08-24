@@ -8,6 +8,8 @@ describe('insertCSS fallback registration', () => {
     expect(pack?.injectCssFallback).toBe(true);
     expect(pack?.requiresVisualVerify).toBe(true);
     expect(pack?.forceStylesheetFallback).toBe(true);
+    expect(pack?.preferForceStylesheet).toBe(true);
+    expect(hostPrefersForceStylesheet('chromewebstore.google.com')).toBe(true);
     expect(hostRequiresVisualVerify('chromewebstore.google.com')).toBe(true);
   });
 

@@ -3,6 +3,7 @@ import { CollapsibleSection, Section, Slider, Toggle } from '../../components/Co
 import '../../components/controls.css';
 import '../../assets/global.css';
 import { PRESETS } from '../../lib/defaults';
+import { GALLERY_CHROME_LIMITATION } from '../../lib/gallery-access';
 import { sendMessage } from '../../lib/messaging';
 import type { PresetId, SiteMode, TruelyDarkSettings } from '../../types';
 import './options.css';
@@ -133,21 +134,22 @@ export function OptionsApp() {
           onChange={(batterySaver) => update({ batterySaver })}
         />
         <Toggle
-          label="Enable on restricted pages"
-          description="Try injection on Chrome Web Store (usually blocked by Chromium)"
+          label="Try Chrome Web Store injection"
+          description="Run full MV3 ladder (insertCSS USER, MAIN executeScript, registerContentScripts) on gallery tabs when popup opens"
           checked={settings.enableOnRestrictedPages}
           onChange={(enableOnRestrictedPages) => update({ enableOnRestrictedPages })}
         />
         <p className="hint-text">
-          Chromium protects the HTTPS Chrome Web Store (<code>chromewebstore.google.com</code>) —
-          extensions cannot inject CSS or scripts there (same class of limitation as Dark Reader).
-          The <code>extensions-on-chrome-urls</code> flag only affects <code>chrome://</code> URLs,
-          not the public store gallery.
+          Truely Dark attempts every legitimate MV3 path on{' '}
+          <code>chromewebstore.google.com</code> when Soft is active — including{' '}
+          <code>activeTab</code> user-gesture scripting, <code>registerContentScripts</code>, USER{' '}
+          <code>insertCSS</code>, and MAIN-world <code>executeScript</code>.
         </p>
+        <p className="hint-text">{GALLERY_CHROME_LIMITATION}</p>
         <p className="hint-text">
-          Optional OS-level workaround for the store only: enable Chrome&apos;s{' '}
-          <strong>Auto Dark Mode for Web Contents</strong> (chrome://flags) or your OS dark mode —
-          Truely Dark will still darken normal websites.
+          Optional OS-level workaround: Chrome&apos;s{' '}
+          <strong>Auto Dark Mode for Web Contents</strong> (chrome://flags/#enable-force-dark) or
+          your OS dark mode — Truely Dark still darkens normal websites.
         </p>
       </Section>
 

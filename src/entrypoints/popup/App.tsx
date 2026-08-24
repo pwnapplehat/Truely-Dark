@@ -27,7 +27,7 @@ export function PopupApp() {
       setSettings(s);
       let tab = await loadTabInfo();
 
-      if (tab.galleryHost && s.enableOnRestrictedPages) {
+      if (tab.galleryHost && tab.active && s.enableOnRestrictedPages) {
         await sendMessage({ type: 'GESTURE_ACTIVATE_SOFT' });
         tab = await loadTabInfo();
       }
@@ -77,7 +77,7 @@ export function PopupApp() {
       });
       setSettings(updated);
       let tab = await loadTabInfo();
-      if (tab.galleryHost && settings?.enableOnRestrictedPages && mode !== 'off') {
+      if (tab.galleryHost && tab.active && mode !== 'off' && settings?.enableOnRestrictedPages) {
         await sendMessage({ type: 'GESTURE_ACTIVATE_SOFT' });
         tab = await loadTabInfo();
       }

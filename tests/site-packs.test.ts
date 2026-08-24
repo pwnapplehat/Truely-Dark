@@ -10,9 +10,11 @@ import {
 } from '../src/lib/site-packs';
 
 describe('findSitePack', () => {
-  it('matches chromewebstore.google.com', () => {
+  it('matches chromewebstore.google.com with force-first Soft', () => {
     const pack = findSitePack('chromewebstore.google.com');
     expect(pack?.origins).toContain('chromewebstore.google.com');
+    expect(pack?.preferForceStylesheet).toBe(true);
+    expect(pack?.customCss).toContain('--truely-dark-bg');
   });
 
   it('OVH force pack uses targeted surfaces without universal * paint', () => {

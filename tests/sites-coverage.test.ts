@@ -96,6 +96,14 @@ const SITES: SiteCase[] = [
     expectActive: true,
   },
   {
+    hostname: 'x.ai',
+    origin: 'https://x.ai',
+    detect: makeDetection('dark', 'high'),
+    expectActive: false,
+    expectNative: true,
+    name: 'dark',
+  },
+  {
     hostname: 'x.com',
     origin: 'https://x.com',
     detect: makeDetection('light', 'medium'),
