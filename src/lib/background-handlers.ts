@@ -527,7 +527,8 @@ export function registerBackgroundHandlers(): void {
           }
         } else {
           const hostname = getHostnameFromUrl(tab.url);
-          if (hostPrefersForceStylesheet(hostname)) {
+          const siteMode = getSiteMode(settings, getOriginFromUrl(tab.url));
+          if (hostPrefersForceStylesheet(hostname) && siteMode !== 'auto') {
             void insertForceStylesheetForTab(tabId, tab.url);
             await ensurePreferForceTabSettled(tabId, tab.windowId, tab.url);
           } else if (!isPopupLikelyOpen()) {

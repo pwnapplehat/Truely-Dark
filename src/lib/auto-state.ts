@@ -196,11 +196,18 @@ export function queryLiveAutoDetection(
   doc: Document,
   detectPaintFree: (document: Document) => DetectionOutcome,
 ): DetectionOutcome {
-  if (isAutoDecisionLocked()) {
+  const fresh = detectPaintFree(doc);
+  if (isNativeDarkSkip(fresh)) {
+    lockAutoDecision(fresh);
+    return fresh;
+  }
+
+  if (isAutoDecisionLocked() && lock?.decision === 'skip-native') {
     const locked = getLockedAutoDetectOutcome();
     if (locked) return locked;
   }
-  return detectPaintFree(doc);
+
+  return fresh;
 }
 
 /**

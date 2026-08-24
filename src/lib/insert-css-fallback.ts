@@ -78,6 +78,16 @@ export async function resolveEffectiveForUrl(
     };
   }
 
+  // Auto: background never injects Soft/force — content owns detect/apply/skip lifecycle.
+  if (siteMode === 'auto') {
+    return {
+      ...effective,
+      active: false,
+      skipProcessing: true,
+      mode: 'auto',
+    };
+  }
+
   return effective;
 }
 
@@ -353,6 +363,11 @@ export async function removeSoftCssForTab(tabId: number): Promise<void> {
 export async function maybeProactiveInsertCss(tabId: number, url: string): Promise<void> {
   const hostname = getHostnameFromUrl(url);
   if (!hostname) return;
+
+  const settings = await getSettings();
+  const origin = getOriginFromUrl(url);
+  const siteMode = getSiteMode(settings, origin);
+  if (siteMode === 'auto') return;
 
   const effective = await resolveEffectiveForUrl(url, tabId);
   if (!effective?.active) return;

@@ -573,7 +573,18 @@ export default defineContentScript({
       sendResponse: (response?: unknown) => void,
     ): boolean | void {
       if (message.type === 'GET_LIVE_DETECT') {
-        sendResponse(computeLiveAutoNativeSkip(document, detectFromDomPaintFree, lastEffectiveSettings));
+        const payload = computeLiveAutoNativeSkip(
+          document,
+          detectFromDomPaintFree,
+          lastEffectiveSettings,
+        );
+        if (payload.autoNativeSkip && isDarkModeActive()) {
+          stopPreferForceWatchdog();
+          removeDarkMode();
+          void requestRemoveInsertCss();
+          void reportInjectionStatus(false);
+        }
+        sendResponse(payload);
         return true;
       }
       if (message.type === 'SETTINGS_CHANGED') {

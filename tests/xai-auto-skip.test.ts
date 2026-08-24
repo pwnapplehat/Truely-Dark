@@ -13,10 +13,51 @@ import {
   resolveEffectiveSettings,
 } from '../src/lib/resolver';
 import { siteStatusLabel } from '../src/lib/tab-status';
-import type { TabInfo } from '../src/types';
 import { hostPrefersForceStylesheet, hostRequiresVisualVerify } from '../src/lib/site-packs';
+import type { TabInfo } from '../src/types';
 
 describe('x.ai Auto native skip integration', () => {
+  it('paint-free detect strips Soft attrs and native-skips x.ai html.light + dark #__next', () => {
+    document.documentElement.innerHTML =
+      '<head></head><body><div id="__next" style="background-color:#0a0a0a;min-height:100vh"></div></body>';
+    document.documentElement.classList.add('light');
+    document.documentElement.style.setProperty('color-scheme', 'light', 'important');
+    document.documentElement.setAttribute('data-truely-dark-active', 'soft');
+    document.documentElement.setAttribute('data-truely-dark-force', 'true');
+
+    const outcome = detectFromDomPaintFree(document);
+    expect(outcome).toEqual({ result: 'dark', confidence: 'high' });
+    expect(document.documentElement.hasAttribute('data-truely-dark-active')).toBe(false);
+    expect(document.documentElement.hasAttribute('data-truely-dark-force')).toBe(false);
+
+    const effective = resolveEffectiveSettings({
+      origin: 'https://x.ai',
+      hostname: 'x.ai',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+    expect(effective.active).toBe(false);
+    expect(effective.nativeDark).toBe(true);
+    expect(siteStatusLabel({
+      origin: 'https://x.ai',
+      hostname: 'x.ai',
+      url: 'https://x.ai/pricing',
+      effectiveMode: 'auto',
+      resolvedMode: 'auto',
+      active: false,
+      globalEnabled: true,
+      nativeDark: true,
+      autoNativeSkip: true,
+      pageRestricted: false,
+      softApplied: false,
+      injectionPending: false,
+      galleryHost: false,
+      galleryInjectionBlocked: false,
+      enableOnRestrictedPages: false,
+      galleryGestureAttempted: false,
+    })).toBe('Natively dark — Truely Dark skipped');
+  });
+
   it('paint-free detect on x.ai html.light + dark #__next yields dark/high native skip', () => {
     document.documentElement.innerHTML =
       '<head></head><body><div id="__next" style="background-color:#0a0a0a;min-height:100vh"></div></body>';

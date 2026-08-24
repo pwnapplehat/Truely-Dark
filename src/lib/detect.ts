@@ -374,6 +374,39 @@ function detectComputedColorSchemeDark(doc: Document): DetectionOutcome | null {
   return null;
 }
 
+/**
+ * Temporarily strip Truely Dark Soft/force paint so Auto detect reads native surfaces.
+ * Does not restore — caller owns apply vs skip after detect (x.ai native skip).
+ */
+export function stripExtensionPaintForDetect(doc: Document): boolean {
+  const html = doc.documentElement;
+  const hadPaint =
+    isExtensionPaintActive(doc) || Boolean(doc.getElementById(EXTENSION_MARKERS.preloadStyleId));
+
+  doc.getElementById(EXTENSION_MARKERS.preloadStyleId)?.remove();
+  doc.getElementById(EXTENSION_MARKERS.styleId)?.remove();
+  doc.getElementById('truely-dark-force-styles')?.remove();
+
+  html.removeAttribute(EXTENSION_MARKERS.rootAttr);
+  html.removeAttribute(EXTENSION_MARKERS.forceAttr);
+  html.removeAttribute(EXTENSION_MARKERS.appShellAttr);
+  html.removeAttribute(EXTENSION_MARKERS.filterTargetAttr);
+
+  html.style.removeProperty('filter');
+  html.style.removeProperty('-webkit-filter');
+  html.style.removeProperty('background-color');
+  html.style.removeProperty('color');
+
+  if (doc.body) {
+    doc.body.style.removeProperty('filter');
+    doc.body.style.removeProperty('-webkit-filter');
+    doc.body.style.removeProperty('background-color');
+    doc.body.style.removeProperty('color');
+  }
+
+  return hadPaint;
+}
+
 const SPA_ROOT_SELECTORS = ['#__next', '#root'] as const;
 
 function collectSpaRootElements(doc: Document): Element[] {
@@ -582,14 +615,15 @@ export function detectFromDom(doc: Document = document): DetectionOutcome {
 }
 
 /**
- * Paint-free DOM detection — temporarily removes FOUC preload so #121212
- * does not mask native dark root surfaces (x.ai, etc.) on first Auto pass.
+ * Paint-free DOM detection — strips FOUC preload AND extension Soft/force paint
+ * so native surface luminance (#__next, etc.) is readable on Auto re-detect.
  */
 export function detectFromDomPaintFree(doc: Document = document): DetectionOutcome {
   const preload = doc.getElementById(EXTENSION_MARKERS.preloadStyleId);
   const preloadParent = preload?.parentElement ?? null;
   const preloadNext = preload?.nextSibling ?? null;
-  if (preload) preload.remove();
+
+  stripExtensionPaintForDetect(doc);
 
   try {
     return detectFromDom(doc);

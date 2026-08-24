@@ -22,6 +22,10 @@ import { makeDetection } from '../src/lib/resolver';
 describe('auto-state — hysteresis and settle lock', () => {
   beforeEach(() => {
     resetAutoSession();
+    document.documentElement.innerHTML = '<head></head><body></body>';
+    document.documentElement.className = '';
+    document.documentElement.removeAttribute('data-truely-dark-active');
+    document.documentElement.removeAttribute('data-truely-dark-force');
   });
 
   it('locks apply-soft only via lockAutoApplyHysteresis, not at detect time', () => {
@@ -159,6 +163,20 @@ describe('auto-state — hysteresis and settle lock', () => {
     );
 
     expect(resolved).toEqual(makeDetection('dark', 'high'));
+  });
+
+  it('queryLiveAutoDetection prefers fresh native skip over apply-soft lock', () => {
+    lockAutoApplyHysteresis(makeDetection('light', 'medium'));
+    document.documentElement.innerHTML =
+      '<head></head><body><div id="__next" style="background-color:#0a0a0a;min-height:100vh"></div></body>';
+    document.documentElement.classList.add('light');
+    document.documentElement.setAttribute('data-truely-dark-active', 'soft');
+    document.documentElement.setAttribute('data-truely-dark-force', 'true');
+
+    const outcome = queryLiveAutoDetection(document, detectFromDomPaintFree);
+    expect(outcome).toEqual(makeDetection('dark', 'high'));
+    expect(getAutoSessionLock()?.decision).toBe('skip-native');
+    expect(document.documentElement.hasAttribute('data-truely-dark-active')).toBe(false);
   });
 
   it('queryLiveAutoDetection returns locked skip-native for popup status', () => {
