@@ -3,9 +3,11 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import {
   detectFromDom,
   detectFromDomPaintFree,
+  isExtensionForceSoftInlinePaint,
   isExtensionPaintActive,
   EXTENSION_MARKERS,
 } from '../src/lib/detect';
+import { applyDarkMode, removeDarkMode, verifyForceApplication } from '../src/lib/engine';
 import { DEFAULT_SETTINGS } from '../src/lib/defaults';
 import { resolveEffectiveSettings, makeDetection } from '../src/lib/resolver';
 
@@ -79,9 +81,48 @@ describe('detect — extension paint must not trigger native-dark skip', () => {
     document.documentElement.setAttribute(EXTENSION_MARKERS.rootAttr, 'soft');
     document.documentElement.setAttribute(EXTENSION_MARKERS.forceAttr, 'true');
     document.documentElement.style.setProperty('background-color', '#0d1117', 'important');
+    document.documentElement.style.setProperty('color', '#e8e8e8', 'important');
     document.body.style.setProperty('background-color', '#0d1117', 'important');
 
+    expect(isExtensionForceSoftInlinePaint(document)).toBe(true);
     expect(detectFromDom(document)).toEqual({ result: 'unknown', confidence: 'low' });
+  });
+
+  it('paint-free detect strips force Soft #0d1117 leak and native-skips x.ai #__next', () => {
+    document.documentElement.innerHTML =
+      '<head></head><body><div id="__next" style="background-color:#0a0a0a;min-height:100vh"></div></body>';
+    document.documentElement.classList.add('light');
+    document.documentElement.setAttribute(EXTENSION_MARKERS.rootAttr, 'soft');
+    document.documentElement.setAttribute(EXTENSION_MARKERS.forceAttr, 'true');
+    document.documentElement.style.setProperty('background-color', '#0d1117', 'important');
+    document.documentElement.style.setProperty('color', '#e8e8e8', 'important');
+    document.documentElement.style.setProperty('color-scheme', 'light', 'important');
+
+    const outcome = detectFromDomPaintFree(document);
+    expect(outcome).toEqual({ result: 'dark', confidence: 'high' });
+    expect(document.documentElement.hasAttribute('data-truely-dark-active')).toBe(false);
+    expect(document.documentElement.hasAttribute('data-truely-dark-force')).toBe(false);
+    expect(document.documentElement.style.getPropertyValue('background-color')).toBe('');
+  });
+
+  it('failed force Soft apply is fully removed by removeDarkMode', () => {
+    const effective = resolveEffectiveSettings({
+      origin: 'https://x.ai',
+      hostname: 'x.ai',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: makeDetection('light', 'medium'),
+    });
+
+    applyDarkMode(effective, document, 'x.ai');
+    expect(document.documentElement.hasAttribute(EXTENSION_MARKERS.forceAttr)).toBe(true);
+    expect(verifyForceApplication(document)).toBe(true);
+
+    removeDarkMode(document);
+    expect(document.documentElement.hasAttribute(EXTENSION_MARKERS.rootAttr)).toBe(false);
+    expect(document.documentElement.hasAttribute(EXTENSION_MARKERS.forceAttr)).toBe(false);
+    expect(document.documentElement.style.getPropertyValue('background-color')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('color')).toBe('');
+    expect(isExtensionPaintActive(document)).toBe(false);
   });
 
   it('x.ai native dark still detected paint-free before extension applies', () => {

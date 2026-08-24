@@ -8,6 +8,8 @@ import {
   detectFromSignals,
   detectPageTheme,
   isDetectCacheValid,
+  isExtensionForceSoftBackground,
+  isExtensionForceSoftInlinePaint,
   isExtensionInjectedBackground,
   isHighConfidenceDark,
   parseColor,
@@ -57,9 +59,26 @@ describe('isExtensionInjectedBackground', () => {
     expect(isExtensionInjectedBackground('rgb(18, 18, 18)')).toBe(true);
   });
 
+  it('does not flag force Soft #0d1117 globally (GitHub-native uses same color)', () => {
+    expect(isExtensionInjectedBackground('#0d1117')).toBe(false);
+    expect(isExtensionInjectedBackground('rgb(13, 17, 23)')).toBe(false);
+  });
+
   it('does not flag white Wikipedia backgrounds', () => {
     expect(isExtensionInjectedBackground('#ffffff')).toBe(false);
     expect(isExtensionInjectedBackground('rgb(255, 255, 255)')).toBe(false);
+  });
+
+  it('does not flag x.ai native #0a0a0a surfaces', () => {
+    expect(isExtensionInjectedBackground('#0a0a0a')).toBe(false);
+    expect(isExtensionInjectedBackground('rgb(10, 10, 10)')).toBe(false);
+  });
+});
+
+describe('isExtensionForceSoftBackground', () => {
+  it('matches Truely Dark force Soft marketing palette', () => {
+    expect(isExtensionForceSoftBackground('#0d1117')).toBe(true);
+    expect(isExtensionForceSoftBackground('rgb(13, 17, 23)')).toBe(true);
   });
 });
 

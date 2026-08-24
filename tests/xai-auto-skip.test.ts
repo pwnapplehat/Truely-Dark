@@ -100,6 +100,41 @@ describe('x.ai Auto native skip integration', () => {
     expect(effective.mode).toBe('auto');
   });
 
+  it('rejects meta color-scheme light on x.ai when #__next exists but is not yet dark', () => {
+    document.documentElement.innerHTML =
+      '<head><meta name="color-scheme" content="light"></head><body><div id="__next"></div></body>';
+    document.documentElement.classList.add('light');
+
+    const outcome = detectFromDomPaintFree(document);
+    expect(outcome).toEqual({ result: 'unknown', confidence: 'low' });
+
+    const effective = resolveEffectiveSettings({
+      origin: 'https://x.ai',
+      hostname: 'x.ai',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+    expect(effective.active).toBe(false);
+    expect(effective.nativeDark).toBe(false);
+  });
+
+  it('half-applied force Soft rgb leak stripped by paint-free detect', () => {
+    document.documentElement.innerHTML =
+      '<head></head><body><div id="__next" style="background-color:#0a0a0a;min-height:100vh"></div></body>';
+    document.documentElement.setAttribute('data-truely-dark-active', 'soft');
+    document.documentElement.setAttribute('data-truely-dark-force', 'true');
+    document.documentElement.style.setProperty('background-color', 'rgb(13, 17, 23)', 'important');
+    document.documentElement.style.setProperty('color', 'rgb(232, 232, 232)', 'important');
+    document.documentElement.style.setProperty('color-scheme', 'light', 'important');
+
+    detectFromDomPaintFree(document);
+
+    expect(document.documentElement.hasAttribute('data-truely-dark-active')).toBe(false);
+    expect(document.documentElement.hasAttribute('data-truely-dark-force')).toBe(false);
+    expect(document.documentElement.style.getPropertyValue('background-color')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('color')).toBe('');
+  });
+
   it('defers apply-soft on x.ai until SPA settle passes complete', () => {
     expect(
       shouldDeferAutoSoftApply(

@@ -77,6 +77,10 @@ const REGION_GROUPS: ReadonlyArray<{ id: string; selectors: readonly string[] }>
 /** Truely Dark preload paints this — must not count as site-native dark. */
 export const EXTENSION_PRELOAD_BG = '#121212';
 
+/** Force Soft marketing palette — MAIN/insertCSS force path, not site-native (x.ai skip). */
+export const EXTENSION_FORCE_SOFT_BG = '#0d1117';
+export const EXTENSION_FORCE_SOFT_FG = '#e8e8e8';
+
 export const EXTENSION_MARKERS = {
   preloadStyleId: 'truely-dark-preload',
   styleId: 'truely-dark-styles',
@@ -94,17 +98,75 @@ export interface AuthoredSignalInput {
   prefersDark?: boolean;
 }
 
-/**
- * True when a computed background matches Truely Dark FOUC preload (#121212).
- * Must not treat arbitrary native dark surfaces (#0a0a0a, #0d1117, etc.) as poison.
- */
-export function isExtensionInjectedBackground(color: string | undefined): boolean {
+function rgbMatchesByteTriplet(
+  rgb: { r: number; g: number; b: number },
+  r: number,
+  g: number,
+  b: number,
+  tolerance = 1,
+): boolean {
+  return (
+    Math.abs(rgb.r - r) <= tolerance &&
+    Math.abs(rgb.g - g) <= tolerance &&
+    Math.abs(rgb.b - b) <= tolerance
+  );
+}
+
+/** FOUC preload #121212 — never site-native dark. */
+export function isExtensionPreloadBackground(color: string | undefined): boolean {
   if (!color) return false;
   const rgb = parseColor(color);
   if (!rgb) return false;
-  return (
-    Math.abs(rgb.r - 18) <= 1 && Math.abs(rgb.g - 18) <= 1 && Math.abs(rgb.b - 18) <= 1
-  );
+  return rgbMatchesByteTriplet(rgb, 18, 18, 18);
+}
+
+/** Force Soft marketing bg #0d1117 — Truely Dark MAIN/insertCSS paint, not native x.ai (#0a0a0a). */
+export function isExtensionForceSoftBackground(color: string | undefined): boolean {
+  if (!color) return false;
+  const rgb = parseColor(color);
+  if (!rgb) return false;
+  return rgbMatchesByteTriplet(rgb, 13, 17, 23);
+}
+
+/** Force Soft marketing fg #e8e8e8 paired with force bg on html. */
+export function isExtensionForceSoftForeground(color: string | undefined): boolean {
+  if (!color) return false;
+  const rgb = parseColor(color);
+  if (!rgb) return false;
+  return rgbMatchesByteTriplet(rgb, 232, 232, 232, 2);
+}
+
+/**
+ * True when a computed color matches Truely Dark injected paint (preload or force Soft).
+ * GitHub-native #0d1117 is site-native unless extension force context is active.
+ */
+export function isExtensionInjectedBackground(color: string | undefined): boolean {
+  return isExtensionPreloadBackground(color);
+}
+
+/** Skip luminance sampling when bg is extension paint in the current DOM context. */
+function isSiteNativeBackground(color: string, doc: Document, el: Element): boolean {
+  if (isExtensionPreloadBackground(color)) return false;
+  if (!isExtensionForceSoftBackground(color)) return true;
+  return !isExtensionForceSoftSurface(doc, el);
+}
+
+/** Force Soft palette on html/body while extension attrs or inline pairing is present. */
+function isExtensionForceSoftSurface(doc: Document, el: Element): boolean {
+  if (isExtensionPaintActive(doc)) return true;
+  if (el !== doc.documentElement) return false;
+  return isExtensionForceSoftInlinePaint(doc);
+}
+
+/** Inline force Soft pairing on html — survives attr strip until paint-free cleanup. */
+export function isExtensionForceSoftInlinePaint(doc: Document = document): boolean {
+  const view = doc.defaultView;
+  if (!view) return false;
+
+  const html = doc.documentElement;
+  const bg = view.getComputedStyle(html).backgroundColor;
+  const fg = view.getComputedStyle(html).color;
+  return isExtensionForceSoftBackground(bg) && isExtensionForceSoftForeground(fg);
 }
 
 /**
@@ -310,6 +372,8 @@ export function isExtensionPaintActive(doc: Document = document): boolean {
   if (html.hasAttribute(EXTENSION_MARKERS.forceAttr)) return true;
   if (html.hasAttribute(EXTENSION_MARKERS.appShellAttr)) return true;
   if (doc.getElementById(EXTENSION_MARKERS.styleId)) return true;
+  if (doc.getElementById('truely-dark-force-styles')) return true;
+  if (isExtensionForceSoftInlinePaint(doc)) return true;
 
   const view = doc.defaultView;
   if (!view) return false;
@@ -396,15 +460,39 @@ export function stripExtensionPaintForDetect(doc: Document): boolean {
   html.style.removeProperty('-webkit-filter');
   html.style.removeProperty('background-color');
   html.style.removeProperty('color');
+  html.style.removeProperty('color-scheme');
 
   if (doc.body) {
     doc.body.style.removeProperty('filter');
     doc.body.style.removeProperty('-webkit-filter');
     doc.body.style.removeProperty('background-color');
     doc.body.style.removeProperty('color');
+    doc.body.style.removeProperty('color-scheme');
   }
 
   return hadPaint;
+}
+
+/**
+ * Meta color-scheme:light on SPAs like x.ai is misleading while #__next paints dark.
+ * Never short-circuit to light/high when an SPA root is present but not yet sampled dark.
+ */
+function rejectSpaMisleadingAuthoredLight(
+  doc: Document,
+  authored: DetectionOutcome,
+): DetectionOutcome {
+  if (authored.result !== 'light' || authored.confidence !== 'high') return authored;
+
+  const spaRoots = collectSpaRootElements(doc);
+  if (spaRoots.length === 0) return authored;
+
+  const spaSamples = spaRoots
+    .map((el) => getElementBackgroundLuminance(el, doc))
+    .filter((lum): lum is number => lum !== null);
+  const spaDark = classifyUniformDarkSurfaces(spaSamples);
+  if (spaDark) return authored;
+
+  return { result: 'unknown', confidence: 'low' };
 }
 
 const SPA_ROOT_SELECTORS = ['#__next', '#root'] as const;
@@ -477,7 +565,7 @@ function getElementBackgroundLuminance(el: Element, doc: Document): number | nul
   let current: Element | null = el;
   while (current) {
     const bg = view.getComputedStyle(current).backgroundColor;
-    if (bg && !isExtensionInjectedBackground(bg)) {
+    if (bg && isSiteNativeBackground(bg, doc, current)) {
       const rgb = parseColor(bg);
       if (rgb) {
         return computeLuminance(rgb.r / 255, rgb.g / 255, rgb.b / 255);
@@ -594,7 +682,10 @@ export function detectFromDom(doc: Document = document): DetectionOutcome {
   const paintedDark = detectNativeDarkRootSurfaces(doc);
   if (paintedDark) return paintedDark;
 
-  const authoredOutcome = detectFromAuthoredSignals(collectAuthoredSignals(doc));
+  const authoredOutcome = rejectSpaMisleadingAuthoredLight(
+    doc,
+    detectFromAuthoredSignals(collectAuthoredSignals(doc)),
+  );
   if (authoredOutcome.result !== 'unknown') return authoredOutcome;
 
   const colorSchemeDark = detectComputedColorSchemeDark(doc);

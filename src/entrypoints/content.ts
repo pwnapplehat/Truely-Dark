@@ -319,6 +319,13 @@ export default defineContentScript({
 
       await reportInjectionStatus(contentStrict);
 
+      if (!contentStrict) {
+        stopPreferForceWatchdog();
+        removeDarkMode();
+        await requestRemoveInsertCss();
+        debouncedRefresh(true);
+      }
+
       if (hostRequiresVisualVerify(hostname)) {
         return false;
       }
@@ -412,6 +419,9 @@ export default defineContentScript({
           if (shouldDetect && extensionActive) {
             stopPreferForceWatchdog();
             removeDarkMode();
+          }
+
+          if (shouldDetect && !useCacheOnly) {
             await requestRemoveInsertCss();
           }
 
@@ -478,7 +488,10 @@ export default defineContentScript({
         }
 
         if (effective.active) {
-          await applyWithVerification(effective);
+          const applied = await applyWithVerification(effective);
+          if (!applied) {
+            return;
+          }
           if (
             siteMode === 'auto' &&
             effective.mode === 'soft' &&
@@ -573,18 +586,21 @@ export default defineContentScript({
       sendResponse: (response?: unknown) => void,
     ): boolean | void {
       if (message.type === 'GET_LIVE_DETECT') {
-        const payload = computeLiveAutoNativeSkip(
-          document,
-          detectFromDomPaintFree,
-          lastEffectiveSettings,
-        );
-        if (payload.autoNativeSkip && isDarkModeActive()) {
-          stopPreferForceWatchdog();
-          removeDarkMode();
-          void requestRemoveInsertCss();
-          void reportInjectionStatus(false);
-        }
-        sendResponse(payload);
+        void (async () => {
+          await requestRemoveInsertCss();
+          const payload = computeLiveAutoNativeSkip(
+            document,
+            detectFromDomPaintFree,
+            lastEffectiveSettings,
+          );
+          if (payload.autoNativeSkip && isDarkModeActive()) {
+            stopPreferForceWatchdog();
+            removeDarkMode();
+            await requestRemoveInsertCss();
+            void reportInjectionStatus(false);
+          }
+          sendResponse(payload);
+        })();
         return true;
       }
       if (message.type === 'SETTINGS_CHANGED') {
