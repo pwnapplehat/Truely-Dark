@@ -41,6 +41,9 @@ function isVisualAppliedForHost(
   hostname: string,
   analysis: import('./visual-verify').VisualSampleAnalysis,
 ): boolean {
+  if (hostPrefersForceStylesheet(hostname)) {
+    return isSoftAppliedFromVisualAnalysis(analysis);
+  }
   if (hostRequiresMarketingVisualVerify(hostname)) {
     return isMarketingVisualQuality(analysis);
   }
@@ -166,7 +169,7 @@ export async function resolveSoftAppliedForTab(
 
   if (visual.inconclusive) {
     if (hostPrefersForceStylesheet(hostname)) {
-      return contentStrict;
+      return true;
     }
     return hostRequiresMarketingVisualVerify(hostname) ? false : contentStrict;
   }

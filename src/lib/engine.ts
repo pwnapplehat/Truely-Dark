@@ -442,6 +442,24 @@ function isForceRootBackgroundDark(view: Window, el: Element | null): boolean {
   return rgbByteLuminance(rgb.r, rgb.g, rgb.b) < MIN_FORCE_ROOT_LUMINANCE;
 }
 
+const FORCE_ROOT_SURFACE_SELECTORS = [
+  'main',
+  '[role="main"]',
+  '.dialog-off-canvas-main-canvas',
+  '#__next',
+  '#root',
+] as const;
+
+function isForceApplicationBackgroundDark(view: Window, doc: Document): boolean {
+  if (isForceRootBackgroundDark(view, doc.documentElement)) return true;
+  if (doc.body && isForceRootBackgroundDark(view, doc.body)) return true;
+  for (const selector of FORCE_ROOT_SURFACE_SELECTORS) {
+    const el = doc.querySelector(selector);
+    if (isForceRootBackgroundDark(view, el)) return true;
+  }
+  return false;
+}
+
 /**
  * Verified force stylesheet: force attr set, no invert filter, dark root background.
  */
@@ -460,7 +478,7 @@ export function verifyForceApplication(doc: Document = document): boolean {
     if (computedFilterHasStrictInvert(bodyFilter)) return false;
   }
 
-  return isForceRootBackgroundDark(view, html) || isForceRootBackgroundDark(view, doc.body);
+  return isForceApplicationBackgroundDark(view, doc);
 }
 
 /**

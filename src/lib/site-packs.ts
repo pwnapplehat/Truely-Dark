@@ -947,17 +947,30 @@ const XAI_FORCE_CSS = `
   html[data-truely-dark-active] [class*="consent"] button,
   html[data-truely-dark-active] [class*="privacy"] button,
   html[data-truely-dark-active] [class*="cookie-banner"] button,
-  html[data-truely-dark-active] [class*="CookieBanner"] button {
-    background-color: #1a1a1a !important;
+  html[data-truely-dark-active] [class*="CookieBanner"] button,
+  html[data-truely-dark-active] div[class*="fixed"][class*="bottom"] button,
+  html[data-truely-dark-active] div[class*="fixed"][class*="right"] button {
+    background-color: #2a2a2a !important;
     color: #e8eaed !important;
-    border-color: #3c4043 !important;
+    border: 1px solid #5f6368 !important;
+    -webkit-text-fill-color: #e8eaed !important;
   }
   html[data-truely-dark-active] [class*="cookie"] button[class*="primary"],
   html[data-truely-dark-active] [class*="consent"] button[class*="primary"],
-  html[data-truely-dark-active] [class*="cookie"] button:last-of-type,
-  html[data-truely-dark-active] [class*="consent"] button:last-of-type {
-    background-color: #e8eaed !important;
+  html[data-truely-dark-active] div[class*="fixed"] button[class*="primary"],
+  html[data-truely-dark-active] div[class*="fixed"][class*="bottom"] button:last-of-type {
+    background-color: #f1f3f4 !important;
     color: #0a0a0a !important;
+    border-color: #f1f3f4 !important;
+  }
+  html[data-truely-dark-active] [class*="cookie"] button[class*="close"],
+  html[data-truely-dark-active] [class*="consent"] button[class*="close"],
+  html[data-truely-dark-active] div[class*="fixed"] button[aria-label*="Close"],
+  html[data-truely-dark-active] div[class*="fixed"] button[aria-label*="close"],
+  html[data-truely-dark-active] div[class*="fixed"] [class*="close"] {
+    background-color: #2a2a2a !important;
+    color: #e8eaed !important;
+    border: 1px solid #5f6368 !important;
   }
   html[data-truely-dark-active] div[class*="fixed"][class*="bottom"],
   html[data-truely-dark-active] div[class*="fixed"][class*="right"],

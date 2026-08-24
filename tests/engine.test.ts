@@ -242,6 +242,18 @@ describe('force-first marketing Soft', () => {
     document.documentElement.removeAttribute('data-truely-dark-force');
   });
 
+  it('verifyForceApplication accepts dark main when html and body are transparent', () => {
+    document.documentElement.innerHTML =
+      '<head></head><body><main class="dialog-off-canvas-main-canvas"></main></body>';
+    document.documentElement.setAttribute('data-truely-dark-force', 'true');
+    document.documentElement.style.setProperty('background-color', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
+    const main = document.querySelector('main') as HTMLElement;
+    main.style.setProperty('background-color', '#0d1117', 'important');
+    expect(verifyForceApplication()).toBe(true);
+    removeDarkMode();
+  });
+
   it('applyForceStylesheetMode sets YouTube native dark hint attrs', () => {
     document.documentElement.innerHTML = '<head></head><body><ytd-masthead></ytd-masthead></body>';
     const youtubeEffective = resolveEffectiveSettings({

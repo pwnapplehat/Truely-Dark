@@ -267,7 +267,26 @@ export function registerBackgroundHandlers(): void {
           tabId = activeTab?.id;
         }
         const tabSettings = await getSettings();
-        return await buildTabInfo(tabUrl, tabSettings, tabId);
+        let tabInfo = await buildTabInfo(tabUrl, tabSettings, tabId);
+        if (
+          tabId !== undefined &&
+          tabUrl &&
+          tabInfo.active &&
+          !tabInfo.softApplied &&
+          !tabInfo.injectionPending &&
+          !tabInfo.pageRestricted &&
+          hostPrefersForceStylesheet(getHostnameFromUrl(tabUrl))
+        ) {
+          const [activeTab] = await browser.tabs.query({
+            active: true,
+            currentWindow: true,
+          });
+          if (activeTab?.id === tabId && activeTab.windowId !== undefined) {
+            await settleTabSoftApplied(tabId, activeTab.windowId, tabUrl, false, true);
+            tabInfo = await buildTabInfo(tabUrl, tabSettings, tabId);
+          }
+        }
+        return tabInfo;
 
       case 'INJECTION_STATUS':
         const injectionTabId = sender.tab?.id;
@@ -455,7 +474,7 @@ export function registerBackgroundHandlers(): void {
           if (!isPopupLikelyOpen()) {
             await settleTabSoftApplied(tabId, tab.windowId, tab.url, false);
           }
-        } else if (!isPopupLikelyOpen()) {
+        } else if (!isPopupLikelyOpen() && !hostPrefersForceStylesheet(getHostnameFromUrl(tab.url))) {
           await settleTabSoftApplied(tabId, tab.windowId, tab.url, false);
         }
       }

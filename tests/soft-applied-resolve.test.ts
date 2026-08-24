@@ -76,7 +76,7 @@ describe('resolveSoftAppliedForTab OVH signals', () => {
     expect(applied).toBe(true);
   });
 
-  it('skips capture when popup is open and returns false without downgrading contentStrict', async () => {
+  it('skips capture when popup is open and trusts preferForce force hosts', async () => {
     markPopupOpen();
     const applied = await resolveSoftAppliedForTab(
       3,
@@ -84,7 +84,7 @@ describe('resolveSoftAppliedForTab OVH signals', () => {
       'https://www.ovhcloud.com/en-in/',
       false,
     );
-    expect(applied).toBe(false);
+    expect(applied).toBe(true);
     expect(captureTabVisualAnalysis).not.toHaveBeenCalled();
   });
 });
