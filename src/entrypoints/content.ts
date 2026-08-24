@@ -24,7 +24,8 @@ import {
   removeDarkMode,
   stripInvertSoftArtifacts,
   verifyAppShellSoftApplication,
-  verifyForceApplication,
+  verifyForceApplicationForHost,
+  verifyMarketingForceApplication,
 } from '../lib/engine';
 import { computedFilterHasStrictInvert } from '../lib/filter-verify';
 import {
@@ -43,6 +44,7 @@ import {
   hostUsesInvertSoft,
   hostPrefersForceStylesheet,
   hostRequiresVisualVerify,
+  hostRequiresMarketingVisualVerify,
   hostUsesAppShellSoft,
   hostUsesInjectCssFallback,
   isExcludedOrigin,
@@ -77,6 +79,14 @@ function getCurrentOrigin(): string {
 
 function isPreferForceHost(): boolean {
   return hostUsesForceSoftEngine(getCurrentHostname());
+}
+
+/** Never apply Soft on prerender/hidden documents — visible tab owns inject lifecycle. */
+function shouldApplyOnThisDocument(): boolean {
+  const doc = document as Document & { prerendering?: boolean };
+  if (doc.prerendering === true) return false;
+  if (document.visibilityState === 'hidden') return false;
+  return true;
 }
 
 function isAppShellHost(): boolean {
@@ -176,29 +186,53 @@ export default defineContentScript({
       }
     }
 
-    async function requestInsertCssFallback(filterTarget: 'html' | 'body'): Promise<void> {
-      if (isPreferForceHost()) return;
+    async function requestInsertCssFallback(
+      filterTarget: 'html' | 'body',
+      contentApplying = false,
+    ): Promise<void> {
+      if (isPreferForceHost()) {
+        try {
+          await sendMessage({
+            type: 'INSERT_CSS_FALLBACK',
+            payload: { filterTarget, contentApplying },
+          });
+        } catch {
+          // Background may not be ready
+        }
+        return;
+      }
       try {
         await sendMessage({
           type: 'INSERT_CSS_FALLBACK',
-          payload: { filterTarget },
+          payload: { filterTarget, contentApplying },
         });
       } catch {
         // Background may not be ready
       }
     }
 
-    async function requestRemoveInsertCss(): Promise<void> {
+    async function requestApplyMainWorldForce(contentApplying = true): Promise<void> {
       try {
-        await sendMessage({ type: 'REMOVE_INSERT_CSS' });
+        await sendMessage({
+          type: 'APPLY_MAIN_WORLD_FORCE',
+          payload: { contentApplying },
+        });
       } catch {
         // Background may not be ready
       }
     }
 
-    async function requestApplyMainWorldForce(): Promise<void> {
+    async function rollbackFailedSoftApply(): Promise<void> {
+      stopPreferForceWatchdog();
+      removeDarkMode();
+      await requestRemoveInsertCss();
+      injectionStatusReported = false;
+      await reportInjectionStatus(false);
+    }
+
+    async function requestRemoveInsertCss(): Promise<void> {
       try {
-        await sendMessage({ type: 'APPLY_MAIN_WORLD_FORCE' });
+        await sendMessage({ type: 'REMOVE_INSERT_CSS' });
       } catch {
         // Background may not be ready
       }
@@ -264,13 +298,14 @@ export default defineContentScript({
         !appShell &&
         (effectivePrefersForceSoft(settings, hostname) ||
           settings.sitePack?.preferForceStylesheet === true);
+      const marketingVerify = hostRequiresMarketingVisualVerify(hostname);
 
       if (preferForce || appShell) {
         stripInvertSoftArtifacts(document);
       }
 
       applyDarkMode(settings, document, hostname);
-      let contentStrict = isSoftFilterActive();
+      let contentStrict = isSoftFilterActive(document, hostname);
 
       if (appShell) {
         contentStrict = verifyAppShellSoftApplication(document);
@@ -279,19 +314,19 @@ export default defineContentScript({
       }
 
       if (!contentStrict && hostUsesInjectCssFallback(hostname) && !preferForce) {
-        await requestInsertCssFallback('html');
+        await requestInsertCssFallback('html', true);
         applyDarkMode(settings, document, hostname);
-        contentStrict = isSoftFilterActive();
+        contentStrict = isSoftFilterActive(document, hostname);
         if (!contentStrict) {
-          await requestInsertCssFallback('body');
+          await requestInsertCssFallback('body', true);
           applyDarkMode(settings, document, hostname);
-          contentStrict = isSoftFilterActive();
+          contentStrict = isSoftFilterActive(document, hostname);
         }
       }
 
       if (!contentStrict && !preferForce) {
         applyDarkMode(settings, document, hostname);
-        contentStrict = isSoftFilterActive();
+        contentStrict = isSoftFilterActive(document, hostname);
         pierceOpenShadowRoots(document, generateShadowInvertPrepCss(), SHADOW_FILTER_STYLE_ID);
         await requestInvertSupplementIfNeeded();
       }
@@ -304,14 +339,23 @@ export default defineContentScript({
           generateShadowForceCss(settings, getCurrentHostname()),
           SHADOW_FORCE_STYLE_ID,
         );
-        contentStrict = isSoftFilterActive();
+        contentStrict = isSoftFilterActive(document, hostname);
       }
 
-  if (preferForce) {
-        await requestApplyMainWorldForce();
-        startPreferForceWatchdog(settings);
-        runPreferForceWatchdog(settings);
-        contentStrict = verifyForceApplication(document);
+      if (preferForce) {
+        if (hostUsesInjectCssFallback(hostname) || settings.sitePack?.forceStylesheetFallback) {
+          await requestInsertCssFallback('html', true);
+        }
+        applyDarkMode(settings, document, hostname);
+        await requestApplyMainWorldForce(true);
+        contentStrict = marketingVerify
+          ? verifyMarketingForceApplication(document, hostname)
+          : verifyForceApplicationForHost(document, hostname);
+        if (contentStrict) {
+          startPreferForceWatchdog(settings);
+        } else {
+          stopPreferForceWatchdog();
+        }
       } else {
         stopPreferForceWatchdog();
         await requestInvertSupplementIfNeeded();
@@ -320,16 +364,13 @@ export default defineContentScript({
       await reportInjectionStatus(contentStrict);
 
       if (!contentStrict) {
-        stopPreferForceWatchdog();
-        removeDarkMode();
-        await requestRemoveInsertCss();
+        await rollbackFailedSoftApply();
+        scheduleSoftRetries(settings);
         debouncedRefresh(true);
-      }
-
-      if (hostRequiresVisualVerify(hostname)) {
         return false;
       }
-      return contentStrict;
+
+      return true;
     }
 
     function scheduleSoftRetries(settings: EffectiveSiteSettings): void {
@@ -488,6 +529,9 @@ export default defineContentScript({
         }
 
         if (effective.active) {
+          if (!shouldApplyOnThisDocument()) {
+            return;
+          }
           const applied = await applyWithVerification(effective);
           if (!applied) {
             return;

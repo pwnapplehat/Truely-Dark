@@ -403,12 +403,18 @@ export function registerBackgroundHandlers(): void {
       case 'INSERT_CSS_FALLBACK':
         const fallbackTabId = sender.tab?.id;
         const fallbackUrl = sender.tab?.url ?? '';
-        const filterTarget =
-          (message.payload as { filterTarget?: 'html' | 'body' })?.filterTarget ?? 'html';
+        const fallbackPayload = message.payload as {
+          filterTarget?: 'html' | 'body';
+          contentApplying?: boolean;
+        };
+        const filterTarget = fallbackPayload?.filterTarget ?? 'html';
+        const contentApplying = fallbackPayload?.contentApplying === true;
         if (fallbackTabId && fallbackUrl) {
-          const inserted = await insertSoftCssForTab(fallbackTabId, fallbackUrl, filterTarget);
+          const inserted = await insertSoftCssForTab(fallbackTabId, fallbackUrl, filterTarget, {
+            contentApplying,
+          });
           if (!inserted && filterTarget === 'html') {
-            await insertSoftCssForTab(fallbackTabId, fallbackUrl, 'body');
+            await insertSoftCssForTab(fallbackTabId, fallbackUrl, 'body', { contentApplying });
           }
         }
         return { success: true };
@@ -423,8 +429,12 @@ export function registerBackgroundHandlers(): void {
       case 'APPLY_MAIN_WORLD_FORCE':
         const forceTabId = sender.tab?.id;
         const forceUrl = sender.tab?.url ?? '';
+        const forcePayload = message.payload as { contentApplying?: boolean } | undefined;
+        const forceContentApplying = forcePayload?.contentApplying === true;
         if (forceTabId && forceUrl) {
-          await escalatePreferForceMainWorldForTab(forceTabId, forceUrl);
+          await escalatePreferForceMainWorldForTab(forceTabId, forceUrl, {
+            contentApplying: forceContentApplying,
+          });
         }
         return { success: true };
 

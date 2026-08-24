@@ -15,6 +15,7 @@ import {
   removeDarkMode,
   verifyAppShellSoftApplication,
   verifyForceApplication,
+  verifyMarketingForceApplication,
   verifySoftApplication,
   verifySoftFilterApplied,
 } from '../src/lib/engine';
@@ -326,6 +327,26 @@ describe('force-first marketing Soft', () => {
     document.documentElement.style.setProperty('background-color', 'transparent', 'important');
     document.body.style.setProperty('background-color', 'transparent', 'important');
     expect(verifyForceApplication()).toBe(true);
+    removeDarkMode();
+  });
+
+  it('verifyMarketingForceApplication passes when pricing cards are painted dark', () => {
+    document.documentElement.innerHTML =
+      '<head></head><body><main style="background-color:#141414"><div class="Card" style="background-color:#141414">Free</div></main></body>';
+    document.documentElement.setAttribute('data-truely-dark-active', 'soft');
+    document.documentElement.setAttribute('data-truely-dark-force', 'true');
+    document.documentElement.style.setProperty('background-color', '#0d1117', 'important');
+    expect(verifyMarketingForceApplication(document, 'x.ai')).toBe(true);
+    removeDarkMode();
+  });
+
+  it('verifyMarketingForceApplication fails when only html is force-painted', () => {
+    document.documentElement.innerHTML =
+      '<head></head><body><main style="background-color:#ffffff"><div class="Card" style="background-color:#ffffff">Free</div></main></body>';
+    document.documentElement.setAttribute('data-truely-dark-active', 'soft');
+    document.documentElement.setAttribute('data-truely-dark-force', 'true');
+    document.documentElement.style.setProperty('background-color', '#0d1117', 'important');
+    expect(verifyMarketingForceApplication(document, 'x.ai')).toBe(false);
     removeDarkMode();
   });
 

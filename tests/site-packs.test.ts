@@ -84,6 +84,14 @@ describe('findSitePack', () => {
     expect(pack?.customCss).toContain('backdrop-filter: none');
   });
 
+  it('x.ai force pack darkens pricing cards and white Tailwind surfaces', () => {
+    const pack = findSitePack('x.ai');
+    expect(pack?.customCss).toContain('[data-truely-dark-force]');
+    expect(pack?.customCss).toContain('[class*="bg-white"]');
+    expect(pack?.customCss).toContain('[class*="card"]');
+    expect(pack?.customCss).toContain('#141414');
+  });
+
   it('x.ai force pack paints cookie consent controls with readable contrast', () => {
     const pack = findSitePack('x.ai');
     expect(pack?.customCss).toContain('body div[class*="fixed"]');

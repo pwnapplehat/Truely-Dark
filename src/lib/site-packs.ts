@@ -743,6 +743,35 @@ const CHROME_WEB_STORE_CSS = `
 `;
 
 const XAI_FORCE_CSS = `
+  html[data-truely-dark-active][data-truely-dark-force] #__next,
+  html[data-truely-dark-active][data-truely-dark-force] #__next > div,
+  html[data-truely-dark-active][data-truely-dark-force] main,
+  html[data-truely-dark-active][data-truely-dark-force] main > div,
+  html[data-truely-dark-active][data-truely-dark-force] section,
+  html[data-truely-dark-active][data-truely-dark-force] article,
+  html[data-truely-dark-active][data-truely-dark-force] [class*="grid"] > div,
+  html[data-truely-dark-active][data-truely-dark-force] div[class*="rounded"],
+  html[data-truely-dark-active][data-truely-dark-force] div[class*="border"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="bg-white"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="bg-neutral"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="bg-gray"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="bg-background"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="card"],
+  html[data-truely-dark-active][data-truely-dark-force] [class*="Card"] {
+    background-color: #141414 !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] h1,
+  html[data-truely-dark-active][data-truely-dark-force] h2,
+  html[data-truely-dark-active][data-truely-dark-force] h3,
+  html[data-truely-dark-active][data-truely-dark-force] h4,
+  html[data-truely-dark-active][data-truely-dark-force] p,
+  html[data-truely-dark-active][data-truely-dark-force] span:not(button span),
+  html[data-truely-dark-active][data-truely-dark-force] li,
+  html[data-truely-dark-active][data-truely-dark-force] label {
+    color: #e8eaed !important;
+  }
   html[data-truely-dark-active] {
     --truely-dark-bg: #0a0a0a;
   }

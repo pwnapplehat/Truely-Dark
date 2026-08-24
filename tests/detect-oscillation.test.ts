@@ -7,7 +7,7 @@ import {
   isExtensionPaintActive,
   EXTENSION_MARKERS,
 } from '../src/lib/detect';
-import { applyDarkMode, removeDarkMode, verifyForceApplication } from '../src/lib/engine';
+import { applyDarkMode, removeDarkMode, verifyForceApplication, verifyMarketingForceApplication } from '../src/lib/engine';
 import { DEFAULT_SETTINGS } from '../src/lib/defaults';
 import { resolveEffectiveSettings, makeDetection } from '../src/lib/resolver';
 
@@ -103,6 +103,17 @@ describe('detect — extension paint must not trigger native-dark skip', () => {
     expect(document.documentElement.hasAttribute('data-truely-dark-active')).toBe(false);
     expect(document.documentElement.hasAttribute('data-truely-dark-force')).toBe(false);
     expect(document.documentElement.style.getPropertyValue('background-color')).toBe('');
+  });
+
+  it('verifyMarketingForceApplication rejects html-only force with white pricing cards', () => {
+    document.documentElement.setAttribute(EXTENSION_MARKERS.rootAttr, 'soft');
+    document.documentElement.setAttribute(EXTENSION_MARKERS.forceAttr, 'true');
+    document.documentElement.style.setProperty('background-color', '#0d1117', 'important');
+    document.documentElement.innerHTML =
+      '<head></head><body><div id="__next"><main style="background-color:#ffffff"><div class="rounded border bg-white Card">Free</div></main></div></body>';
+
+    expect(verifyForceApplication(document)).toBe(true);
+    expect(verifyMarketingForceApplication(document, 'x.ai')).toBe(false);
   });
 
   it('failed force Soft apply is fully removed by removeDarkMode', () => {

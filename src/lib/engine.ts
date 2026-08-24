@@ -2,7 +2,7 @@ import type { EffectiveSiteSettings } from '../types';
 import { parseColor, rgbByteLuminance } from './color';
 import { isExtensionInjectedBackground } from './detect';
 import { computedFilterHasStrictInvert } from './filter-verify';
-import { FORCE_MARKETING_BG, MARKETING_FORCE_SHELL_CSS, hostMatchesSitePackOrigin, hostPrefersForceStylesheet, hostUsesAppShellSoft, hostUsesForceSoftEngine, hostUsesInvertSoft, hostUsesMarketingForceShell, isYouTubeHostname, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor, syncYouTubeNativeDarkHint } from './site-packs';
+import { FORCE_MARKETING_BG, MARKETING_FORCE_SHELL_CSS, hostMatchesSitePackOrigin, hostPrefersForceStylesheet, hostRequiresMarketingVisualVerify, hostUsesAppShellSoft, hostUsesForceSoftEngine, hostUsesInvertSoft, hostUsesMarketingForceShell, isYouTubeHostname, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor, syncYouTubeNativeDarkHint } from './site-packs';
 import {
   pierceOpenShadowRoots,
   generateShadowForceCss,
@@ -671,6 +671,30 @@ const FORCE_ROOT_SURFACE_SELECTORS = [
   '#root',
 ] as const;
 
+/** Content surfaces that must darken on marketing force Soft (x.ai pricing cards). */
+const MARKETING_FORCE_CONTENT_SELECTORS = [
+  'main',
+  '[role="main"]',
+  '#__next > div',
+  '#__next section',
+  '[class*="pricing"]',
+  '[class*="Pricing"]',
+  '[class*="card"]',
+  '[class*="Card"]',
+  '[class*="tier"]',
+  '[class*="Tier"]',
+  '[class*="plan"]',
+  '[class*="Plan"]',
+] as const;
+
+function getComputedBackgroundLuminance(view: Window, el: Element): number | null {
+  const bg = view.getComputedStyle(el).backgroundColor;
+  if (!bg) return null;
+  const rgb = parseColor(bg);
+  if (!rgb) return null;
+  return rgbByteLuminance(rgb.r, rgb.g, rgb.b);
+}
+
 function isForceApplicationBackgroundDark(view: Window, doc: Document): boolean {
   if (isForceRootBackgroundDark(view, doc.documentElement)) return true;
   if (doc.body && isForceRootBackgroundDark(view, doc.body)) return true;
@@ -703,6 +727,56 @@ export function verifyForceApplication(doc: Document = document): boolean {
 
   // Force-marketing hosts paint on child surfaces (OVH Drupal); attrs mean force path engaged.
   return html.hasAttribute(ROOT_ATTR);
+}
+
+/**
+ * Marketing force Soft must darken content/card surfaces — html #0d1117 alone is half-applied.
+ */
+export function verifyMarketingForceApplication(
+  doc: Document = document,
+  hostname?: string,
+): boolean {
+  if (!verifyForceApplication(doc)) return false;
+
+  const view = doc.defaultView;
+  if (!view) return false;
+
+  const contentLums: number[] = [];
+  for (const selector of MARKETING_FORCE_CONTENT_SELECTORS) {
+    const nodes = doc.querySelectorAll(selector);
+    for (const el of nodes) {
+      const lum = getComputedBackgroundLuminance(view, el);
+      if (lum !== null) contentLums.push(lum);
+      if (contentLums.length >= 8) break;
+    }
+    if (contentLums.length >= 8) break;
+  }
+
+  if (contentLums.length === 0) {
+    return isForceApplicationBackgroundDark(view, doc);
+  }
+
+  const darkSamples = contentLums.filter((lum) => lum < MIN_FORCE_ROOT_LUMINANCE);
+  const lightSamples = contentLums.filter((lum) => lum > 0.7);
+
+  if (lightSamples.length > 0 && darkSamples.length === 0) return false;
+  if (darkSamples.length >= Math.ceil(contentLums.length / 2)) return true;
+
+  if (hostname && hostRequiresMarketingVisualVerify(hostname)) {
+    return false;
+  }
+
+  return darkSamples.length > 0;
+}
+
+export function verifyForceApplicationForHost(
+  doc: Document = document,
+  hostname?: string,
+): boolean {
+  if (hostname && hostRequiresMarketingVisualVerify(hostname)) {
+    return verifyMarketingForceApplication(doc, hostname);
+  }
+  return verifyForceApplication(doc);
 }
 
 /**
@@ -936,7 +1010,7 @@ export function applyDarkMode(
     html.setAttribute(ROOT_ATTR, settings.mode);
     restorePreloadDark(doc);
     applyForceStylesheetMode(settings, doc, hostname);
-    const applied = verifyForceApplication(doc);
+    const applied = verifyForceApplicationForHost(doc, hostname);
     return { filterTarget: 'force', applied };
   }
 
@@ -1006,13 +1080,13 @@ export function isDarkModeActive(doc: Document = document): boolean {
   return doc.documentElement.hasAttribute(ROOT_ATTR);
 }
 
-export function isSoftFilterActive(doc: Document = document): boolean {
+export function isSoftFilterActive(doc: Document = document, hostname?: string): boolean {
   if (!isDarkModeActive(doc)) return false;
   if (doc.documentElement.getAttribute(APP_SHELL_ATTR) === 'true') {
     return verifyAppShellSoftApplication(doc);
   }
   if (doc.documentElement.getAttribute(FORCE_ATTR) === 'true') {
-    return verifyForceApplication(doc);
+    return verifyForceApplicationForHost(doc, hostname);
   }
   const target =
     doc.documentElement.getAttribute(FILTER_TARGET_ATTR) === 'body' ? 'body' : 'html';

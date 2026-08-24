@@ -118,6 +118,24 @@ describe('x.ai Auto native skip integration', () => {
     expect(effective.nativeDark).toBe(false);
   });
 
+  it('paint-free detect on x.ai white #__next yields light/high — Auto Soft applies', () => {
+    document.documentElement.innerHTML =
+      '<head></head><body><div id="__next" style="background-color:#ffffff;min-height:100vh"><main style="background-color:#ffffff"><div class="rounded border bg-white">Free</div></main></div></body>';
+    document.documentElement.classList.add('light');
+
+    const outcome = detectFromDomPaintFree(document);
+    expect(outcome).toEqual({ result: 'light', confidence: 'high' });
+
+    const effective = resolveEffectiveSettings({
+      origin: 'https://x.ai',
+      hostname: 'x.ai',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: outcome,
+    });
+    expect(effective.active).toBe(true);
+    expect(effective.nativeDark).toBe(false);
+  });
+
   it('half-applied force Soft rgb leak stripped by paint-free detect', () => {
     document.documentElement.innerHTML =
       '<head></head><body><div id="__next" style="background-color:#0a0a0a;min-height:100vh"></div></body>';

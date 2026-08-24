@@ -492,6 +492,9 @@ function rejectSpaMisleadingAuthoredLight(
   const spaDark = classifyUniformDarkSurfaces(spaSamples);
   if (spaDark) return authored;
 
+  const spaLight = classifyUniformLightSurfaces(spaSamples);
+  if (spaLight) return spaLight;
+
   return { result: 'unknown', confidence: 'low' };
 }
 
@@ -523,6 +526,19 @@ function classifyUniformDarkSurfaces(samples: number[]): DetectionOutcome | null
   return null;
 }
 
+/** Painted SPA roots that are uniformly light (x.ai light theme on prefers-color-scheme: light). */
+function classifyUniformLightSurfaces(samples: number[]): DetectionOutcome | null {
+  if (samples.length === 0) return null;
+
+  const lightSamples = samples.filter((lum) => lum > LIGHT_LUMINANCE_THRESHOLD);
+  const darkSamples = samples.filter((lum) => lum < DARK_LUMINANCE_THRESHOLD);
+
+  if (darkSamples.length > 0) return null;
+  if (lightSamples.length === 0) return null;
+
+  return { result: 'light', confidence: 'high' };
+}
+
 /**
  * Uniform dark html/body before extension paint — native dark SPAs (x.ai, etc.).
  * Painted #__next / #root surfaces beat misleading html.light / color-scheme:light tokens.
@@ -539,6 +555,8 @@ export function detectNativeDarkRootSurfaces(doc: Document = document): Detectio
       .filter((lum): lum is number => lum !== null);
     const spaDark = classifyUniformDarkSurfaces(spaSamples);
     if (spaDark) return spaDark;
+    const spaLight = classifyUniformLightSurfaces(spaSamples);
+    if (spaLight) return spaLight;
   }
 
   const candidates: Element[] = [doc.documentElement];

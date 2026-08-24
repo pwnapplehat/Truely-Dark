@@ -8,7 +8,7 @@ import {
   generateShadowForceCss,
   generateShadowInvertPrepCss,
 } from './shadow-force';
-import { resolveEffectiveForUrl } from './insert-css-fallback';
+import { resolveEffectiveForUrl, resolveEffectiveForContentApply } from './insert-css-fallback';
 import { resolveForceBackgroundColor, hostPrefersForceStylesheet, getHostnameFromUrl } from './site-packs';
 
 const SCRIPT_TARGET = { allFrames: true } as const;
@@ -103,9 +103,15 @@ export async function executeMainWorldSoftFilter(
   });
 }
 
-export async function executeMainWorldForceStylesheet(tabId: number, url: string): Promise<boolean> {
+export async function executeMainWorldForceStylesheet(
+  tabId: number,
+  url: string,
+  options?: { contentApplying?: boolean },
+): Promise<boolean> {
   const hostname = getHostnameFromUrl(url);
-  const effective = await resolveEffectiveForUrl(url);
+  const effective = options?.contentApplying
+    ? await resolveEffectiveForContentApply(url, tabId)
+    : await resolveEffectiveForUrl(url);
   if (!effective?.active) return false;
 
   const forceCss = generateForceStylesheetCss(effective, hostname ?? undefined);

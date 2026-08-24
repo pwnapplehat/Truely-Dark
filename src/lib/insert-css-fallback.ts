@@ -5,7 +5,7 @@ import {
   type FilterTarget,
 } from './engine';
 import { generateNuclearForceCss } from './shadow-force';
-import { resolveEffectiveSettings, getSiteMode } from './resolver';
+import { resolveEffectiveSettings, getSiteMode, isNativeDarkSkip } from './resolver';
 import {
   type LiveDetectQueryResult,
   queryTabLiveDetection,
@@ -91,6 +91,54 @@ export async function resolveEffectiveForUrl(
   return effective;
 }
 
+/**
+ * Content script is actively applying Auto Soft — bypass background Auto inactive gate.
+ */
+export async function resolveEffectiveForContentApply(
+  url: string,
+  tabId?: number,
+): Promise<EffectiveSiteSettings | null> {
+  if (!isConfigurableWebPage(url)) return null;
+
+  const origin = getOriginFromUrl(url);
+  const hostname = getHostnameFromUrl(url);
+  if (!origin || !hostname) return null;
+
+  const settings = await getSettings();
+  const systemDark = await getSystemDarkPreference();
+  const siteMode = getSiteMode(settings, origin);
+
+  let detectOutcome: DetectionOutcome | undefined;
+  if (siteMode === 'auto' && tabId !== undefined) {
+    const liveDetect = await queryTabLiveDetection(tabId);
+    detectOutcome = liveDetect.detectOutcome;
+  }
+
+  const effective = resolveEffectiveSettings({
+    origin,
+    hostname,
+    settings,
+    systemDark,
+    detectOutcome,
+  });
+
+  if (siteMode === 'auto' && isNativeDarkSkip(detectOutcome ?? { result: 'unknown', confidence: 'low' })) {
+    return {
+      ...effective,
+      active: false,
+      nativeDark: true,
+      skipProcessing: true,
+      mode: 'auto',
+    };
+  }
+
+  if (siteMode === 'auto' && effective.active) {
+    return effective;
+  }
+
+  return resolveEffectiveForUrl(url, tabId);
+}
+
 async function removeInsertedCss(tabId: number): Promise<void> {
   const css = tabInsertedCss.get(tabId);
   if (!css) return;
@@ -116,6 +164,7 @@ export async function insertSoftCssForTab(
   tabId: number,
   url: string,
   filterTarget: FilterTarget = 'html',
+  options?: { contentApplying?: boolean },
 ): Promise<boolean> {
   const hostname = getHostnameFromUrl(url);
   if (hostUsesAppShellSoft(hostname)) {
@@ -124,10 +173,12 @@ export async function insertSoftCssForTab(
   }
   if (hostPrefersForceStylesheet(hostname)) {
     await removeInsertedCss(tabId);
-    return insertForceStylesheetForTab(tabId, url);
+    return insertForceStylesheetForTab(tabId, url, options);
   }
 
-  const effective = await resolveEffectiveForUrl(url, tabId);
+  const effective = options?.contentApplying
+    ? await resolveEffectiveForContentApply(url, tabId)
+    : await resolveEffectiveForUrl(url, tabId);
   if (!effective?.active) {
     await removeInsertedCss(tabId);
     return false;
@@ -181,10 +232,16 @@ async function removeInsertedForceCss(tabId: number): Promise<void> {
   tabForceCss.delete(tabId);
 }
 
-export async function insertForceStylesheetForTab(tabId: number, url: string): Promise<boolean> {
+export async function insertForceStylesheetForTab(
+  tabId: number,
+  url: string,
+  options?: { contentApplying?: boolean },
+): Promise<boolean> {
   await removeInsertedCss(tabId);
 
-  const effective = await resolveEffectiveForUrl(url, tabId);
+  const effective = options?.contentApplying
+    ? await resolveEffectiveForContentApply(url, tabId)
+    : await resolveEffectiveForUrl(url, tabId);
   if (!effective?.active) {
     await removeInsertedForceCss(tabId);
     return false;
