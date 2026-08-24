@@ -113,7 +113,8 @@ export type MessageType =
   | 'REMOVE_INSERT_CSS'
   | 'GESTURE_ACTIVATE_SOFT'
   | 'APPLY_MAIN_WORLD_FORCE'
-  | 'INSERT_INVERT_SUPPLEMENT';
+  | 'INSERT_INVERT_SUPPLEMENT'
+  | 'GET_LIVE_DETECT';
 
 export interface TruelyDarkMessage {
   type: MessageType;

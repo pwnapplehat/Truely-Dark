@@ -10,6 +10,7 @@ import {
   isSoftFilterActive,
   removeDarkMode,
   stripInvertSoftArtifacts,
+  verifyAppShellSoftApplication,
   verifyForceApplication,
 } from '../lib/engine';
 import { computedFilterHasStrictInvert } from '../lib/filter-verify';
@@ -27,6 +28,7 @@ import {
   getOriginFromUrl,
   hostPrefersForceStylesheet,
   hostRequiresVisualVerify,
+  hostUsesAppShellSoft,
   hostUsesInjectCssFallback,
   isExcludedOrigin,
   isYouTubeHostname,
@@ -62,6 +64,10 @@ function isPreferForceHost(): boolean {
   return hostPrefersForceStylesheet(getCurrentHostname());
 }
 
+function isAppShellHost(): boolean {
+  return hostUsesAppShellSoft(getCurrentHostname());
+}
+
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_start',
@@ -69,7 +75,9 @@ export default defineContentScript({
   matchAboutBlank: true,
   registration: 'manifest',
   main() {
-    injectPreloadCss();
+    if (!isAppShellHost()) {
+      injectPreloadCss();
+    }
 
     let detectObserver: MutationObserver | null = null;
     let styleGuardObserver: MutationObserver | null = null;
@@ -220,16 +228,24 @@ export default defineContentScript({
 
     async function applyWithVerification(settings: EffectiveSiteSettings): Promise<boolean> {
       const hostname = getCurrentHostname();
+      const appShell = isAppShellHost();
       const preferForce =
-        effectivePrefersForceSoft(settings, hostname) ||
-        settings.sitePack?.preferForceStylesheet === true;
+        !appShell &&
+        (effectivePrefersForceSoft(settings, hostname) ||
+          settings.sitePack?.preferForceStylesheet === true);
 
-      if (preferForce) {
+      if (preferForce || appShell) {
         stripInvertSoftArtifacts(document);
       }
 
       applyDarkMode(settings, document, hostname);
       let contentStrict = isSoftFilterActive();
+
+      if (appShell) {
+        contentStrict = verifyAppShellSoftApplication(document);
+        await reportInjectionStatus(contentStrict);
+        return contentStrict;
+      }
 
       if (!contentStrict && hostUsesInjectCssFallback(hostname) && !preferForce) {
         await requestInsertCssFallback('html');
@@ -434,7 +450,15 @@ export default defineContentScript({
       }
     }
 
-    function onMessage(message: TruelyDarkMessage): void {
+    function onMessage(
+      message: TruelyDarkMessage,
+      _sender: Browser.runtime.MessageSender,
+      sendResponse: (response?: unknown) => void,
+    ): boolean | void {
+      if (message.type === 'GET_LIVE_DETECT') {
+        sendResponse(detectFromDom());
+        return true;
+      }
       if (message.type === 'SETTINGS_CHANGED') {
         debouncedRefresh();
       }

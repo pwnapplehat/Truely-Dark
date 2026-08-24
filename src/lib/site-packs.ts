@@ -50,6 +50,7 @@ import {
 
 export {
   hostMatchesSitePackOrigin,
+  hostUsesAppShellSoft,
   hostUsesMarketingForceShell,
   isOvhManagerHost,
   OVH_MARKETING_ORIGINS,

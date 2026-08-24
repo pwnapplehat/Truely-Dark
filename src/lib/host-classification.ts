@@ -45,7 +45,14 @@ export function hostUsesMarketingForceShell(hostname: string): boolean {
 }
 
 /**
- * Force-stylesheet Soft engine (no invert filter). Manager uses invert Soft instead.
+ * App control-panel SPAs (OVH Manager) — never invert, never marketing force paint.
+ */
+export function hostUsesAppShellSoft(hostname: string): boolean {
+  return isOvhManagerHost(hostname);
+}
+
+/**
+ * Force-stylesheet Soft engine (no invert filter). Manager uses app-shell Soft instead.
  */
 export function hostPrefersForceStylesheet(hostname: string): boolean {
   if (isOvhManagerHost(hostname)) return false;

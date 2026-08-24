@@ -336,13 +336,20 @@ function detectComputedColorSchemeDark(doc: Document): DetectionOutcome | null {
  * Uniform dark html/body before extension paint — native dark SPAs (x.ai, etc.).
  */
 export function detectNativeDarkRootSurfaces(doc: Document = document): DetectionOutcome | null {
-  const view = doc.defaultView;
-  if (!view) return null;
+  const candidates: Element[] = [doc.documentElement];
+  if (doc.body) candidates.push(doc.body);
+  const nextRoot = doc.querySelector('#__next');
+  const reactRoot = doc.querySelector('#root');
+  if (nextRoot) candidates.push(nextRoot);
+  if (reactRoot) candidates.push(reactRoot);
+  if (doc.body?.firstElementChild) candidates.push(doc.body.firstElementChild);
 
-  const htmlLum = getElementBackgroundLuminance(doc.documentElement, doc);
-  const bodyLum = doc.body ? getElementBackgroundLuminance(doc.body, doc) : null;
+  const samples: number[] = [];
+  for (const el of candidates) {
+    const lum = getElementBackgroundLuminance(el, doc);
+    if (lum !== null) samples.push(lum);
+  }
 
-  const samples = [htmlLum, bodyLum].filter((lum): lum is number => lum !== null);
   if (samples.length === 0) return null;
 
   const darkSamples = samples.filter((lum) => lum < DARK_LUMINANCE_THRESHOLD);
@@ -350,6 +357,11 @@ export function detectNativeDarkRootSurfaces(doc: Document = document): Detectio
 
   if (lightSamples.length > 0) return null;
   if (darkSamples.length === samples.length) {
+    return { result: 'dark', confidence: 'high' };
+  }
+
+  const avg = samples.reduce((sum, lum) => sum + lum, 0) / samples.length;
+  if (avg < DARK_LUMINANCE_THRESHOLD && darkSamples.length > 0) {
     return { result: 'dark', confidence: 'high' };
   }
 
@@ -412,6 +424,10 @@ export function analyzeRegionalLuminances(luminances: number[]): DetectionOutcom
   const darkRegions = samples.filter((lum) => lum < DARK_LUMINANCE_THRESHOLD);
 
   if (lightRegions.length > 0 && darkRegions.length > 0) {
+    const avg = samples.reduce((sum, lum) => sum + lum, 0) / samples.length;
+    if (avg < DARK_LUMINANCE_THRESHOLD && darkRegions.length >= lightRegions.length) {
+      return { result: 'dark', confidence: 'high' };
+    }
     return { result: 'mixed', confidence: 'medium' };
   }
 

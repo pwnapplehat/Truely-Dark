@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   hostPrefersForceStylesheet,
+  hostUsesAppShellSoft,
   hostUsesMarketingForceShell,
   isOvhManagerHost,
   isOvhMarketingHost,
@@ -31,5 +32,10 @@ describe('host-classification — OVH Manager vs marketing', () => {
   it('does not attach marketing OVH site pack to Manager subdomains', () => {
     expect(findSitePack('manager.ca.ovhcloud.com')).toBeUndefined();
     expect(findSitePack('www.ovhcloud.com')?.customCss).toContain('ods-header-universe');
+  });
+
+  it('routes Manager to app-shell Soft instead of invert or force', () => {
+    expect(hostUsesAppShellSoft('manager.ca.ovhcloud.com')).toBe(true);
+    expect(hostPrefersForceStylesheet('manager.ca.ovhcloud.com')).toBe(false);
   });
 });

@@ -302,6 +302,13 @@ describe('analyzeRegionalLuminances — mixed marketing pages', () => {
     });
   });
 
+  it('native-dark SPA with one light control on dark shell → high-confidence skip', () => {
+    expect(analyzeRegionalLuminances([0.05, 0.08, 0.06, 0.95])).toEqual({
+      result: 'dark',
+      confidence: 'high',
+    });
+  });
+
   it('uniform dark regions → high-confidence native skip', () => {
     expect(analyzeRegionalLuminances([0.1, 0.12, 0.08])).toEqual({
       result: 'dark',

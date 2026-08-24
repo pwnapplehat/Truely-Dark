@@ -9,10 +9,10 @@ import { resolveEffectiveSettings } from './resolver';
 import { isConfigurableWebPage } from './restricted-hosts';
 import { getSystemDarkPreference } from './schedule';
 import {
-  findSitePack,
   getHostnameFromUrl,
   getOriginFromUrl,
   hostPrefersForceStylesheet,
+  hostUsesAppShellSoft,
   hostUsesInjectCssFallback,
   isExcludedOrigin,
   REDIRECTION_BANNER_KILL_CSS,
@@ -75,6 +75,10 @@ export async function insertSoftCssForTab(
   filterTarget: FilterTarget = 'html',
 ): Promise<boolean> {
   const hostname = getHostnameFromUrl(url);
+  if (hostUsesAppShellSoft(hostname)) {
+    await removeInsertedCss(tabId);
+    return false;
+  }
   if (hostPrefersForceStylesheet(hostname)) {
     await removeInsertedCss(tabId);
     return insertForceStylesheetForTab(tabId, url);

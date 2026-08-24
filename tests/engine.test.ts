@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../src/lib/defaults';
 import {
   applyDarkMode,
+  applyAppShellSoftMode,
   applyForceStylesheetMode,
   computePreInvertBackground,
   effectivePrefersForceSoft,
@@ -12,6 +13,7 @@ import {
   isSoftFilterActive,
   PRELOAD_CSS,
   removeDarkMode,
+  verifyAppShellSoftApplication,
   verifyForceApplication,
   verifySoftApplication,
   verifySoftFilterApplied,
@@ -239,6 +241,51 @@ describe('force-first marketing Soft', () => {
     );
     expect(css).not.toContain('ods-header-universe');
     expect(css).not.toContain('menu-navbar');
+  });
+
+  it('applyAppShellSoftMode avoids invert and opaque viewport paint on Manager', () => {
+    document.documentElement.innerHTML = '<head></head><body><main>Hub</main></body>';
+    applyAppShellSoftMode(
+      {
+        active: true,
+        mode: 'soft',
+        brightness: 100,
+        contrast: 92,
+        sepia: 0,
+        preserveMedia: true,
+        backgroundColor: '#121212',
+        skipProcessing: false,
+        nativeDark: false,
+      },
+      document,
+    );
+    expect(verifyAppShellSoftApplication()).toBe(true);
+    expect(document.documentElement.getAttribute('data-truely-dark-app-shell')).toBe('true');
+    expect(document.documentElement.getAttribute('data-truely-dark-force')).toBeNull();
+    expect(document.documentElement.style.filter).not.toContain('invert');
+    removeDarkMode();
+  });
+
+  it('applyDarkMode routes Manager to app-shell not invert', () => {
+    document.documentElement.innerHTML = '<head></head><body>Hub</body>';
+    const result = applyDarkMode(
+      {
+        active: true,
+        mode: 'soft',
+        brightness: 100,
+        contrast: 92,
+        sepia: 0,
+        preserveMedia: true,
+        backgroundColor: '#121212',
+        skipProcessing: false,
+        nativeDark: false,
+      },
+      document,
+      'manager.ca.ovhcloud.com',
+    );
+    expect(result.filterTarget).toBe('app-shell');
+    expect(result.applied).toBe(true);
+    removeDarkMode();
   });
 
   it('verifyForceApplication rejects invert filter on force path', () => {

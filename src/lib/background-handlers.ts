@@ -1,6 +1,7 @@
 import type {
   DetectConfidence,
   DetectResult,
+  DetectionOutcome,
   SiteMode,
   TabInfo,
   TruelyDarkMessage,
@@ -59,6 +60,20 @@ async function purgeStaleDetectCache(): Promise<void> {
   }
 }
 
+async function queryLiveDetection(tabId: number): Promise<DetectionOutcome | undefined> {
+  try {
+    const outcome = (await browser.tabs.sendMessage(tabId, {
+      type: 'GET_LIVE_DETECT',
+    })) as DetectionOutcome | undefined;
+    if (outcome?.result && outcome.confidence) {
+      return outcome;
+    }
+  } catch {
+    // Content script may not be ready yet
+  }
+  return undefined;
+}
+
 async function buildTabInfo(
   url: string,
   settings: TruelyDarkSettings,
@@ -89,12 +104,22 @@ async function buildTabInfo(
   const origin = getOriginFromUrl(url);
   const hostname = getHostnameFromUrl(url);
   const systemDark = await getSystemDarkPreference();
+  const siteMode = getSiteMode(settings, origin);
+  let detectOutcome: DetectionOutcome | undefined;
+  if (siteMode === 'auto' && tabId !== undefined) {
+    detectOutcome = await queryLiveDetection(tabId);
+  }
   const effective = resolveEffectiveSettings({
     origin,
     hostname,
     settings,
     systemDark,
+    detectOutcome,
   });
+
+  if (effective.nativeDark && tabId !== undefined) {
+    setTabSoftApplied(tabId, false);
+  }
 
   const reportedApplied = getTabSoftApplied(tabId);
   const galleryHost = isChromeGalleryHost(hostname);
@@ -159,7 +184,11 @@ async function handleSetSiteMode(origin: string, mode: SiteMode): Promise<Truely
   const settings = await getSettings();
   const overrides = { ...settings.siteOverrides };
   overrides[origin] = { mode, addedAt: Date.now() };
-  const updated = await updateSettings({ siteOverrides: overrides });
+  const detectCache = { ...settings.detectCache };
+  if (mode === 'auto') {
+    delete detectCache[origin];
+  }
+  const updated = await updateSettings({ siteOverrides: overrides, detectCache });
   await broadcastSettingsChanged();
   return updated;
 }

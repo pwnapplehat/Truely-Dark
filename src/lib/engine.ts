@@ -2,7 +2,7 @@ import type { EffectiveSiteSettings } from '../types';
 import { parseColor, rgbByteLuminance } from './color';
 import { isExtensionInjectedBackground } from './detect';
 import { computedFilterHasStrictInvert } from './filter-verify';
-import { MARKETING_FORCE_SHELL_CSS, hostMatchesSitePackOrigin, hostPrefersForceStylesheet, hostUsesMarketingForceShell, isYouTubeHostname, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor, syncYouTubeNativeDarkHint } from './site-packs';
+import { MARKETING_FORCE_SHELL_CSS, hostMatchesSitePackOrigin, hostPrefersForceStylesheet, hostUsesAppShellSoft, hostUsesMarketingForceShell, isYouTubeHostname, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor, syncYouTubeNativeDarkHint } from './site-packs';
 import {
   pierceOpenShadowRoots,
   generateShadowForceCss,
@@ -15,6 +15,7 @@ import {
 export const ROOT_ATTR = 'data-truely-dark-active';
 export const FILTER_TARGET_ATTR = 'data-truely-dark-filter-target';
 export const FORCE_ATTR = 'data-truely-dark-force';
+export const APP_SHELL_ATTR = 'data-truely-dark-app-shell';
 const STYLE_ID = 'truely-dark-styles';
 const PRELOAD_STYLE_ID = 'truely-dark-preload';
 const SHADOW_STYLE_ID = 'truely-dark-shadow-styles';
@@ -43,7 +44,7 @@ function clearAdoptedStylesheet(doc: Document): void {
   ADOPTED_SHEETS.delete(doc);
 }
 
-export type FilterTarget = 'html' | 'body' | 'force';
+export type FilterTarget = 'html' | 'body' | 'force' | 'app-shell';
 
 export interface ApplyDarkModeResult {
   filterTarget: FilterTarget;
@@ -99,9 +100,17 @@ export function effectivePrefersForceSoft(
   settings: EffectiveSiteSettings,
   hostname?: string,
 ): boolean {
+  if (hostname && hostUsesAppShellSoft(hostname)) return false;
   if (settings.sitePack?.preferForceStylesheet === true) return true;
   if (hostname && hostPrefersForceStylesheet(hostname)) return true;
   return false;
+}
+
+export function effectiveUsesAppShellSoft(
+  settings: EffectiveSiteSettings,
+  hostname?: string,
+): boolean {
+  return Boolean(hostname && hostUsesAppShellSoft(hostname) && settings.active);
 }
 
 /** Remove invert Soft artifacts — required before force path on marketing hosts. */
@@ -239,6 +248,73 @@ export function applyForceStylesheetMode(
   if (hostname && isYouTubeHostname(hostname)) {
     syncYouTubeNativeDarkHint(doc, true);
   }
+}
+
+/**
+ * App-shell Soft — color-scheme hint only; no invert, no opaque viewport paint.
+ * Used for Angular/ODS control panels (OVH Manager) where invert/force destroys layout.
+ */
+export function applyAppShellSoftMode(
+  settings: EffectiveSiteSettings,
+  doc: Document = document,
+): void {
+  stripInvertSoftArtifacts(doc);
+
+  const html = doc.documentElement;
+  html.setAttribute(ROOT_ATTR, settings.mode);
+  html.setAttribute(APP_SHELL_ATTR, 'true');
+  html.removeAttribute(FORCE_ATTR);
+  html.setAttribute(FILTER_TARGET_ATTR, 'app-shell');
+
+  clearInlineFilter(html);
+  clearInlineBackground(html);
+  html.style.removeProperty('color');
+
+  if (doc.body) {
+    clearInlineFilter(doc.body);
+    clearInlineBackground(doc.body);
+    doc.body.style.removeProperty('color');
+  }
+
+  doc.getElementById(PRELOAD_STYLE_ID)?.remove();
+
+  const css = `
+    html[${ROOT_ATTR}][${APP_SHELL_ATTR}] {
+      color-scheme: dark !important;
+    }
+    html[${ROOT_ATTR}][${APP_SHELL_ATTR}],
+    html[${ROOT_ATTR}][${APP_SHELL_ATTR}] body {
+      filter: none !important;
+      -webkit-filter: none !important;
+    }
+  `;
+
+  let styleEl = doc.getElementById(STYLE_ID) as HTMLStyleElement | null;
+  if (!styleEl) {
+    styleEl = doc.createElement('style');
+    styleEl.id = STYLE_ID;
+  }
+  styleEl.textContent = css;
+  appendStyleElement(doc, styleEl);
+}
+
+export function verifyAppShellSoftApplication(doc: Document = document): boolean {
+  const html = doc.documentElement;
+  if (html.getAttribute(APP_SHELL_ATTR) !== 'true') return false;
+  if (!html.hasAttribute(ROOT_ATTR)) return false;
+
+  const view = doc.defaultView;
+  if (!view) return false;
+
+  const htmlFilter = view.getComputedStyle(html).filter;
+  if (computedFilterHasStrictInvert(htmlFilter)) return false;
+
+  if (doc.body) {
+    const bodyFilter = view.getComputedStyle(doc.body).filter;
+    if (computedFilterHasStrictInvert(bodyFilter)) return false;
+  }
+
+  return true;
 }
 
 const CHROME_BACKDROP_RESET = `
@@ -728,6 +804,11 @@ export function applyDarkMode(
     return { filterTarget: 'force', applied };
   }
 
+  if (hostname && hostUsesAppShellSoft(hostname)) {
+    applyAppShellSoftMode(settings, doc);
+    return { filterTarget: 'app-shell', applied: verifyAppShellSoftApplication(doc) };
+  }
+
   const preInvertBg = computePreInvertBackground(settings.backgroundColor);
   const filter = buildFilterString(
     settings.brightness,
@@ -757,6 +838,7 @@ export function removeDarkMode(doc: Document = document): void {
   html.removeAttribute(ROOT_ATTR);
   html.removeAttribute(FILTER_TARGET_ATTR);
   html.removeAttribute(FORCE_ATTR);
+  html.removeAttribute(APP_SHELL_ATTR);
   clearInlineBackground(html);
   clearInlineFilter(html);
   html.style.removeProperty('color');
@@ -790,6 +872,9 @@ export function isDarkModeActive(doc: Document = document): boolean {
 
 export function isSoftFilterActive(doc: Document = document): boolean {
   if (!isDarkModeActive(doc)) return false;
+  if (doc.documentElement.getAttribute(APP_SHELL_ATTR) === 'true') {
+    return verifyAppShellSoftApplication(doc);
+  }
   if (doc.documentElement.getAttribute(FORCE_ATTR) === 'true') {
     return verifyForceApplication(doc);
   }
