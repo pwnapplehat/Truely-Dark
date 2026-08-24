@@ -54,6 +54,8 @@ describe('findSitePack', () => {
     expect(css).toContain('odss-section--light-blue');
     expect(css).toContain('ods-footer');
     expect(css).toContain('ods-bottomfooter');
+    expect(css).toContain('otds-button');
+    expect(css).toContain('button.oui-back-to-top');
     expect(css).not.toContain('[class*="copyright"]');
     expect(css).not.toContain('footer-column');
     expect(css).toContain('min-height: auto');
@@ -85,10 +87,13 @@ describe('findSitePack', () => {
   it('YouTube uses force-first Soft without invert on thumbnails', () => {
     const pack = findSitePack('www.youtube.com');
     expect(pack?.preferForceStylesheet).toBe(true);
+    expect(pack?.injectCssFallback).toBe(true);
     expect(hostPrefersForceStylesheet('www.youtube.com')).toBe(true);
     expect(pack?.customCss).toContain('ytd-app');
     expect(pack?.customCss).toContain('#background');
     expect(pack?.customCss).toContain('--yt-spec-base-background');
+    expect(pack?.customCss).toContain('--ytd-searchbox-background');
+    expect(pack?.customCss).toContain('-webkit-text-fill-color');
     expect(pack?.customCss).toContain('ytd-searchbox');
     expect(pack?.customCss).toContain('filter: none');
   });

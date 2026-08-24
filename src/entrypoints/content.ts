@@ -29,8 +29,10 @@ import {
   hostRequiresVisualVerify,
   hostUsesInjectCssFallback,
   isExcludedOrigin,
+  isYouTubeHostname,
   resolveForceBackgroundColor,
   resolveInvertSupplementCss,
+  syncYouTubeNativeDarkHint,
 } from '../lib/site-packs';
 import type { DetectionOutcome, EffectiveSiteSettings, TruelyDarkMessage } from '../types';
 
@@ -190,6 +192,9 @@ export default defineContentScript({
       if (forceMissing || inlineInvert || computedInvert) {
         stripInvertSoftArtifacts(document);
         applyDarkMode(settings, document, getCurrentHostname());
+        if (isYouTubeHostname(getCurrentHostname())) {
+          syncYouTubeNativeDarkHint(document, true);
+        }
         pierceOpenShadowRoots(
           document,
           generateShadowForceCss(settings, getCurrentHostname()),

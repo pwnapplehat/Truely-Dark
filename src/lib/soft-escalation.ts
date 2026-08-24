@@ -21,6 +21,7 @@ import {
   isMarketingVisualQuality,
   isSoftAppliedFromVisualAnalysis,
   resolveSoftAppliedFromSignals,
+  VISUAL_APPLIED_AVERAGE_THRESHOLD,
   type VisualSoftAppliedResult,
 } from './visual-verify';
 
@@ -164,6 +165,9 @@ export async function resolveSoftAppliedForTab(
   if (!visual.inconclusive && visual.applied) return true;
 
   if (visual.inconclusive) {
+    if (hostPrefersForceStylesheet(hostname)) {
+      return contentStrict;
+    }
     return hostRequiresMarketingVisualVerify(hostname) ? false : contentStrict;
   }
 
@@ -171,6 +175,12 @@ export async function resolveSoftAppliedForTab(
   if (escalated) return true;
 
   if (visual.analysis && hostRequiresMarketingVisualVerify(hostname)) {
+    if (
+      hostPrefersForceStylesheet(hostname) &&
+      visual.analysis.average < VISUAL_APPLIED_AVERAGE_THRESHOLD
+    ) {
+      return true;
+    }
     return false;
   }
 

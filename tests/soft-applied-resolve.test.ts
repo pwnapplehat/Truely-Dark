@@ -58,7 +58,7 @@ describe('resolveSoftAppliedForTab OVH signals', () => {
     expect(applied).toBe(true);
   });
 
-  it('fails OVH-like capture with light side gutters (marketing quality bar)', async () => {
+  it('trusts dark OVH force average even when marketing gutters fail quality bar', async () => {
     vi.mocked(captureTabVisualAnalysis).mockResolvedValue({
       average: 0.2,
       max: 0.7,
@@ -73,7 +73,7 @@ describe('resolveSoftAppliedForTab OVH signals', () => {
       'https://www.ovhcloud.com/en-in/',
       false,
     );
-    expect(applied).toBe(false);
+    expect(applied).toBe(true);
   });
 
   it('skips capture when popup is open and returns false without downgrading contentStrict', async () => {

@@ -241,6 +241,26 @@ describe('force-first marketing Soft', () => {
     expect(verifyForceApplication()).toBe(true);
     document.documentElement.removeAttribute('data-truely-dark-force');
   });
+
+  it('applyForceStylesheetMode sets YouTube native dark hint attrs', () => {
+    document.documentElement.innerHTML = '<head></head><body><ytd-masthead></ytd-masthead></body>';
+    const youtubeEffective = resolveEffectiveSettings({
+      origin: 'https://www.youtube.com',
+      hostname: 'www.youtube.com',
+      settings: DEFAULT_SETTINGS,
+      detectOutcome: { result: 'light', confidence: 'medium' },
+    });
+    applyForceStylesheetMode(
+      { ...youtubeEffective, active: true, mode: 'soft', sitePack: findSitePack('www.youtube.com') },
+      document,
+      'www.youtube.com',
+    );
+    expect(document.documentElement.getAttribute('dark')).toBe('');
+    expect(document.documentElement.getAttribute('data-truely-dark-youtube-hint')).toBe('true');
+    expect(document.querySelector('ytd-masthead')?.getAttribute('dark')).toBe('');
+    removeDarkMode();
+    expect(document.documentElement.getAttribute('dark')).toBeNull();
+  });
 });
 
 describe('applyDarkMode integration', () => {

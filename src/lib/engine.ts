@@ -2,7 +2,7 @@ import type { EffectiveSiteSettings } from '../types';
 import { parseColor, rgbByteLuminance } from './color';
 import { isExtensionInjectedBackground } from './detect';
 import { computedFilterHasStrictInvert } from './filter-verify';
-import { MARKETING_FORCE_SHELL_CSS, hostPrefersForceStylesheet, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor } from './site-packs';
+import { MARKETING_FORCE_SHELL_CSS, hostPrefersForceStylesheet, isYouTubeHostname, REDIRECTION_BANNER_KILL_CSS, resolveForceBackgroundColor, syncYouTubeNativeDarkHint } from './site-packs';
 import {
   pierceOpenShadowRoots,
   generateShadowForceCss,
@@ -226,6 +226,10 @@ export function applyForceStylesheetMode(
     generateShadowForceCss({ ...settings, backgroundColor: forceBg }, hostname),
     SHADOW_FORCE_STYLE_ID,
   );
+
+  if (hostname && isYouTubeHostname(hostname)) {
+    syncYouTubeNativeDarkHint(doc, true);
+  }
 }
 
 const CHROME_BACKDROP_RESET = `
@@ -736,6 +740,7 @@ export function removeDarkMode(doc: Document = document): void {
   restorePreloadDark(doc);
   clearShadowDomFilters(doc);
   removePiercedShadowStyles(doc, [SHADOW_FORCE_STYLE_ID, SHADOW_FILTER_STYLE_ID]);
+  syncYouTubeNativeDarkHint(doc, false);
 
   const styleEl = doc.getElementById(STYLE_ID);
   if (styleEl) styleEl.remove();

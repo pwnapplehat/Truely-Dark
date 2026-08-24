@@ -1,6 +1,40 @@
 import type { EffectiveSiteSettings, SitePack } from '../types';
 export const FORCE_MARKETING_BG = '#0d1117';
 
+/** Marker: Truely Dark set YouTube native theme attrs — safe to remove on off. */
+export const YOUTUBE_NATIVE_DARK_HINT_ATTR = 'data-truely-dark-youtube-hint';
+
+export function isYouTubeHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return normalized === 'youtube.com' || normalized.endsWith('.youtube.com');
+}
+
+/**
+ * YouTube Polymer reads html[dark] / ytd-masthead[dark] for internal theme vars.
+ * Without this hint, force shell CSS alone leaves light-theme surfaces (#dfe1e5).
+ */
+export function syncYouTubeNativeDarkHint(doc: Document, enable: boolean): void {
+  const html = doc.documentElement;
+  if (enable) {
+    html.setAttribute('dark', '');
+    html.setAttribute('darker-dark-theme', '');
+    html.setAttribute(YOUTUBE_NATIVE_DARK_HINT_ATTR, 'true');
+    for (const masthead of doc.querySelectorAll('ytd-masthead')) {
+      masthead.setAttribute('dark', '');
+    }
+    return;
+  }
+
+  if (html.getAttribute(YOUTUBE_NATIVE_DARK_HINT_ATTR) !== 'true') return;
+
+  html.removeAttribute('dark');
+  html.removeAttribute('darker-dark-theme');
+  html.removeAttribute(YOUTUBE_NATIVE_DARK_HINT_ATTR);
+  for (const masthead of doc.querySelectorAll('ytd-masthead')) {
+    masthead.removeAttribute('dark');
+  }
+}
+
 /** Counter-invert filter — cancels parent html invert(1) on isolated surfaces (Wikipedia footer). */
 export const INVERT_COUNTER_FILTER =
   'invert(1) hue-rotate(180deg) brightness(0.98) contrast(0.92)';
@@ -372,22 +406,40 @@ const OVH_FORCE_CSS = `
   html[data-truely-dark-active][data-truely-dark-force] [class*="Logo"] img {
     background-color: transparent !important;
   }
-  html[data-truely-dark-active][data-truely-dark-force] .oui-cta,
-  html[data-truely-dark-active][data-truely-dark-force] .oui-cta--primary,
-  html[data-truely-dark-active][data-truely-dark-force] [class*="oui-cta"] {
+  html[data-truely-dark-active][data-truely-dark-force] .otds-button .button,
+  html[data-truely-dark-active][data-truely-dark-force] .otds-button button,
+  html[data-truely-dark-active][data-truely-dark-force] .button__centered-text {
     background-color: #0050d7 !important;
     color: #fff !important;
     border-color: #0050d7 !important;
   }
-  html[data-truely-dark-active][data-truely-dark-force] .oui-cta *,
-  html[data-truely-dark-active][data-truely-dark-force] [class*="oui-cta"] * {
+  html[data-truely-dark-active][data-truely-dark-force] .oui-cta--primary,
+  html[data-truely-dark-active][data-truely-dark-force] a.oui-cta--primary,
+  html[data-truely-dark-active][data-truely-dark-force] .oui-cta.oui-cta--primary {
+    background-color: #0050d7 !important;
+    color: #fff !important;
+    border-color: #0050d7 !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] .oui-cta--primary *,
+  html[data-truely-dark-active][data-truely-dark-force] a.oui-cta--primary * {
     color: #fff !important;
   }
+  html[data-truely-dark-active][data-truely-dark-force] .oui-cta--link,
+  html[data-truely-dark-active][data-truely-dark-force] a.oui-cta--link {
+    background-color: transparent !important;
+    color: #8ab4f8 !important;
+    border-color: transparent !important;
+  }
+  html[data-truely-dark-active][data-truely-dark-force] button.oui-back-to-top,
+  html[data-truely-dark-active][data-truely-dark-force] button.oui-back-to-top.position-fixed,
   html[data-truely-dark-active][data-truely-dark-force] .oui-back-to-top {
     background-color: #1a1a2e !important;
     background: #1a1a2e !important;
     color: #e8eaed !important;
-    border-color: #3c4043 !important;
+    border: 1px solid #3c4043 !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    box-shadow: none !important;
   }
   html[data-truely-dark-active][data-truely-dark-force] .oui-back-to-top__icon {
     color: #e8eaed !important;
@@ -582,7 +634,9 @@ const GOOGLE_SEARCH_CSS = `
 `;
 
 const YOUTUBE_FORCE_CSS = `
-  html[data-truely-dark-active] {
+  html[data-truely-dark-active],
+  html[data-truely-dark-active][dark],
+  html[data-truely-dark-active][darker-dark-theme] {
     --truely-dark-bg: #0f0f0f;
     --yt-spec-base-background: #0f0f0f !important;
     --yt-spec-raised-background: #212121 !important;
@@ -592,6 +646,10 @@ const YOUTUBE_FORCE_CSS = `
     --yt-spec-general-background-a: #0f0f0f !important;
     --yt-spec-general-background-b: #0f0f0f !important;
     --yt-spec-brand-background-solid: #0f0f0f !important;
+    --ytd-searchbox-background: #121212 !important;
+    --ytd-searchbox-legacy-button-color: #f1f1f1 !important;
+    --ytd-searchbox-legacy-button-border-color: #3f3f3f !important;
+    --ytd-searchbox-text-color: #f1f1f1 !important;
     color-scheme: dark !important;
   }
   html[data-truely-dark-active],
@@ -660,6 +718,7 @@ const YOUTUBE_FORCE_CSS = `
   html[data-truely-dark-active] ytd-message-renderer #title,
   html[data-truely-dark-active] ytd-message-renderer #message,
   html[data-truely-dark-active] ytd-message-renderer yt-formatted-string,
+  html[data-truely-dark-active] ytd-message-renderer #title yt-formatted-string,
   html[data-truely-dark-active] #title.ytd-message-renderer,
   html[data-truely-dark-active] #message.ytd-message-renderer,
   html[data-truely-dark-active] ytd-browse h1,
@@ -668,6 +727,7 @@ const YOUTUBE_FORCE_CSS = `
   html[data-truely-dark-active] yt-formatted-string {
     background-color: var(--truely-dark-bg, #0f0f0f) !important;
     color: #f1f1f1 !important;
+    -webkit-text-fill-color: #f1f1f1 !important;
   }
   html[data-truely-dark-active] img,
   html[data-truely-dark-active] video,
@@ -899,6 +959,24 @@ const XAI_FORCE_CSS = `
     background-color: #e8eaed !important;
     color: #0a0a0a !important;
   }
+  html[data-truely-dark-active] div[class*="fixed"][class*="bottom"],
+  html[data-truely-dark-active] div[class*="fixed"][class*="right"],
+  html[data-truely-dark-active] [class*="bg-white"],
+  html[data-truely-dark-active] [class*="bg-neutral-"],
+  html[data-truely-dark-active] [class*="bg-gray-"],
+  html[data-truely-dark-active] [class*="bg-zinc-"] {
+    background-color: #141414 !important;
+    background-image: none !important;
+    color: #e8eaed !important;
+    border-color: #3c4043 !important;
+  }
+  html[data-truely-dark-active] div[class*="fixed"][class*="bottom"] *,
+  html[data-truely-dark-active] div[class*="fixed"][class*="right"] *,
+  html[data-truely-dark-active] [class*="bg-white"] *,
+  html[data-truely-dark-active] [class*="text-gray-"],
+  html[data-truely-dark-active] [class*="text-neutral-"] {
+    color: #e8eaed !important;
+  }
 `;
 
 const OVH_FORCE_PACK_CSS = `${REDIRECTION_BANNER_KILL_CSS}${FORCE_FORM_SURFACE_CSS}${OVH_FORCE_CSS}`;
@@ -1007,6 +1085,7 @@ export const SITE_PACKS: SitePack[] = [
     origins: ['youtube.com', 'www.youtube.com', 'm.youtube.com'],
     mode: 'auto',
     skipDetect: false,
+    injectCssFallback: true,
     preferForceStylesheet: true,
     requiresVisualVerify: true,
     forceStylesheetFallback: true,
